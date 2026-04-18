@@ -1,0 +1,8 @@
+node_modules/
+.env
+.DS_Store
+*.log
+.password
+
+# Datos en plano - NUNCA subir. Solo index.html encriptado va a GitHub.
+data.json

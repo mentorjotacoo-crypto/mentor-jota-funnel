@@ -1,0 +1,11 @@
+{
+  "name": "mentor-jota-funnel",
+  "version": "1.0.0",
+  "description": "Dashboard de embudo de ventas MENtoreo - encriptado AES-256 - solo uso de Jota",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "update": "node build.js"
+  },
+  "engines": { "node": ">=16" }
+}

@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENtoreo - Funnel Dashboard</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#0C4650; --bg-dark:#082e35; --bg-card:#0f5562;
+    --accent:#E7FF2A; --accent-dim:#b8cc22;
+    --text:#f0f4f5; --text-dim:#8fb3ba;
+    --green:#22c55e; --red:#ef4444; --orange:#f59e0b;
+    --blue:#3b82f6; --purple:#a855f7; --pink:#ec4899;
+    --stage1:#3b82f6; --stage2:#6366f1; --stage3:#8b5cf6;
+    --stage4:#a855f7; --stage5:#d946ef; --stage6:#ec4899;
+    --stage7:#E7FF2A; --stage8:#22c55e; --stage9:#10b981;
+  }
+  body { font-family:'Barlow',sans-serif; background:var(--bg-dark); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+  /* ===== LOGIN OVERLAY ===== */
+  .login-overlay {
+    position:fixed; inset:0; background:linear-gradient(135deg, var(--bg) 0%, var(--bg-dark) 100%);
+    display:flex; align-items:center; justify-content:center; z-index:10000; padding:20px;
+  }
+  .login-box {
+    background:var(--bg-card); border:2px solid var(--accent); border-radius:16px;
+    padding:40px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .login-logo {
+    font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:700;
+    text-transform:uppercase; letter-spacing:3px; text-align:center; margin-bottom:8px;
+  }
+  .login-logo span { color:var(--accent); }
+  .login-sub {
+    text-align:center; color:var(--text-dim); font-size:13px;
+    letter-spacing:2px; text-transform:uppercase; margin-bottom:30px;
+  }
+  .login-lock { text-align:center; font-size:48px; margin-bottom:20px; }
+  .login-input {
+    width:100%; background:rgba(0,0,0,0.3); border:2px solid rgba(255,255,255,0.1);
+    color:var(--text); padding:14px 18px; border-radius:8px;
+    font-family:'Barlow',sans-serif; font-size:15px; font-weight:500;
+    letter-spacing:1px; transition:border-color 0.2s;
+  }
+  .login-input:focus { outline:none; border-color:var(--accent); }
+  .login-btn {
+    width:100%; margin-top:14px; padding:14px;
+    background:var(--accent); color:var(--bg-dark); border:none; border-radius:8px;
+    font-family:'Barlow',sans-serif; font-size:14px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; cursor:pointer;
+    transition:transform 0.15s, box-shadow 0.2s;
+  }
+  .login-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 8px 20px rgba(231,255,42,0.3); }
+  .login-btn:disabled { opacity:0.5; cursor:wait; }
+  .login-error {
+    margin-top:14px; padding:10px 14px; background:rgba(239,68,68,0.15);
+    border:1px solid var(--red); border-radius:6px; color:var(--red);
+    font-size:12px; font-weight:600; text-align:center; display:none;
+  }
+  .login-error.show { display:block; }
+  .login-footer {
+    margin-top:30px; text-align:center; font-size:11px; color:var(--text-dim); line-height:1.6;
+  }
+  .login-footer b { color:var(--accent); }
+
+  /* ===== HEADER ===== */
+  .header {
+    background:linear-gradient(135deg, var(--bg) 0%, var(--bg-dark) 100%);
+    padding:24px 40px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:2px solid var(--accent); position:sticky; top:0; z-index:100;
+  }
+  .header h1 {
+    font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase;
+  }
+  .header h1 span { color:var(--accent); }
+  .header-meta { font-size:11px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase; }
+  .header-controls { display:flex; gap:12px; align-items:center; }
+  .btn {
+    font-family:'Barlow',sans-serif; padding:8px 20px; border:2px solid var(--accent);
+    background:transparent; color:var(--accent); font-weight:600; font-size:13px;
+    letter-spacing:1px; text-transform:uppercase; cursor:pointer;
+    transition:all 0.2s; border-radius:4px;
+  }
+  .btn:hover { background:var(--accent); color:var(--bg-dark); }
+  .btn.active { background:var(--accent); color:var(--bg-dark); }
+  .btn-small { padding:5px 12px; font-size:11px; }
+
+  /* ===== MAIN ===== */
+  .main { padding:30px 40px; max-width:1600px; margin:0 auto; }
+
+  /* ===== FILTERS ===== */
+  .filters {
+    display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; align-items:center;
+  }
+  .filter-label {
+    font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-dim);
+    font-weight:600; margin-right:8px;
+  }
+
+  /* ===== KPIs ===== */
+  .kpi-row {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:16px; margin-bottom:30px;
+  }
+  .kpi-card {
+    background:var(--bg-card); border-radius:12px; padding:18px 20px;
+    border:1px solid rgba(255,255,255,0.06); transition:transform 0.2s, border-color 0.2s;
+  }
+  .kpi-card:hover { transform:translateY(-2px); border-color:var(--accent); }
+  .kpi-label {
+    font-size:11px; text-transform:uppercase; letter-spacing:1.5px;
+    color:var(--text-dim); margin-bottom:6px; font-weight:500;
+  }
+  .kpi-value {
+    font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:700; line-height:1;
+  }
+  .kpi-sub { font-size:12px; color:var(--text-dim); margin-top:4px; }
+  .kpi-value.green { color:var(--green); }
+  .kpi-value.accent { color:var(--accent); }
+  .kpi-value.blue { color:var(--blue); }
+  .kpi-value.red { color:var(--red); }
+  .kpi-value.orange { color:var(--orange); }
+  .kpi-value.purple { color:var(--purple); }
+
+  /* ===== SECTION ===== */
+  .section-title {
+    font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700;
+    text-transform:uppercase; letter-spacing:2px; margin-bottom:20px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .section-title::before { content:''; width:4px; height:24px; background:var(--accent); border-radius:2px; }
+
+  /* ===== FUNNEL ===== */
+  .funnel-section { margin-bottom:40px; }
+  .funnel-container { display:flex; flex-direction:column; align-items:center; gap:0; }
+  .funnel-stage {
+    position:relative; display:flex; align-items:center; justify-content:center;
+    padding:14px 0; cursor:pointer; transition:all 0.3s; width:100%; max-width:1200px;
+  }
+  .funnel-stage:hover .funnel-bar { filter:brightness(1.2); box-shadow:0 0 20px rgba(255,255,255,0.1); }
+  .funnel-bar {
+    height:52px; border-radius:8px; display:flex; align-items:center;
+    justify-content:space-between; padding:0 24px; transition:all 0.4s;
+    position:relative; overflow:hidden;
+  }
+  .funnel-bar::before {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg, rgba(255,255,255,0.08) 0%, transparent 100%);
+  }
+  .funnel-left { display:flex; align-items:center; gap:14px; z-index:1; min-width:220px; }
+  .funnel-icon {
+    width:30px; height:30px; border-radius:6px; background:rgba(0,0,0,0.25);
+    display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;
+  }
+  .funnel-name { font-weight:600; font-size:14px; letter-spacing:0.5px; white-space:nowrap; }
+  .funnel-center { display:flex; align-items:center; gap:30px; z-index:1; }
+  .funnel-metric { text-align:center; }
+  .funnel-metric-value { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:700; }
+  .funnel-metric-label { font-size:9px; text-transform:uppercase; letter-spacing:1px; opacity:0.7; font-weight:500; }
+  .funnel-right { display:flex; align-items:center; gap:20px; z-index:1; }
+  .funnel-conversion { text-align:right; }
+  .funnel-conversion-rate { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:700; }
+  .funnel-conversion-label { font-size:9px; text-transform:uppercase; letter-spacing:1px; opacity:0.7; font-weight:500; }
+  .funnel-arrow { display:flex; align-items:center; justify-content:center; height:20px; position:relative; }
+  .funnel-arrow svg { width:20px; height:20px; opacity:0.3; }
+  .funnel-drop { position:absolute; right:60px; font-size:11px; color:var(--red); font-weight:600; opacity:0.8; }
+
+  /* ===== JOURNEY MAP ===== */
+  .journey-map { display:flex; gap:0; overflow-x:auto; padding:20px 0; }
+  .journey-step {
+    flex:0 0 auto; display:flex; flex-direction:column; align-items:center;
+    position:relative; min-width:140px;
+  }
+  .journey-node {
+    width:80px; height:80px; border-radius:50%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-weight:700; font-size:13px; position:relative; z-index:2;
+    border:3px solid rgba(255,255,255,0.2); transition:all 0.3s; cursor:pointer;
+  }
+  .journey-node:hover { transform:scale(1.1); border-color:var(--accent); }
+  .journey-node-value { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; }
+  .journey-label { margin-top:12px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; text-align:center; max-width:120px; }
+  .journey-sublabel { font-size:10px; color:var(--text-dim); margin-top:4px; text-align:center; }
+  .journey-connector { position:absolute; top:40px; left:80px; right:0; height:3px; z-index:1; }
+  .journey-connector-inner { height:100%; border-radius:2px; position:relative; }
+  .journey-connector-rate {
+    position:absolute; top:-18px; left:50%; transform:translateX(-50%);
+    font-size:10px; font-weight:700; color:var(--accent); white-space:nowrap;
+    background:var(--bg-dark); padding:2px 8px; border-radius:10px;
+  }
+
+  /* ===== REVENUE ===== */
+  .revenue-grid {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:20px; margin-bottom:30px;
+  }
+  .revenue-card {
+    background:var(--bg-card); border-radius:16px; padding:24px;
+    border:1px solid rgba(255,255,255,0.06);
+  }
+  .revenue-card h3 {
+    font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600;
+    text-transform:uppercase; letter-spacing:1.5px; color:var(--text-dim); margin-bottom:16px;
+  }
+  .revenue-item {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+  }
+  .revenue-item:last-child { border-bottom:none; }
+  .revenue-item-label { font-size:13px; font-weight:500; }
+  .revenue-item-value { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:700; }
+  .revenue-bar-container { margin-top:12px; }
+  .revenue-bar-bg { height:8px; background:rgba(0,0,0,0.3); border-radius:4px; overflow:hidden; margin-top:4px; }
+  .revenue-bar-fill { height:100%; border-radius:4px; transition:width 0.6s; }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display:flex; gap:4px; margin-bottom:20px;
+    background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; width:fit-content;
+  }
+  .tab {
+    padding:8px 20px; font-size:12px; font-weight:600; letter-spacing:1px;
+    text-transform:uppercase; cursor:pointer; border-radius:6px;
+    transition:all 0.2s; color:var(--text-dim); font-family:'Barlow',sans-serif;
+    border:none; background:none;
+  }
+  .tab:hover { color:var(--text); }
+  .tab.active { background:var(--accent); color:var(--bg-dark); }
+
+  /* ===== TOOLTIP ===== */
+  .tooltip {
+    position:fixed; background:var(--bg-dark); border:1px solid var(--accent);
+    border-radius:8px; padding:14px 18px; z-index:1000; pointer-events:none;
+    opacity:0; transition:opacity 0.2s; max-width:280px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.4);
+  }
+  .tooltip.visible { opacity:1; }
+  .tooltip h4 {
+    font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700;
+    text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:8px;
+  }
+  .tooltip p { font-size:12px; color:var(--text-dim); line-height:1.5; }
+  .tooltip .tt-row { display:flex; justify-content:space-between; padding:3px 0; font-size:12px; }
+  .tooltip .tt-label { color:var(--text-dim); }
+  .tooltip .tt-val { font-weight:600; color:var(--text); }
+
+  /* ===== DATA TABLE ===== */
+  .data-section {
+    background:var(--bg-card); border-radius:16px; padding:28px; margin-bottom:30px;
+    border:1px solid rgba(255,255,255,0.06); overflow-x:auto;
+  }
+  .data-grid {
+    display:grid; gap:2px; background:rgba(0,0,0,0.2);
+    border-radius:8px; overflow:hidden;
+  }
+  .data-cell { padding:8px 12px; background:var(--bg-card); font-size:12px; display:flex; align-items:center; }
+  .data-cell.header {
+    background:var(--bg-dark); font-weight:600; font-size:10px;
+    text-transform:uppercase; letter-spacing:1px; color:var(--accent);
+    justify-content:center; font-family:'Barlow Condensed',sans-serif;
+  }
+  .data-cell.label { font-weight:500; color:var(--text-dim); font-size:11px; }
+  .data-cell.computed {
+    font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:600;
+    justify-content:center; color:var(--accent);
+  }
+
+  @media (max-width:900px) {
+    .main { padding:20px 16px; }
+    .header { padding:16px 20px; flex-direction:column; gap:10px; }
+    .funnel-bar { padding:0 12px; height:44px; }
+    .funnel-center { gap:16px; }
+    .funnel-metric-value { font-size:16px; }
+    .kpi-row { grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-lock">&#128274;</div>
+    <div class="login-logo"><span>MEN</span>toreo</div>
+    <div class="login-sub">Funnel Dashboard</div>
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <input type="password" id="passwordInput" class="login-input"
+             placeholder="Ingresa tu clave" autocomplete="current-password" autofocus>
+      <button type="submit" class="login-btn" id="loginBtn">Acceder</button>
+      <div class="login-error" id="loginError">Clave incorrecta</div>
+    </form>
+    <div class="login-footer">
+      Dashboard encriptado con <b>AES-256</b><br>
+      Uso exclusivo de Jose Julian (Jota)
+    </div>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- MAIN APP (hidden until auth) -->
+<div id="app" style="display:none">
+
+  <div class="header">
+    <div>
+      <h1><span>MEN</span>toreo &mdash; Funnel Dashboard</h1>
+      <div class="header-meta">Actualizado: <span id="updatedAt">-</span> &middot; Build: <span id="buildDate">-</span></div>
+    </div>
+    <div class="header-controls">
+      <button class="btn" onclick="window.print()">Imprimir</button>
+      <button class="btn" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- FILTERS -->
+    <div class="filters">
+      <span class="filter-label">Periodo:</span>
+      <button class="btn btn-small active" onclick="setFilter('all', this)">Todo</button>
+      <button class="btn btn-small" onclick="setFilter('Feb', this)">Febrero</button>
+      <button class="btn btn-small" onclick="setFilter('Mar', this)">Marzo</button>
+      <button class="btn btn-small" onclick="setFilter('Abr', this)">Abril</button>
+      <button class="btn btn-small" onclick="setFilter('last7', this)">&Uacute;ltimos 7</button>
+      <button class="btn btn-small" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchView('funnel', this)">Embudo</button>
+      <button class="tab" onclick="switchView('journey', this)">Customer Journey</button>
+      <button class="tab" onclick="switchView('revenue', this)">Revenue</button>
+      <button class="tab" onclick="switchView('data', this)">Datos</button>
+    </div>
+
+    <div id="view-funnel" class="funnel-section">
+      <div class="section-title">Embudo de Ventas &mdash; Desaf&iacute;o 12 D&iacute;as &rarr; Low Ticket</div>
+      <div class="funnel-container" id="funnelContainer"></div>
+    </div>
+
+    <div id="view-journey" style="display:none">
+      <div class="section-title">Customer Journey Map</div>
+      <div style="background:var(--bg-card);border-radius:16px;padding:30px;border:1px solid rgba(255,255,255,0.06);overflow-x:auto;">
+        <div class="journey-map" id="journeyMap"></div>
+      </div>
+    </div>
+
+    <div id="view-revenue" style="display:none">
+      <div class="section-title">An&aacute;lisis de Revenue</div>
+      <div class="revenue-grid" id="revenueGrid"></div>
+    </div>
+
+    <div id="view-data" class="data-section" style="display:none">
+      <div class="section-title">Datos Detallados</div>
+      <div id="dataGrid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ====== ENCRYPTED PAYLOAD (AES-256-GCM / PBKDF2-SHA256) ======
+const ENC_PAYLOAD = '__ENCRYPTED_PAYLOAD__';
+const ITERATIONS = __ITERATIONS__;
+const BUILD_DATE = '__BUILD_DATE__';
+
+// ====== DECRYPTION ======
+async function decrypt(password, payloadB64) {
+  const raw = Uint8Array.from(atob(payloadB64), c => c.charCodeAt(0));
+  const salt = raw.slice(0, 16);
+  const iv = raw.slice(16, 28);
+  const authTag = raw.slice(28, 44);
+  const ciphertext = raw.slice(44);
+
+  // WebCrypto AES-GCM expects ciphertext || authTag concatenated
+  const ctWithTag = new Uint8Array(ciphertext.length + authTag.length);
+  ctWithTag.set(ciphertext, 0);
+  ctWithTag.set(authTag, ciphertext.length);
+
+  const keyMat = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2', false, ['deriveKey']
+  );
+  const key = await crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations: ITERATIONS, hash:'SHA-256' },
+    keyMat,
+    { name:'AES-GCM', length:256 },
+    false, ['decrypt']
+  );
+  const plaintext = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ctWithTag);
+  return JSON.parse(new TextDecoder().decode(plaintext));
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+  const pw = document.getElementById('passwordInput').value;
+  btn.disabled = true;
+  btn.textContent = 'Desencriptando...';
+  err.classList.remove('show');
+
+  try {
+    const data = await decrypt(pw, ENC_PAYLOAD);
+    sessionStorage.setItem('funnel_pw', pw);
+    onAuthSuccess(data);
+  } catch (ex) {
+    err.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Acceder';
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('funnel_pw');
+  location.reload();
+}
+
+function onAuthSuccess(data) {
+  APP_DATA = data;
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('updatedAt').textContent = data.updatedAt || '-';
+  document.getElementById('buildDate').textContent = BUILD_DATE.split('T')[0];
+  renderAll();
+}
+
+// Try session auto-login
+window.addEventListener('DOMContentLoaded', async () => {
+  const saved = sessionStorage.getItem('funnel_pw');
+  if (saved) {
+    try {
+      const data = await decrypt(saved, ENC_PAYLOAD);
+      onAuthSuccess(data);
+    } catch { sessionStorage.removeItem('funnel_pw'); }
+  }
+});
+
+// ====== DASHBOARD LOGIC ======
+let APP_DATA = null;
+let currentFilter = 'all';
+
+const STAGES = [
+  { id:'impressions', name:'Impresiones',            icon:'&#128064;', color:'var(--stage1)', desc:'Veces que el anuncio fue mostrado en Meta Ads' },
+  { id:'reach',       name:'Alcance',                icon:'&#127758;', color:'var(--stage2)', desc:'Personas \u00fanicas que vieron el anuncio' },
+  { id:'clicks',      name:'Link Clicks',            icon:'&#128073;', color:'var(--stage3)', desc:'Clics en el enlace del anuncio hacia la landing' },
+  { id:'lpv',         name:'Landing Page Views',     icon:'&#128196;', color:'var(--stage4)', desc:'Visitas efectivas a la landing del Desaf\u00edo 12 D\u00edas' },
+  { id:'leads',       name:'Leads (Opt-in)',         icon:'&#128231;', color:'var(--stage5)', desc:'Personas que dejaron sus datos en la landing' },
+  { id:'checkouts',   name:'Checkouts Iniciados',    icon:'&#128722;', color:'var(--stage6)', desc:'Personas que iniciaron el proceso de pago del Low Ticket ($37)' },
+  { id:'purchases',   name:'Compras Low Ticket',     icon:'&#128176;', color:'var(--stage7)', desc:'Compradores del Low Ticket ($37) - entrada al programa' },
+  { id:'bump1',       name:'Bump 1 (Sesion Estr.)',  icon:'&#127775;', color:'var(--stage8)', desc:'Upsell inmediato: Sesion Estrategica PRE ($42)' },
+  { id:'bump2',       name:'Bump 2 (Upgrade)',       icon:'&#128142;', color:'var(--stage9)', desc:'Segundo upsell: Sesion Estrategica Bump 2 ($48)' },
+];
+
+function getFilteredDays() {
+  const all = APP_DATA.days;
+  const keys = Object.keys(all);
+  if (currentFilter === 'all') return keys;
+  if (currentFilter === 'last7') return keys.slice(-7);
+  if (currentFilter === 'last30') return keys.slice(-30);
+  return keys.filter(k => k.startsWith(currentFilter));
+}
+
+function getAggregated() {
+  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
+  const agg = {};
+  fields.forEach(f => agg[f] = 0);
+  getFilteredDays().forEach(k => {
+    const d = APP_DATA.days[k];
+    fields.forEach(f => agg[f] += (parseFloat(d[f]) || 0));
+  });
+  return agg;
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filters .btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAll();
+}
+
+function renderAll() {
+  renderKPIs();
+  renderFunnel();
+  renderJourney();
+  renderRevenue();
+  renderDataGrid();
+}
+
+function renderKPIs() {
+  const d = getAggregated();
+  const P = APP_DATA.prices;
+  const revenue = (d.purchases * P.lowTicket) + (d.bump1 * P.bump1) + (d.bump2 * P.bump2);
+  const roas = d.spend > 0 ? revenue / d.spend : 0;
+  const cpl = d.leads > 0 ? d.spend / d.leads : 0;
+  const cpa = d.purchases > 0 ? d.spend / d.purchases : 0;
+  const convRate = d.lpv > 0 ? (d.purchases / d.lpv * 100) : 0;
+  const aov = d.purchases > 0 ? revenue / d.purchases : 0;
+  const ganancia = revenue - d.spend;
+  const nDias = getFilteredDays().length;
+
+  const kpis = [
+    { label:'Ad Spend',      value:'$'+d.spend.toFixed(2),     cls:'blue',    sub:nDias + ' d\u00edas' },
+    { label:'Revenue',       value:'$'+revenue.toFixed(2),     cls:'green',   sub:d.purchases + ' ventas' },
+    { label:'Ganancia',      value:(ganancia>=0?'+':'')+'$'+ganancia.toFixed(2), cls:ganancia>=0?'green':'red', sub:'Revenue - Spend' },
+    { label:'ROAS',          value:roas.toFixed(2)+'x',        cls:roas>=2?'green':roas>=1?'orange':'red', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo' },
+    { label:'Cost / Lead',   value:'$'+cpl.toFixed(2),         cls:'purple',  sub:d.leads + ' leads' },
+    { label:'Cost / Compra', value:'$'+cpa.toFixed(2),         cls:'accent',  sub:d.purchases + ' compras' },
+    { label:'Conv. Rate',    value:convRate.toFixed(2)+'%',    cls:convRate>1?'green':'orange', sub:'LPV \u2192 Compra' },
+    { label:'AOV',           value:'$'+aov.toFixed(2),         cls:'accent',  sub:'Valor promedio orden' },
+  ];
+
+  document.getElementById('kpiRow').innerHTML = kpis.map(k => `
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value ${k.cls}">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+function renderFunnel() {
+  const d = getAggregated();
+  const maxVal = Math.max(d.impressions, 1);
+  let html = '';
+
+  STAGES.forEach((stage, i) => {
+    const val = d[stage.id] || 0;
+    const widthPct = Math.max(15, (val / maxVal) * 100);
+    const prevVal = i > 0 ? (d[STAGES[i-1].id] || 0) : 0;
+    const convRate = prevVal > 0 ? ((val / prevVal) * 100) : 0;
+    const dropRate = prevVal > 0 ? (((prevVal - val) / prevVal) * 100) : 0;
+    const costPer = d.spend > 0 && val > 0 ? (d.spend / val) : 0;
+
+    if (i > 0) {
+      html += `<div class="funnel-arrow">
+        <svg viewBox="0 0 20 20" fill="var(--text-dim)"><path d="M10 14l-5-5h10z"/></svg>
+        ${dropRate > 0 ? `<span class="funnel-drop">-${dropRate.toFixed(0)}% drop</span>` : ''}
+      </div>`;
+    }
+
+    html += `<div class="funnel-stage"
+        onmouseenter="showTooltip(event, ${JSON.stringify(stage).replace(/"/g,'&quot;')}, ${val}, ${convRate}, ${costPer})"
+        onmouseleave="hideTooltip()">
+      <div class="funnel-bar" style="width:${widthPct}%; background:${stage.color};">
+        <div class="funnel-left">
+          <div class="funnel-icon">${stage.icon}</div>
+          <span class="funnel-name">${stage.name}</span>
+        </div>
+        <div class="funnel-center">
+          <div class="funnel-metric">
+            <div class="funnel-metric-value">${formatNum(val)}</div>
+            <div class="funnel-metric-label">Total</div>
+          </div>
+          ${costPer > 0 ? `<div class="funnel-metric">
+            <div class="funnel-metric-value">$${costPer.toFixed(2)}</div>
+            <div class="funnel-metric-label">Costo/Unit</div>
+          </div>` : ''}
+        </div>
+        <div class="funnel-right">
+          ${i > 0 ? `<div class="funnel-conversion">
+            <div class="funnel-conversion-rate">${convRate.toFixed(1)}%</div>
+            <div class="funnel-conversion-label">Conv.</div>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('funnelContainer').innerHTML = html;
+}
+
+function renderJourney() {
+  const d = getAggregated();
+  const steps = [
+    { label:'Ad View',      sub:'Meta Ads',            val:formatNum(d.impressions), color:'var(--stage1)', key:'impressions' },
+    { label:'Ad Click',     sub:'CTA en anuncio',      val:formatNum(d.clicks),      color:'var(--stage3)', key:'clicks' },
+    { label:'Landing',      sub:'Desaf\u00edo 12 D\u00edas', val:formatNum(d.lpv),         color:'var(--stage4)', key:'lpv' },
+    { label:'Opt-in',       sub:'Deja sus datos',      val:formatNum(d.leads),       color:'var(--stage5)', key:'leads' },
+    { label:'Checkout',     sub:'P\u00e1gina de pago', val:formatNum(d.checkouts),   color:'var(--stage6)', key:'checkouts' },
+    { label:'Compra',       sub:'Low Ticket $37',      val:formatNum(d.purchases),   color:'var(--stage7)', key:'purchases' },
+    { label:'Bump 1',       sub:'Sesi\u00f3n $42',     val:formatNum(d.bump1),       color:'var(--stage8)', key:'bump1' },
+    { label:'Bump 2',       sub:'Upgrade $48',         val:formatNum(d.bump2),       color:'var(--stage9)', key:'bump2' },
+  ];
+
+  let html = '';
+  steps.forEach((s, i) => {
+    const prev = i > 0 ? (d[steps[i-1].key] || 0) : 0;
+    const cur = d[s.key] || 0;
+    const rate = prev > 0 ? ((cur/prev)*100).toFixed(1)+'%' : '';
+    html += `<div class="journey-step">
+      <div class="journey-node" style="background:${s.color};">
+        <div class="journey-node-value">${s.val}</div>
+      </div>
+      <div class="journey-label">${s.label}</div>
+      <div class="journey-sublabel">${s.sub}</div>
+      ${i < steps.length - 1 ? `<div class="journey-connector">
+        <div class="journey-connector-inner" style="background:linear-gradient(90deg, ${s.color}, ${steps[i+1].color});"></div>
+        ${rate && i > 0 ? `<div class="journey-connector-rate">${rate}</div>` : ''}
+      </div>` : ''}
+    </div>`;
+  });
+  document.getElementById('journeyMap').innerHTML = html;
+}
+
+function renderRevenue() {
+  const d = getAggregated();
+  const P = APP_DATA.prices;
+  const ltRev = d.purchases * P.lowTicket;
+  const b1Rev = d.bump1 * P.bump1;
+  const b2Rev = d.bump2 * P.bump2;
+  const totalRev = ltRev + b1Rev + b2Rev;
+  const ganancia = totalRev - d.spend;
+  const aov = d.purchases > 0 ? totalRev / d.purchases : 0;
+  const b1Rate = d.purchases > 0 ? (d.bump1 / d.purchases * 100) : 0;
+  const b2Rate = d.purchases > 0 ? (d.bump2 / d.purchases * 100) : 0;
+
+  document.getElementById('revenueGrid').innerHTML = `
+    <div class="revenue-card">
+      <h3>Desglose de Revenue</h3>
+      <div class="revenue-item"><span class="revenue-item-label">Low Ticket ($${P.lowTicket} x ${d.purchases})</span><span class="revenue-item-value" style="color:var(--stage7)">$${ltRev.toFixed(2)}</span></div>
+      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?ltRev/totalRev*100:0}%;background:var(--stage7)"></div></div></div>
+      <div class="revenue-item" style="margin-top:12px"><span class="revenue-item-label">Bump 1 ($${P.bump1} x ${d.bump1})</span><span class="revenue-item-value" style="color:var(--stage8)">$${b1Rev.toFixed(2)}</span></div>
+      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b1Rev/totalRev*100:0}%;background:var(--stage8)"></div></div></div>
+      <div class="revenue-item" style="margin-top:12px"><span class="revenue-item-label">Bump 2 ($${P.bump2} x ${d.bump2})</span><span class="revenue-item-value" style="color:var(--stage9)">$${b2Rev.toFixed(2)}</span></div>
+      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b2Rev/totalRev*100:0}%;background:var(--stage9)"></div></div></div>
+      <div class="revenue-item" style="margin-top:16px;border-top:2px solid var(--accent);padding-top:12px"><span class="revenue-item-label" style="font-weight:700">TOTAL REVENUE</span><span class="revenue-item-value" style="color:var(--accent);font-size:24px">$${totalRev.toFixed(2)}</span></div>
+    </div>
+
+    <div class="revenue-card">
+      <h3>Unit Economics</h3>
+      <div class="revenue-item"><span class="revenue-item-label">CPL</span><span class="revenue-item-value" style="color:var(--purple)">$${d.leads>0?(d.spend/d.leads).toFixed(2):'0.00'}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">CPA (Costo/Compra)</span><span class="revenue-item-value" style="color:var(--orange)">$${d.purchases>0?(d.spend/d.purchases).toFixed(2):'0.00'}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">AOV</span><span class="revenue-item-value" style="color:var(--accent)">$${aov.toFixed(2)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Bump 1 Take Rate</span><span class="revenue-item-value" style="color:var(--stage8)">${b1Rate.toFixed(1)}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Bump 2 Take Rate</span><span class="revenue-item-value" style="color:var(--stage9)">${b2Rate.toFixed(1)}%</span></div>
+      <div class="revenue-item" style="margin-top:8px;border-top:2px solid ${ganancia>=0?'var(--green)':'var(--red)'};padding-top:12px"><span class="revenue-item-label" style="font-weight:700">GANANCIA NETA</span><span class="revenue-item-value" style="color:${ganancia>=0?'var(--green)':'var(--red)'};font-size:24px">${ganancia>=0?'+':''}$${ganancia.toFixed(2)}</span></div>
+    </div>
+
+    <div class="revenue-card">
+      <h3>Eficiencia del Embudo</h3>
+      <div class="revenue-item"><span class="revenue-item-label">CTR</span><span class="revenue-item-value" style="color:var(--blue)">${d.impressions>0?(d.clicks/d.impressions*100).toFixed(2):'0.00'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Landing \u2192 Lead</span><span class="revenue-item-value" style="color:var(--stage5)">${d.lpv>0?(d.leads/d.lpv*100).toFixed(1):'0.0'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Lead \u2192 Checkout</span><span class="revenue-item-value" style="color:var(--stage6)">${d.leads>0?(d.checkouts/d.leads*100).toFixed(1):'0.0'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Checkout \u2192 Compra</span><span class="revenue-item-value" style="color:var(--stage7)">${d.checkouts>0?(d.purchases/d.checkouts*100).toFixed(1):'0.0'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Impression \u2192 Compra</span><span class="revenue-item-value" style="color:var(--accent)">${d.impressions>0?(d.purchases/d.impressions*100).toFixed(4):'0.0000'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Cost per Landing View</span><span class="revenue-item-value" style="color:var(--text-dim)">$${d.lpv>0?(d.spend/d.lpv).toFixed(2):'0.00'}</span></div>
+    </div>
+  `;
+}
+
+function renderDataGrid() {
+  const days = getFilteredDays();
+  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
+  const labels = ['Impresiones','Alcance','Clicks','LPV','Leads','Checkouts','Compras','Bump 1','Bump 2','Spend ($)'];
+  const P = APP_DATA.prices;
+
+  let html = `<div class="data-grid" style="grid-template-columns: 140px repeat(${days.length}, minmax(70px, 1fr));">`;
+  html += `<div class="data-cell header">M\u00e9trica</div>`;
+  days.forEach(p => { html += `<div class="data-cell header">${p.replace(' 0',' ')}</div>`; });
+
+  fields.forEach((f, fi) => {
+    html += `<div class="data-cell label">${labels[fi]}</div>`;
+    days.forEach(p => {
+      const v = APP_DATA.days[p][f] || 0;
+      html += `<div class="data-cell computed">${f==='spend'?'$'+parseFloat(v).toFixed(0):formatNum(v)}</div>`;
+    });
+  });
+
+  // Computed
+  const computed = [
+    { lbl:'Revenue',    fn:d => '$' + ((d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2)).toFixed(0) },
+    { lbl:'ROAS',       fn:d => { const r=(d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2); return d.spend>0?(r/d.spend).toFixed(2)+'x':'-'; } },
+    { lbl:'CPL',        fn:d => d.leads>0 ? '$'+(d.spend/d.leads).toFixed(1) : '-' },
+  ];
+  computed.forEach(c => {
+    html += `<div class="data-cell label" style="color:var(--accent)">${c.lbl}</div>`;
+    days.forEach(p => html += `<div class="data-cell computed">${c.fn(APP_DATA.days[p])}</div>`);
+  });
+
+  html += '</div>';
+  document.getElementById('dataGrid').innerHTML = html;
+}
+
+function switchView(view, tabEl) {
+  ['funnel','journey','revenue','data'].forEach(v => {
+    const el = document.getElementById('view-'+v);
+    if (el) el.style.display = v === view ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (tabEl) tabEl.classList.add('active');
+}
+
+function showTooltip(event, stage, val, convRate, costPer) {
+  const tt = document.getElementById('tooltip');
+  tt.innerHTML = `
+    <h4>${stage.name}</h4>
+    <p style="margin-bottom:8px">${stage.desc}</p>
+    <div class="tt-row"><span class="tt-label">Total:</span><span class="tt-val">${formatNum(val)}</span></div>
+    ${convRate > 0 ? `<div class="tt-row"><span class="tt-label">Conv. desde anterior:</span><span class="tt-val">${convRate.toFixed(1)}%</span></div>` : ''}
+    ${costPer > 0 ? `<div class="tt-row"><span class="tt-label">Costo unitario:</span><span class="tt-val">$${costPer.toFixed(2)}</span></div>` : ''}
+  `;
+  tt.style.left = Math.min(event.clientX + 15, window.innerWidth - 300) + 'px';
+  tt.style.top = (event.clientY - 10) + 'px';
+  tt.classList.add('visible');
+}
+
+function hideTooltip() { document.getElementById('tooltip').classList.remove('visible'); }
+
+function formatNum(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return Math.round(n).toString();
+}
+</script>
+</body>
+</html>

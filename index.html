@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MENtoreo - Funnel Dashboard</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#0C4650; --bg-dark:#082e35; --bg-card:#0f5562;
+    --accent:#E7FF2A; --accent-dim:#b8cc22;
+    --text:#f0f4f5; --text-dim:#8fb3ba;
+    --green:#22c55e; --red:#ef4444; --orange:#f59e0b;
+    --blue:#3b82f6; --purple:#a855f7; --pink:#ec4899;
+    --stage1:#3b82f6; --stage2:#6366f1; --stage3:#8b5cf6;
+    --stage4:#a855f7; --stage5:#d946ef; --stage6:#ec4899;
+    --stage7:#E7FF2A; --stage8:#22c55e; --stage9:#10b981;
+  }
+  body { font-family:'Barlow',sans-serif; background:var(--bg-dark); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+  /* ===== LOGIN OVERLAY ===== */
+  .login-overlay {
+    position:fixed; inset:0; background:linear-gradient(135deg, var(--bg) 0%, var(--bg-dark) 100%);
+    display:flex; align-items:center; justify-content:center; z-index:10000; padding:20px;
+  }
+  .login-box {
+    background:var(--bg-card); border:2px solid var(--accent); border-radius:16px;
+    padding:40px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .login-logo {
+    font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:700;
+    text-transform:uppercase; letter-spacing:3px; text-align:center; margin-bottom:8px;
+  }
+  .login-logo span { color:var(--accent); }
+  .login-sub {
+    text-align:center; color:var(--text-dim); font-size:13px;
+    letter-spacing:2px; text-transform:uppercase; margin-bottom:30px;
+  }
+  .login-lock { text-align:center; font-size:48px; margin-bottom:20px; }
+  .login-input {
+    width:100%; background:rgba(0,0,0,0.3); border:2px solid rgba(255,255,255,0.1);
+    color:var(--text); padding:14px 18px; border-radius:8px;
+    font-family:'Barlow',sans-serif; font-size:15px; font-weight:500;
+    letter-spacing:1px; transition:border-color 0.2s;
+  }
+  .login-input:focus { outline:none; border-color:var(--accent); }
+  .login-btn {
+    width:100%; margin-top:14px; padding:14px;
+    background:var(--accent); color:var(--bg-dark); border:none; border-radius:8px;
+    font-family:'Barlow',sans-serif; font-size:14px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; cursor:pointer;
+    transition:transform 0.15s, box-shadow 0.2s;
+  }
+  .login-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 8px 20px rgba(231,255,42,0.3); }
+  .login-btn:disabled { opacity:0.5; cursor:wait; }
+  .login-error {
+    margin-top:14px; padding:10px 14px; background:rgba(239,68,68,0.15);
+    border:1px solid var(--red); border-radius:6px; color:var(--red);
+    font-size:12px; font-weight:600; text-align:center; display:none;
+  }
+  .login-error.show { display:block; }
+  .login-footer {
+    margin-top:30px; text-align:center; font-size:11px; color:var(--text-dim); line-height:1.6;
+  }
+  .login-footer b { color:var(--accent); }
+
+  /* ===== HEADER ===== */
+  .header {
+    background:linear-gradient(135deg, var(--bg) 0%, var(--bg-dark) 100%);
+    padding:24px 40px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:2px solid var(--accent); position:sticky; top:0; z-index:100;
+  }
+  .header h1 {
+    font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase;
+  }
+  .header h1 span { color:var(--accent); }
+  .header-meta { font-size:11px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase; }
+  .header-controls { display:flex; gap:12px; align-items:center; }
+  .btn {
+    font-family:'Barlow',sans-serif; padding:8px 20px; border:2px solid var(--accent);
+    background:transparent; color:var(--accent); font-weight:600; font-size:13px;
+    letter-spacing:1px; text-transform:uppercase; cursor:pointer;
+    transition:all 0.2s; border-radius:4px;
+  }
+  .btn:hover { background:var(--accent); color:var(--bg-dark); }
+  .btn.active { background:var(--accent); color:var(--bg-dark); }
+  .btn-small { padding:5px 12px; font-size:11px; }
+
+  /* ===== MAIN ===== */
+  .main { padding:30px 40px; max-width:1600px; margin:0 auto; }
+
+  /* ===== FILTERS ===== */
+  .filters {
+    display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; align-items:center;
+  }
+  .filter-label {
+    font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-dim);
+    font-weight:600; margin-right:8px;
+  }
+
+  /* ===== KPIs ===== */
+  .kpi-row {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:16px; margin-bottom:30px;
+  }
+  .kpi-card {
+    background:var(--bg-card); border-radius:12px; padding:18px 20px;
+    border:1px solid rgba(255,255,255,0.06); transition:transform 0.2s, border-color 0.2s;
+  }
+  .kpi-card:hover { transform:translateY(-2px); border-color:var(--accent); }
+  .kpi-label {
+    font-size:11px; text-transform:uppercase; letter-spacing:1.5px;
+    color:var(--text-dim); margin-bottom:6px; font-weight:500;
+  }
+  .kpi-value {
+    font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:700; line-height:1;
+  }
+  .kpi-sub { font-size:12px; color:var(--text-dim); margin-top:4px; }
+  .kpi-value.green { color:var(--green); }
+  .kpi-value.accent { color:var(--accent); }
+  .kpi-value.blue { color:var(--blue); }
+  .kpi-value.red { color:var(--red); }
+  .kpi-value.orange { color:var(--orange); }
+  .kpi-value.purple { color:var(--purple); }
+
+  /* ===== SECTION ===== */
+  .section-title {
+    font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700;
+    text-transform:uppercase; letter-spacing:2px; margin-bottom:20px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .section-title::before { content:''; width:4px; height:24px; background:var(--accent); border-radius:2px; }
+
+  /* ===== FUNNEL ===== */
+  .funnel-section { margin-bottom:40px; }
+  .funnel-container { display:flex; flex-direction:column; align-items:center; gap:0; }
+  .funnel-stage {
+    position:relative; display:flex; align-items:center; justify-content:center;
+    padding:14px 0; cursor:pointer; transition:all 0.3s; width:100%; max-width:1200px;
+  }
+  .funnel-stage:hover .funnel-bar { filter:brightness(1.2); box-shadow:0 0 20px rgba(255,255,255,0.1); }
+  .funnel-bar {
+    height:52px; border-radius:8px; display:flex; align-items:center;
+    justify-content:space-between; padding:0 24px; transition:all 0.4s;
+    position:relative; overflow:hidden;
+  }
+  .funnel-bar::before {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg, rgba(255,255,255,0.08) 0%, transparent 100%);
+  }
+  .funnel-left { display:flex; align-items:center; gap:14px; z-index:1; min-width:220px; }
+  .funnel-icon {
+    width:30px; height:30px; border-radius:6px; background:rgba(0,0,0,0.25);
+    display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;
+  }
+  .funnel-name { font-weight:600; font-size:14px; letter-spacing:0.5px; white-space:nowrap; }
+  .funnel-center { display:flex; align-items:center; gap:30px; z-index:1; }
+  .funnel-metric { text-align:center; }
+  .funnel-metric-value { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:700; }
+  .funnel-metric-label { font-size:9px; text-transform:uppercase; letter-spacing:1px; opacity:0.7; font-weight:500; }
+  .funnel-right { display:flex; align-items:center; gap:20px; z-index:1; }
+  .funnel-conversion { text-align:right; }
+  .funnel-conversion-rate { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:700; }
+  .funnel-conversion-label { font-size:9px; text-transform:uppercase; letter-spacing:1px; opacity:0.7; font-weight:500; }
+  .funnel-arrow { display:flex; align-items:center; justify-content:center; height:20px; position:relative; }
+  .funnel-arrow svg { width:20px; height:20px; opacity:0.3; }
+  .funnel-drop { position:absolute; right:60px; font-size:11px; color:var(--red); font-weight:600; opacity:0.8; }
+
+  /* ===== JOURNEY MAP ===== */
+  .journey-map { display:flex; gap:0; overflow-x:auto; padding:20px 0; }
+  .journey-step {
+    flex:0 0 auto; display:flex; flex-direction:column; align-items:center;
+    position:relative; min-width:140px;
+  }
+  .journey-node {
+    width:80px; height:80px; border-radius:50%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-weight:700; font-size:13px; position:relative; z-index:2;
+    border:3px solid rgba(255,255,255,0.2); transition:all 0.3s; cursor:pointer;
+  }
+  .journey-node:hover { transform:scale(1.1); border-color:var(--accent); }
+  .journey-node-value { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; }
+  .journey-label { margin-top:12px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; text-align:center; max-width:120px; }
+  .journey-sublabel { font-size:10px; color:var(--text-dim); margin-top:4px; text-align:center; }
+  .journey-connector { position:absolute; top:40px; left:80px; right:0; height:3px; z-index:1; }
+  .journey-connector-inner { height:100%; border-radius:2px; position:relative; }
+  .journey-connector-rate {
+    position:absolute; top:-18px; left:50%; transform:translateX(-50%);
+    font-size:10px; font-weight:700; color:var(--accent); white-space:nowrap;
+    background:var(--bg-dark); padding:2px 8px; border-radius:10px;
+  }
+
+  /* ===== REVENUE ===== */
+  .revenue-grid {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:20px; margin-bottom:30px;
+  }
+  .revenue-card {
+    background:var(--bg-card); border-radius:16px; padding:24px;
+    border:1px solid rgba(255,255,255,0.06);
+  }
+  .revenue-card h3 {
+    font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600;
+    text-transform:uppercase; letter-spacing:1.5px; color:var(--text-dim); margin-bottom:16px;
+  }
+  .revenue-item {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+  }
+  .revenue-item:last-child { border-bottom:none; }
+  .revenue-item-label { font-size:13px; font-weight:500; }
+  .revenue-item-value { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:700; }
+  .revenue-bar-container { margin-top:12px; }
+  .revenue-bar-bg { height:8px; background:rgba(0,0,0,0.3); border-radius:4px; overflow:hidden; margin-top:4px; }
+  .revenue-bar-fill { height:100%; border-radius:4px; transition:width 0.6s; }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display:flex; gap:4px; margin-bottom:20px;
+    background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; width:fit-content;
+  }
+  .tab {
+    padding:8px 20px; font-size:12px; font-weight:600; letter-spacing:1px;
+    text-transform:uppercase; cursor:pointer; border-radius:6px;
+    transition:all 0.2s; color:var(--text-dim); font-family:'Barlow',sans-serif;
+    border:none; background:none;
+  }
+  .tab:hover { color:var(--text); }
+  .tab.active { background:var(--accent); color:var(--bg-dark); }
+
+  /* ===== TOOLTIP ===== */
+  .tooltip {
+    position:fixed; background:var(--bg-dark); border:1px solid var(--accent);
+    border-radius:8px; padding:14px 18px; z-index:1000; pointer-events:none;
+    opacity:0; transition:opacity 0.2s; max-width:280px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.4);
+  }
+  .tooltip.visible { opacity:1; }
+  .tooltip h4 {
+    font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700;
+    text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:8px;
+  }
+  .tooltip p { font-size:12px; color:var(--text-dim); line-height:1.5; }
+  .tooltip .tt-row { display:flex; justify-content:space-between; padding:3px 0; font-size:12px; }
+  .tooltip .tt-label { color:var(--text-dim); }
+  .tooltip .tt-val { font-weight:600; color:var(--text); }
+
+  /* ===== DATA TABLE ===== */
+  .data-section {
+    background:var(--bg-card); border-radius:16px; padding:28px; margin-bottom:30px;
+    border:1px solid rgba(255,255,255,0.06); overflow-x:auto;
+  }
+  .data-grid {
+    display:grid; gap:2px; background:rgba(0,0,0,0.2);
+    border-radius:8px; overflow:hidden;
+  }
+  .data-cell { padding:8px 12px; background:var(--bg-card); font-size:12px; display:flex; align-items:center; }
+  .data-cell.header {
+    background:var(--bg-dark); font-weight:600; font-size:10px;
+    text-transform:uppercase; letter-spacing:1px; color:var(--accent);
+    justify-content:center; font-family:'Barlow Condensed',sans-serif;
+  }
+  .data-cell.label { font-weight:500; color:var(--text-dim); font-size:11px; }
+  .data-cell.computed {
+    font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:600;
+    justify-content:center; color:var(--accent);
+  }
+
+  @media (max-width:900px) {
+    .main { padding:20px 16px; }
+    .header { padding:16px 20px; flex-direction:column; gap:10px; }
+    .funnel-bar { padding:0 12px; height:44px; }
+    .funnel-center { gap:16px; }
+    .funnel-metric-value { font-size:16px; }
+    .kpi-row { grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-lock">&#128274;</div>
+    <div class="login-logo"><span>MEN</span>toreo</div>
+    <div class="login-sub">Funnel Dashboard</div>
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <input type="password" id="passwordInput" class="login-input"
+             placeholder="Ingresa tu clave" autocomplete="current-password" autofocus>
+      <button type="submit" class="login-btn" id="loginBtn">Acceder</button>
+      <div class="login-error" id="loginError">Clave incorrecta</div>
+    </form>
+    <div class="login-footer">
+      Dashboard encriptado con <b>AES-256</b><br>
+      Uso exclusivo de Jose Julian (Jota)
+    </div>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- MAIN APP (hidden until auth) -->
+<div id="app" style="display:none">
+
+  <div class="header">
+    <div>
+      <h1><span>MEN</span>toreo &mdash; Funnel Dashboard</h1>
+      <div class="header-meta">Actualizado: <span id="updatedAt">-</span> &middot; Build: <span id="buildDate">-</span></div>
+    </div>
+    <div class="header-controls">
+      <button class="btn" onclick="window.print()">Imprimir</button>
+      <button class="btn" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- FILTERS -->
+    <div class="filters">
+      <span class="filter-label">Periodo:</span>
+      <button class="btn btn-small active" onclick="setFilter('all', this)">Todo</button>
+      <button class="btn btn-small" onclick="setFilter('Feb', this)">Febrero</button>
+      <button class="btn btn-small" onclick="setFilter('Mar', this)">Marzo</button>
+      <button class="btn btn-small" onclick="setFilter('Abr', this)">Abril</button>
+      <button class="btn btn-small" onclick="setFilter('last7', this)">&Uacute;ltimos 7</button>
+      <button class="btn btn-small" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchView('funnel', this)">Embudo</button>
+      <button class="tab" onclick="switchView('journey', this)">Customer Journey</button>
+      <button class="tab" onclick="switchView('revenue', this)">Revenue</button>
+      <button class="tab" onclick="switchView('data', this)">Datos</button>
+    </div>
+
+    <div id="view-funnel" class="funnel-section">
+      <div class="section-title">Embudo de Ventas &mdash; Desaf&iacute;o 12 D&iacute;as &rarr; Low Ticket</div>
+      <div class="funnel-container" id="funnelContainer"></div>
+    </div>
+
+    <div id="view-journey" style="display:none">
+      <div class="section-title">Customer Journey Map</div>
+      <div style="background:var(--bg-card);border-radius:16px;padding:30px;border:1px solid rgba(255,255,255,0.06);overflow-x:auto;">
+        <div class="journey-map" id="journeyMap"></div>
+      </div>
+    </div>
+
+    <div id="view-revenue" style="display:none">
+      <div class="section-title">An&aacute;lisis de Revenue</div>
+      <div class="revenue-grid" id="revenueGrid"></div>
+    </div>
+
+    <div id="view-data" class="data-section" style="display:none">
+      <div class="section-title">Datos Detallados</div>
+      <div id="dataGrid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ====== ENCRYPTED PAYLOAD (AES-256-GCM / PBKDF2-SHA256) ======
+const ENC_PAYLOAD = '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';
+const ITERATIONS = 150000;
+const BUILD_DATE = '2026-04-18T03:29:55.481Z';
+
+// ====== DECRYPTION ======
+async function decrypt(password, payloadB64) {
+  const raw = Uint8Array.from(atob(payloadB64), c => c.charCodeAt(0));
+  const salt = raw.slice(0, 16);
+  const iv = raw.slice(16, 28);
+  const authTag = raw.slice(28, 44);
+  const ciphertext = raw.slice(44);
+
+  // WebCrypto AES-GCM expects ciphertext || authTag concatenated
+  const ctWithTag = new Uint8Array(ciphertext.length + authTag.length);
+  ctWithTag.set(ciphertext, 0);
+  ctWithTag.set(authTag, ciphertext.length);
+
+  const keyMat = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2', false, ['deriveKey']
+  );
+  const key = await crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations: ITERATIONS, hash:'SHA-256' },
+    keyMat,
+    { name:'AES-GCM', length:256 },
+    false, ['decrypt']
+  );
+  const plaintext = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ctWithTag);
+  return JSON.parse(new TextDecoder().decode(plaintext));
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+  const pw = document.getElementById('passwordInput').value;
+  btn.disabled = true;
+  btn.textContent = 'Desencriptando...';
+  err.classList.remove('show');
+
+  try {
+    const data = await decrypt(pw, ENC_PAYLOAD);
+    sessionStorage.setItem('funnel_pw', pw);
+    onAuthSuccess(data);
+  } catch (ex) {
+    err.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Acceder';
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('funnel_pw');
+  location.reload();
+}
+
+function onAuthSuccess(data) {
+  APP_DATA = data;
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('updatedAt').textContent = data.updatedAt || '-';
+  document.getElementById('buildDate').textContent = BUILD_DATE.split('T')[0];
+  renderAll();
+}
+
+// Try session auto-login
+window.addEventListener('DOMContentLoaded', async () => {
+  const saved = sessionStorage.getItem('funnel_pw');
+  if (saved) {
+    try {
+      const data = await decrypt(saved, ENC_PAYLOAD);
+      onAuthSuccess(data);
+    } catch { sessionStorage.removeItem('funnel_pw'); }
+  }
+});
+
+// ====== DASHBOARD LOGIC ======
+let APP_DATA = null;
+let currentFilter = 'all';
+
+const STAGES = [
+  { id:'impressions', name:'Impresiones',            icon:'&#128064;', color:'var(--stage1)', desc:'Veces que el anuncio fue mostrado en Meta Ads' },
+  { id:'reach',       name:'Alcance',                icon:'&#127758;', color:'var(--stage2)', desc:'Personas \u00fanicas que vieron el anuncio' },
+  { id:'clicks',      name:'Link Clicks',            icon:'&#128073;', color:'var(--stage3)', desc:'Clics en el enlace del anuncio hacia la landing' },
+  { id:'lpv',         name:'Landing Page Views',     icon:'&#128196;', color:'var(--stage4)', desc:'Visitas efectivas a la landing del Desaf\u00edo 12 D\u00edas' },
+  { id:'leads',       name:'Leads (Opt-in)',         icon:'&#128231;', color:'var(--stage5)', desc:'Personas que dejaron sus datos en la landing' },
+  { id:'checkouts',   name:'Checkouts Iniciados',    icon:'&#128722;', color:'var(--stage6)', desc:'Personas que iniciaron el proceso de pago del Low Ticket ($37)' },
+  { id:'purchases',   name:'Compras Low Ticket',     icon:'&#128176;', color:'var(--stage7)', desc:'Compradores del Low Ticket ($37) - entrada al programa' },
+  { id:'bump1',       name:'Bump 1 (Sesion Estr.)',  icon:'&#127775;', color:'var(--stage8)', desc:'Upsell inmediato: Sesion Estrategica PRE ($42)' },
+  { id:'bump2',       name:'Bump 2 (Upgrade)',       icon:'&#128142;', color:'var(--stage9)', desc:'Segundo upsell: Sesion Estrategica Bump 2 ($48)' },
+];
+
+function getFilteredDays() {
+  const all = APP_DATA.days;
+  const keys = Object.keys(all);
+  if (currentFilter === 'all') return keys;
+  if (currentFilter === 'last7') return keys.slice(-7);
+  if (currentFilter === 'last30') return keys.slice(-30);
+  return keys.filter(k => k.startsWith(currentFilter));
+}
+
+function getAggregated() {
+  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
+  const agg = {};
+  fields.forEach(f => agg[f] = 0);
+  getFilteredDays().forEach(k => {
+    const d = APP_DATA.days[k];
+    fields.forEach(f => agg[f] += (parseFloat(d[f]) || 0));
+  });
+  return agg;
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filters .btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAll();
+}
+
+function renderAll() {
+  renderKPIs();
+  renderFunnel();
+  renderJourney();
+  renderRevenue();
+  renderDataGrid();
+}
+
+function renderKPIs() {
+  const d = getAggregated();
+  const P = APP_DATA.prices;
+  const revenue = (d.purchases * P.lowTicket) + (d.bump1 * P.bump1) + (d.bump2 * P.bump2);
+  const roas = d.spend > 0 ? revenue / d.spend : 0;
+  const cpl = d.leads > 0 ? d.spend / d.leads : 0;
+  const cpa = d.purchases > 0 ? d.spend / d.purchases : 0;
+  const convRate = d.lpv > 0 ? (d.purchases / d.lpv * 100) : 0;
+  const aov = d.purchases > 0 ? revenue / d.purchases : 0;
+  const ganancia = revenue - d.spend;
+  const nDias = getFilteredDays().length;
+
+  const kpis = [
+    { label:'Ad Spend',      value:'$'+d.spend.toFixed(2),     cls:'blue',    sub:nDias + ' d\u00edas' },
+    { label:'Revenue',       value:'$'+revenue.toFixed(2),     cls:'green',   sub:d.purchases + ' ventas' },
+    { label:'Ganancia',      value:(ganancia>=0?'+':'')+'$'+ganancia.toFixed(2), cls:ganancia>=0?'green':'red', sub:'Revenue - Spend' },
+    { label:'ROAS',          value:roas.toFixed(2)+'x',        cls:roas>=2?'green':roas>=1?'orange':'red', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo' },
+    { label:'Cost / Lead',   value:'$'+cpl.toFixed(2),         cls:'purple',  sub:d.leads + ' leads' },
+    { label:'Cost / Compra', value:'$'+cpa.toFixed(2),         cls:'accent',  sub:d.purchases + ' compras' },
+    { label:'Conv. Rate',    value:convRate.toFixed(2)+'%',    cls:convRate>1?'green':'orange', sub:'LPV \u2192 Compra' },
+    { label:'AOV',           value:'$'+aov.toFixed(2),         cls:'accent',  sub:'Valor promedio orden' },
+  ];
+
+  document.getElementById('kpiRow').innerHTML = kpis.map(k => `
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value ${k.cls}">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+function renderFunnel() {
+  const d = getAggregated();
+  const maxVal = Math.max(d.impressions, 1);
+  let html = '';
+
+  STAGES.forEach((stage, i) => {
+    const val = d[stage.id] || 0;
+    const widthPct = Math.max(15, (val / maxVal) * 100);
+    const prevVal = i > 0 ? (d[STAGES[i-1].id] || 0) : 0;
+    const convRate = prevVal > 0 ? ((val / prevVal) * 100) : 0;
+    const dropRate = prevVal > 0 ? (((prevVal - val) / prevVal) * 100) : 0;
+    const costPer = d.spend > 0 && val > 0 ? (d.spend / val) : 0;
+
+    if (i > 0) {
+      html += `<div class="funnel-arrow">
+        <svg viewBox="0 0 20 20" fill="var(--text-dim)"><path d="M10 14l-5-5h10z"/></svg>
+        ${dropRate > 0 ? `<span class="funnel-drop">-${dropRate.toFixed(0)}% drop</span>` : ''}
+      </div>`;
+    }
+
+    html += `<div class="funnel-stage"
+        onmouseenter="showTooltip(event, ${JSON.stringify(stage).replace(/"/g,'&quot;')}, ${val}, ${convRate}, ${costPer})"
+        onmouseleave="hideTooltip()">
+      <div class="funnel-bar" style="width:${widthPct}%; background:${stage.color};">
+        <div class="funnel-left">
+          <div class="funnel-icon">${stage.icon}</div>
+          <span class="funnel-name">${stage.name}</span>
+        </div>
+        <div class="funnel-center">
+          <div class="funnel-metric">
+            <div class="funnel-metric-value">${formatNum(val)}</div>
+            <div class="funnel-metric-label">Total</div>
+          </div>
+          ${costPer > 0 ? `<div class="funnel-metric">
+            <div class="funnel-metric-value">$${costPer.toFixed(2)}</div>
+            <div class="funnel-metric-label">Costo/Unit</div>
+          </div>` : ''}
+        </div>
+        <div class="funnel-right">
+          ${i > 0 ? `<div class="funnel-conversion">
+            <div class="funnel-conversion-rate">${convRate.toFixed(1)}%</div>
+            <div class="funnel-conversion-label">Conv.</div>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('funnelContainer').innerHTML = html;
+}
+
+function renderJourney() {
+  const d = getAggregated();
+  const steps = [
+    { label:'Ad View',      sub:'Meta Ads',            val:formatNum(d.impressions), color:'var(--stage1)', key:'impressions' },
+    { label:'Ad Click',     sub:'CTA en anuncio',      val:formatNum(d.clicks),      color:'var(--stage3)', key:'clicks' },
+    { label:'Landing',      sub:'Desaf\u00edo 12 D\u00edas', val:formatNum(d.lpv),         color:'var(--stage4)', key:'lpv' },
+    { label:'Opt-in',       sub:'Deja sus datos',      val:formatNum(d.leads),       color:'var(--stage5)', key:'leads' },
+    { label:'Checkout',     sub:'P\u00e1gina de pago', val:formatNum(d.checkouts),   color:'var(--stage6)', key:'checkouts' },
+    { label:'Compra',       sub:'Low Ticket $37',      val:formatNum(d.purchases),   color:'var(--stage7)', key:'purchases' },
+    { label:'Bump 1',       sub:'Sesi\u00f3n $42',     val:formatNum(d.bump1),       color:'var(--stage8)', key:'bump1' },
+    { label:'Bump 2',       sub:'Upgrade $48',         val:formatNum(d.bump2),       color:'var(--stage9)', key:'bump2' },
+  ];
+
+  let html = '';
+  steps.forEach((s, i) => {
+    const prev = i > 0 ? (d[steps[i-1].key] || 0) : 0;
+    const cur = d[s.key] || 0;
+    const rate = prev > 0 ? ((cur/prev)*100).toFixed(1)+'%' : '';
+    html += `<div class="journey-step">
+      <div class="journey-node" style="background:${s.color};">
+        <div class="journey-node-value">${s.val}</div>
+      </div>
+      <div class="journey-label">${s.label}</div>
+      <div class="journey-sublabel">${s.sub}</div>
+      ${i < steps.length - 1 ? `<div class="journey-connector">
+        <div class="journey-connector-inner" style="background:linear-gradient(90deg, ${s.color}, ${steps[i+1].color});"></div>
+        ${rate && i > 0 ? `<div class="journey-connector-rate">${rate}</div>` : ''}
+      </div>` : ''}
+    </div>`;
+  });
+  document.getElementById('journeyMap').innerHTML = html;
+}
+
+function renderRevenue() {
+  const d = getAggregated();
+  const P = APP_DATA.prices;
+  const ltRev = d.purchases * P.lowTicket;
+  const b1Rev = d.bump1 * P.bump1;
+  const b2Rev = d.bump2 * P.bump2;
+  const totalRev = ltRev + b1Rev + b2Rev;
+  const ganancia = totalRev - d.spend;
+  const aov = d.purchases > 0 ? totalRev / d.purchases : 0;
+  const b1Rate = d.purchases > 0 ? (d.bump1 / d.purchases * 100) : 0;
+  const b2Rate = d.purchases > 0 ? (d.bump2 / d.purchases * 100) : 0;
+
+  document.getElementById('revenueGrid').innerHTML = `
+    <div class="revenue-card">
+      <h3>Desglose de Revenue</h3>
+      <div class="revenue-item"><span class="revenue-item-label">Low Ticket ($${P.lowTicket} x ${d.purchases})</span><span class="revenue-item-value" style="color:var(--stage7)">$${ltRev.toFixed(2)}</span></div>
+      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?ltRev/totalRev*100:0}%;background:var(--stage7)"></div></div></div>
+      <div class="revenue-item" style="margin-top:12px"><span class="revenue-item-label">Bump 1 ($${P.bump1} x ${d.bump1})</span><span class="revenue-item-value" style="color:var(--stage8)">$${b1Rev.toFixed(2)}</span></div>
+      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b1Rev/totalRev*100:0}%;background:var(--stage8)"></div></div></div>
+      <div class="revenue-item" style="margin-top:12px"><span class="revenue-item-label">Bump 2 ($${P.bump2} x ${d.bump2})</span><span class="revenue-item-value" style="color:var(--stage9)">$${b2Rev.toFixed(2)}</span></div>
+      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b2Rev/totalRev*100:0}%;background:var(--stage9)"></div></div></div>
+      <div class="revenue-item" style="margin-top:16px;border-top:2px solid var(--accent);padding-top:12px"><span class="revenue-item-label" style="font-weight:700">TOTAL REVENUE</span><span class="revenue-item-value" style="color:var(--accent);font-size:24px">$${totalRev.toFixed(2)}</span></div>
+    </div>
+
+    <div class="revenue-card">
+      <h3>Unit Economics</h3>
+      <div class="revenue-item"><span class="revenue-item-label">CPL</span><span class="revenue-item-value" style="color:var(--purple)">$${d.leads>0?(d.spend/d.leads).toFixed(2):'0.00'}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">CPA (Costo/Compra)</span><span class="revenue-item-value" style="color:var(--orange)">$${d.purchases>0?(d.spend/d.purchases).toFixed(2):'0.00'}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">AOV</span><span class="revenue-item-value" style="color:var(--accent)">$${aov.toFixed(2)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Bump 1 Take Rate</span><span class="revenue-item-value" style="color:var(--stage8)">${b1Rate.toFixed(1)}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Bump 2 Take Rate</span><span class="revenue-item-value" style="color:var(--stage9)">${b2Rate.toFixed(1)}%</span></div>
+      <div class="revenue-item" style="margin-top:8px;border-top:2px solid ${ganancia>=0?'var(--green)':'var(--red)'};padding-top:12px"><span class="revenue-item-label" style="font-weight:700">GANANCIA NETA</span><span class="revenue-item-value" style="color:${ganancia>=0?'var(--green)':'var(--red)'};font-size:24px">${ganancia>=0?'+':''}$${ganancia.toFixed(2)}</span></div>
+    </div>
+
+    <div class="revenue-card">
+      <h3>Eficiencia del Embudo</h3>
+      <div class="revenue-item"><span class="revenue-item-label">CTR</span><span class="revenue-item-value" style="color:var(--blue)">${d.impressions>0?(d.clicks/d.impressions*100).toFixed(2):'0.00'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Landing \u2192 Lead</span><span class="revenue-item-value" style="color:var(--stage5)">${d.lpv>0?(d.leads/d.lpv*100).toFixed(1):'0.0'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Lead \u2192 Checkout</span><span class="revenue-item-value" style="color:var(--stage6)">${d.leads>0?(d.checkouts/d.leads*100).toFixed(1):'0.0'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Checkout \u2192 Compra</span><span class="revenue-item-value" style="color:var(--stage7)">${d.checkouts>0?(d.purchases/d.checkouts*100).toFixed(1):'0.0'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Impression \u2192 Compra</span><span class="revenue-item-value" style="color:var(--accent)">${d.impressions>0?(d.purchases/d.impressions*100).toFixed(4):'0.0000'}%</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Cost per Landing View</span><span class="revenue-item-value" style="color:var(--text-dim)">$${d.lpv>0?(d.spend/d.lpv).toFixed(2):'0.00'}</span></div>
+    </div>
+  `;
+}
+
+function renderDataGrid() {
+  const days = getFilteredDays();
+  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
+  const labels = ['Impresiones','Alcance','Clicks','LPV','Leads','Checkouts','Compras','Bump 1','Bump 2','Spend ($)'];
+  const P = APP_DATA.prices;
+
+  let html = `<div class="data-grid" style="grid-template-columns: 140px repeat(${days.length}, minmax(70px, 1fr));">`;
+  html += `<div class="data-cell header">M\u00e9trica</div>`;
+  days.forEach(p => { html += `<div class="data-cell header">${p.replace(' 0',' ')}</div>`; });
+
+  fields.forEach((f, fi) => {
+    html += `<div class="data-cell label">${labels[fi]}</div>`;
+    days.forEach(p => {
+      const v = APP_DATA.days[p][f] || 0;
+      html += `<div class="data-cell computed">${f==='spend'?'$'+parseFloat(v).toFixed(0):formatNum(v)}</div>`;
+    });
+  });
+
+  // Computed
+  const computed = [
+    { lbl:'Revenue',    fn:d => '$' + ((d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2)).toFixed(0) },
+    { lbl:'ROAS',       fn:d => { const r=(d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2); return d.spend>0?(r/d.spend).toFixed(2)+'x':'-'; } },
+    { lbl:'CPL',        fn:d => d.leads>0 ? '$'+(d.spend/d.leads).toFixed(1) : '-' },
+  ];
+  computed.forEach(c => {
+    html += `<div class="data-cell label" style="color:var(--accent)">${c.lbl}</div>`;
+    days.forEach(p => html += `<div class="data-cell computed">${c.fn(APP_DATA.days[p])}</div>`);
+  });
+
+  html += '</div>';
+  document.getElementById('dataGrid').innerHTML = html;
+}
+
+function switchView(view, tabEl) {
+  ['funnel','journey','revenue','data'].forEach(v => {
+    const el = document.getElementById('view-'+v);
+    if (el) el.style.display = v === view ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (tabEl) tabEl.classList.add('active');
+}
+
+function showTooltip(event, stage, val, convRate, costPer) {
+  const tt = document.getElementById('tooltip');
+  tt.innerHTML = `
+    <h4>${stage.name}</h4>
+    <p style="margin-bottom:8px">${stage.desc}</p>
+    <div class="tt-row"><span class="tt-label">Total:</span><span class="tt-val">${formatNum(val)}</span></div>
+    ${convRate > 0 ? `<div class="tt-row"><span class="tt-label">Conv. desde anterior:</span><span class="tt-val">${convRate.toFixed(1)}%</span></div>` : ''}
+    ${costPer > 0 ? `<div class="tt-row"><span class="tt-label">Costo unitario:</span><span class="tt-val">$${costPer.toFixed(2)}</span></div>` : ''}
+  `;
+  tt.style.left = Math.min(event.clientX + 15, window.innerWidth - 300) + 'px';
+  tt.style.top = (event.clientY - 10) + 'px';
+  tt.classList.add('visible');
+}
+
+function hideTooltip() { document.getElementById('tooltip').classList.remove('visible'); }
+
+function formatNum(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return Math.round(n).toString();
+}
+</script>
+</body>
+</html>
