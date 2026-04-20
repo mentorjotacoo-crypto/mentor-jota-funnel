@@ -1,0 +1,51 @@
+name: Rebuild funnel dashboard
+
+on:
+  repository_dispatch:
+    types: [update-funnel]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Write data.json from dispatch payload
+        if: github.event_name == 'repository_dispatch'
+        env:
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          echo "$PAYLOAD" > data.json
+          echo "Payload size: $(wc -c < data.json) bytes"
+
+      - name: Build encrypted index.html
+        env:
+          FUNNEL_PASSWORD: ${{ secrets.FUNNEL_PASSWORD }}
+        run: |
+          if [ -z "$FUNNEL_PASSWORD" ]; then
+            echo "ERROR: FUNNEL_PASSWORD secret no configurado"
+            exit 1
+          fi
+          node build.js "$FUNNEL_PASSWORD"
+
+      - name: Commit and push if changed
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions (auto-sync)"
+          git add index.html
+          if git diff --staged --quiet; then
+            echo "Sin cambios en index.html"
+          else
+            git commit -m "auto: sync funnel data desde tracker ($(date +%Y-%m-%d))"
+            git push
+          fi
