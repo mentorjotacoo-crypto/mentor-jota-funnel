@@ -3,279 +3,499 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MENtoreo - Funnel Dashboard</title>
+<title>MENtoreo — Funnel Dashboard</title>
 <meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600;700&display=swap');
-  * { margin:0; padding:0; box-sizing:border-box; }
+  * { box-sizing:border-box; margin:0; padding:0; }
   :root {
-    --bg:#0C4650; --bg-dark:#082e35; --bg-card:#0f5562;
-    --accent:#E7FF2A; --accent-dim:#b8cc22;
-    --text:#f0f4f5; --text-dim:#8fb3ba;
-    --green:#22c55e; --red:#ef4444; --orange:#f59e0b;
-    --blue:#3b82f6; --purple:#a855f7; --pink:#ec4899;
-    --stage1:#3b82f6; --stage2:#6366f1; --stage3:#8b5cf6;
-    --stage4:#a855f7; --stage5:#d946ef; --stage6:#ec4899;
-    --stage7:#E7FF2A; --stage8:#22c55e; --stage9:#10b981;
+    --petrol:#0C4650; --petrol-dark:#071e22; --petrol-mid:#134f5c; --petrol-light:#1a6070;
+    --acid:#E7FF2A;
+    --grey:#898A8D; --grey-light:#c4c5c7;
+    --white:#f5f7f5;
+    --warn:#ff6b35; --good:#4ecb71; --mid:#f7c948;
+    --purple:#a855f7; --blue:#3b82f6;
   }
-  body { font-family:'Barlow',sans-serif; background:var(--bg-dark); color:var(--text); min-height:100vh; overflow-x:hidden; }
+  body {
+    background:var(--petrol-dark); color:var(--white);
+    font-family:'DM Sans', sans-serif;
+    min-height:100vh; padding:0 0 80px;
+    font-feature-settings:'ss01','cv11';
+  }
+  button, input, select, textarea { font-family:inherit; }
+  .mono { font-family:'JetBrains Mono',monospace; }
 
-  /* ===== LOGIN OVERLAY ===== */
+  /* ===== LOGIN ===== */
   .login-overlay {
-    position:fixed; inset:0; background:linear-gradient(135deg, var(--bg) 0%, var(--bg-dark) 100%);
+    position:fixed; inset:0; background:var(--petrol);
     display:flex; align-items:center; justify-content:center; z-index:10000; padding:20px;
   }
   .login-box {
-    background:var(--bg-card); border:2px solid var(--accent); border-radius:16px;
-    padding:40px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    background:var(--petrol-mid); border:1px solid var(--petrol-light); border-top:3px solid var(--acid);
+    padding:44px; width:100%; max-width:440px;
   }
   .login-logo {
-    font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:700;
-    text-transform:uppercase; letter-spacing:3px; text-align:center; margin-bottom:8px;
+    font-family:'Big Shoulders Display',sans-serif; font-weight:900; font-size:32px;
+    letter-spacing:3px; text-align:center; margin-bottom:4px; text-transform:uppercase;
   }
-  .login-logo span { color:var(--accent); }
+  .login-logo span { color:var(--acid); }
   .login-sub {
-    text-align:center; color:var(--text-dim); font-size:13px;
-    letter-spacing:2px; text-transform:uppercase; margin-bottom:30px;
+    text-align:center; color:var(--grey); font-size:11px;
+    letter-spacing:3px; text-transform:uppercase; margin-bottom:28px;
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
   }
-  .login-lock { text-align:center; font-size:48px; margin-bottom:20px; }
+  .login-lock { text-align:center; font-size:48px; margin-bottom:14px; color:var(--acid); }
   .login-input {
-    width:100%; background:rgba(0,0,0,0.3); border:2px solid rgba(255,255,255,0.1);
-    color:var(--text); padding:14px 18px; border-radius:8px;
-    font-family:'Barlow',sans-serif; font-size:15px; font-weight:500;
-    letter-spacing:1px; transition:border-color 0.2s;
+    width:100%; background:var(--petrol-dark); border:1px solid var(--petrol-light);
+    color:var(--white); padding:14px 16px; border-radius:3px;
+    font-size:14px; font-weight:400; letter-spacing:1px; transition:border-color 0.15s;
   }
-  .login-input:focus { outline:none; border-color:var(--accent); }
+  .login-input:focus { outline:none; border-color:var(--acid); }
   .login-btn {
-    width:100%; margin-top:14px; padding:14px;
-    background:var(--accent); color:var(--bg-dark); border:none; border-radius:8px;
-    font-family:'Barlow',sans-serif; font-size:14px; font-weight:700;
-    letter-spacing:2px; text-transform:uppercase; cursor:pointer;
-    transition:transform 0.15s, box-shadow 0.2s;
+    width:100%; margin-top:12px; padding:14px; background:var(--acid);
+    color:var(--petrol-dark); border:none; border-radius:3px;
+    font-family:'Big Shoulders Display',sans-serif; font-size:14px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:all 0.12s;
   }
-  .login-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 8px 20px rgba(231,255,42,0.3); }
+  .login-btn:hover:not(:disabled) { background:var(--white); }
   .login-btn:disabled { opacity:0.5; cursor:wait; }
   .login-error {
-    margin-top:14px; padding:10px 14px; background:rgba(239,68,68,0.15);
-    border:1px solid var(--red); border-radius:6px; color:var(--red);
-    font-size:12px; font-weight:600; text-align:center; display:none;
+    margin-top:12px; padding:10px 14px; background:rgba(255,107,53,0.1);
+    border-left:3px solid var(--warn); color:var(--warn);
+    font-size:12px; font-weight:500; text-align:center; display:none;
   }
   .login-error.show { display:block; }
   .login-footer {
-    margin-top:30px; text-align:center; font-size:11px; color:var(--text-dim); line-height:1.6;
+    margin-top:28px; text-align:center; font-size:11px; color:var(--grey);
+    line-height:1.6; font-style:italic;
   }
-  .login-footer b { color:var(--accent); }
+  .login-footer b { color:var(--acid); font-style:normal; font-weight:700; }
 
   /* ===== HEADER ===== */
-  .header {
-    background:linear-gradient(135deg, var(--bg) 0%, var(--bg-dark) 100%);
-    padding:24px 40px; display:flex; align-items:center; justify-content:space-between;
-    border-bottom:2px solid var(--accent); position:sticky; top:0; z-index:100;
+  header {
+    background:var(--petrol); border-bottom:2px solid var(--acid);
+    padding:18px 32px; display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:100;
   }
-  .header h1 {
-    font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:700;
+  .logo {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:900; font-size:22px;
     letter-spacing:2px; text-transform:uppercase;
   }
-  .header h1 span { color:var(--accent); }
-  .header-meta { font-size:11px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase; }
-  .header-controls { display:flex; gap:12px; align-items:center; }
-  .btn {
-    font-family:'Barlow',sans-serif; padding:8px 20px; border:2px solid var(--accent);
-    background:transparent; color:var(--accent); font-weight:600; font-size:13px;
-    letter-spacing:1px; text-transform:uppercase; cursor:pointer;
-    transition:all 0.2s; border-radius:4px;
+  .logo span { color:var(--acid); }
+  .logo small {
+    font-size:12px; color:var(--grey-light); font-weight:400;
+    letter-spacing:1px; margin-left:8px; font-family:'DM Sans',sans-serif;
   }
-  .btn:hover { background:var(--accent); color:var(--bg-dark); }
-  .btn.active { background:var(--accent); color:var(--bg-dark); }
-  .btn-small { padding:5px 12px; font-size:11px; }
-
-  /* ===== MAIN ===== */
-  .main { padding:30px 40px; max-width:1600px; margin:0 auto; }
-
-  /* ===== FILTERS ===== */
-  .filters {
-    display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; align-items:center;
+  .header-right { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .period-label {
+    background:var(--acid); color:var(--petrol-dark);
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-size:11px; letter-spacing:1.5px; padding:4px 12px; border-radius:2px;
+    text-transform:uppercase;
   }
-  .filter-label {
-    font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-dim);
-    font-weight:600; margin-right:8px;
-  }
-
-  /* ===== KPIs ===== */
-  .kpi-row {
-    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-    gap:16px; margin-bottom:30px;
-  }
-  .kpi-card {
-    background:var(--bg-card); border-radius:12px; padding:18px 20px;
-    border:1px solid rgba(255,255,255,0.06); transition:transform 0.2s, border-color 0.2s;
-  }
-  .kpi-card:hover { transform:translateY(-2px); border-color:var(--accent); }
-  .kpi-label {
-    font-size:11px; text-transform:uppercase; letter-spacing:1.5px;
-    color:var(--text-dim); margin-bottom:6px; font-weight:500;
-  }
-  .kpi-value {
-    font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:700; line-height:1;
-  }
-  .kpi-sub { font-size:12px; color:var(--text-dim); margin-top:4px; }
-  .kpi-value.green { color:var(--green); }
-  .kpi-value.accent { color:var(--accent); }
-  .kpi-value.blue { color:var(--blue); }
-  .kpi-value.red { color:var(--red); }
-  .kpi-value.orange { color:var(--orange); }
-  .kpi-value.purple { color:var(--purple); }
-
-  /* ===== SECTION ===== */
-  .section-title {
-    font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700;
-    text-transform:uppercase; letter-spacing:2px; margin-bottom:20px;
-    display:flex; align-items:center; gap:10px;
-  }
-  .section-title::before { content:''; width:4px; height:24px; background:var(--accent); border-radius:2px; }
-
-  /* ===== FUNNEL ===== */
-  .funnel-section { margin-bottom:40px; }
-  .funnel-container { display:flex; flex-direction:column; align-items:center; gap:0; }
-  .funnel-stage {
-    position:relative; display:flex; align-items:center; justify-content:center;
-    padding:14px 0; cursor:pointer; transition:all 0.3s; width:100%; max-width:1200px;
-  }
-  .funnel-stage:hover .funnel-bar { filter:brightness(1.2); box-shadow:0 0 20px rgba(255,255,255,0.1); }
-  .funnel-bar {
-    height:52px; border-radius:8px; display:flex; align-items:center;
-    justify-content:space-between; padding:0 24px; transition:all 0.4s;
-    position:relative; overflow:hidden;
-  }
-  .funnel-bar::before {
-    content:''; position:absolute; inset:0;
-    background:linear-gradient(90deg, rgba(255,255,255,0.08) 0%, transparent 100%);
-  }
-  .funnel-left { display:flex; align-items:center; gap:14px; z-index:1; min-width:220px; }
-  .funnel-icon {
-    width:30px; height:30px; border-radius:6px; background:rgba(0,0,0,0.25);
-    display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;
-  }
-  .funnel-name { font-weight:600; font-size:14px; letter-spacing:0.5px; white-space:nowrap; }
-  .funnel-center { display:flex; align-items:center; gap:30px; z-index:1; }
-  .funnel-metric { text-align:center; }
-  .funnel-metric-value { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:700; }
-  .funnel-metric-label { font-size:9px; text-transform:uppercase; letter-spacing:1px; opacity:0.7; font-weight:500; }
-  .funnel-right { display:flex; align-items:center; gap:20px; z-index:1; }
-  .funnel-conversion { text-align:right; }
-  .funnel-conversion-rate { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:700; }
-  .funnel-conversion-label { font-size:9px; text-transform:uppercase; letter-spacing:1px; opacity:0.7; font-weight:500; }
-  .funnel-arrow { display:flex; align-items:center; justify-content:center; height:20px; position:relative; }
-  .funnel-arrow svg { width:20px; height:20px; opacity:0.3; }
-  .funnel-drop { position:absolute; right:60px; font-size:11px; color:var(--red); font-weight:600; opacity:0.8; }
-
-  /* ===== JOURNEY MAP ===== */
-  .journey-map { display:flex; gap:0; overflow-x:auto; padding:20px 0; }
-  .journey-step {
-    flex:0 0 auto; display:flex; flex-direction:column; align-items:center;
-    position:relative; min-width:140px;
-  }
-  .journey-node {
-    width:80px; height:80px; border-radius:50%;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    font-weight:700; font-size:13px; position:relative; z-index:2;
-    border:3px solid rgba(255,255,255,0.2); transition:all 0.3s; cursor:pointer;
-  }
-  .journey-node:hover { transform:scale(1.1); border-color:var(--accent); }
-  .journey-node-value { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; }
-  .journey-label { margin-top:12px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; text-align:center; max-width:120px; }
-  .journey-sublabel { font-size:10px; color:var(--text-dim); margin-top:4px; text-align:center; }
-  .journey-connector { position:absolute; top:40px; left:80px; right:0; height:3px; z-index:1; }
-  .journey-connector-inner { height:100%; border-radius:2px; position:relative; }
-  .journey-connector-rate {
-    position:absolute; top:-18px; left:50%; transform:translateX(-50%);
-    font-size:10px; font-weight:700; color:var(--accent); white-space:nowrap;
-    background:var(--bg-dark); padding:2px 8px; border-radius:10px;
-  }
-
-  /* ===== REVENUE ===== */
-  .revenue-grid {
-    display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
-    gap:20px; margin-bottom:30px;
-  }
-  .revenue-card {
-    background:var(--bg-card); border-radius:16px; padding:24px;
-    border:1px solid rgba(255,255,255,0.06);
-  }
-  .revenue-card h3 {
-    font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600;
-    text-transform:uppercase; letter-spacing:1.5px; color:var(--text-dim); margin-bottom:16px;
-  }
-  .revenue-item {
-    display:flex; justify-content:space-between; align-items:center;
-    padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
-  }
-  .revenue-item:last-child { border-bottom:none; }
-  .revenue-item-label { font-size:13px; font-weight:500; }
-  .revenue-item-value { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:700; }
-  .revenue-bar-container { margin-top:12px; }
-  .revenue-bar-bg { height:8px; background:rgba(0,0,0,0.3); border-radius:4px; overflow:hidden; margin-top:4px; }
-  .revenue-bar-fill { height:100%; border-radius:4px; transition:width 0.6s; }
+  .header-meta { font-size:10px; color:var(--grey); letter-spacing:1px; text-transform:uppercase; }
 
   /* ===== TABS ===== */
   .tabs {
-    display:flex; gap:4px; margin-bottom:20px;
-    background:rgba(0,0,0,0.2); border-radius:8px; padding:4px; width:fit-content;
+    display:flex; gap:0; border-bottom:1px solid var(--petrol-light);
+    background:var(--petrol); padding:0 32px;
   }
-  .tab {
-    padding:8px 20px; font-size:12px; font-weight:600; letter-spacing:1px;
-    text-transform:uppercase; cursor:pointer; border-radius:6px;
-    transition:all 0.2s; color:var(--text-dim); font-family:'Barlow',sans-serif;
-    border:none; background:none;
+  .tab-btn {
+    background:transparent; border:none; border-bottom:3px solid transparent;
+    color:var(--grey-light); font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700; font-size:13px; letter-spacing:2px; text-transform:uppercase;
+    padding:14px 22px; cursor:pointer; transition:all 0.15s;
   }
-  .tab:hover { color:var(--text); }
-  .tab.active { background:var(--accent); color:var(--bg-dark); }
+  .tab-btn:hover { color:var(--white); }
+  .tab-btn.active { color:var(--acid); border-bottom-color:var(--acid); }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* ===== MAIN ===== */
+  main { max-width:1400px; margin:0 auto; padding:30px 24px 0; }
+
+  .section-title {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--acid);
+    margin:36px 0 14px; display:flex; align-items:center; gap:12px;
+  }
+  .section-title:first-child { margin-top:0; }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--petrol-light); }
+  .section-title .sub {
+    font-family:'DM Sans',sans-serif; font-weight:300; font-style:italic;
+    font-size:12px; color:var(--grey-light); letter-spacing:0.3px; text-transform:none;
+  }
+
+  /* ===== BUTTONS / FILTERS ===== */
+  .btn {
+    background:transparent; border:1px solid var(--petrol-light); color:var(--grey-light);
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    padding:7px 14px; cursor:pointer; transition:all 0.15s; border-radius:2px;
+  }
+  .btn:hover { background:var(--petrol-mid); color:var(--white); border-color:var(--grey); }
+  .btn.active, .btn.primary { background:var(--acid); color:var(--petrol-dark); border-color:var(--acid); }
+  .btn.primary:hover { background:var(--white); border-color:var(--white); }
+  .btn.danger { border-color:var(--warn); color:var(--warn); }
+  .btn.danger:hover { background:var(--warn); color:var(--white); }
+
+  .period-bar { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .period-bar-label {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:10px;
+    letter-spacing:2px; text-transform:uppercase; color:var(--grey);
+    padding-right:10px; margin-right:2px;
+  }
+  .hint { font-size:11px; color:var(--grey); font-style:italic; margin-top:6px; }
+
+  /* ===== KPI STRIP ===== */
+  .kpi-strip {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+    gap:3px; border:1px solid var(--petrol-light); margin-top:12px;
+  }
+  .kpi-cell {
+    background:var(--petrol); padding:16px 18px; border-right:1px solid var(--petrol-light);
+    position:relative; border-top:3px solid transparent;
+    transition:border-top-color 0.2s;
+  }
+  .kpi-cell:last-child { border-right:none; }
+  .kpi-cell:hover { border-top-color:var(--acid); }
+  .kpi-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .kpi-label {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--grey);
+  }
+  .kpi-delta {
+    font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600;
+    padding:1px 6px; border-radius:2px; display:inline-flex; align-items:center; gap:3px;
+  }
+  .kpi-delta.up { color:var(--good); background:rgba(78,203,113,0.12); }
+  .kpi-delta.down { color:var(--warn); background:rgba(255,107,53,0.12); }
+  .kpi-delta.neutral { color:var(--grey); background:rgba(137,138,141,0.12); }
+  .kpi-value {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-size:30px; line-height:1; letter-spacing:-0.3px; color:var(--white);
+  }
+  .kpi-value.acid { color:var(--acid); }
+  .kpi-value.good { color:var(--good); }
+  .kpi-value.warn { color:var(--warn); }
+  .kpi-value.mid { color:var(--mid); }
+  .kpi-sub {
+    font-size:10px; color:var(--grey); margin-top:4px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .kpi-sparkline { margin-top:8px; height:26px; position:relative; }
+
+  /* ===== PANELS ===== */
+  .panel {
+    background:var(--petrol); border:1px solid var(--petrol-light);
+    border-top:3px solid var(--petrol-light);
+    padding:22px; margin-bottom:16px; border-radius:0;
+  }
+  .panel.accent { border-top-color:var(--acid); }
+  .panel-header {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:16px; flex-wrap:wrap; gap:10px;
+  }
+  .panel-title {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-size:14px; letter-spacing:2px; text-transform:uppercase;
+  }
+  .panel-subtitle { font-size:11px; color:var(--grey); font-style:italic; }
+
+  /* ===== FUNNEL VISUAL ===== */
+  .funnel-visual {
+    display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 0;
+  }
+  .funnel-stage-row {
+    display:flex; align-items:center; width:100%; gap:12px;
+  }
+  .funnel-side-label {
+    font-size:11px; color:var(--grey-light); width:180px; text-align:right;
+    font-family:'DM Sans',sans-serif;
+  }
+  .funnel-bar-wrap { flex:1; display:flex; justify-content:center; }
+  .funnel-bar {
+    height:40px; border-radius:2px; display:flex; align-items:center; justify-content:center;
+    transition:width 0.5s ease; min-width:60px; position:relative; overflow:hidden;
+  }
+  .funnel-bar-label {
+    position:relative; z-index:1; font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700; font-size:15px; white-space:nowrap; padding:0 12px;
+    color:var(--petrol-dark);
+  }
+  .funnel-side-pct {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-size:14px; width:60px; text-align:left;
+  }
+  .funnel-arrow {
+    font-family:'Big Shoulders Display',sans-serif; font-size:12px;
+    color:var(--petrol-light); text-align:center; width:100%; padding:2px 0;
+    font-weight:700; letter-spacing:1px;
+  }
+
+  /* ===== JOURNEY ===== */
+  .journey-wrapper { padding:20px 0 10px; }
+  .journey-map { display:flex; gap:0; overflow-x:auto; padding:24px 0 14px; }
+  .journey-step {
+    flex:0 0 auto; display:flex; flex-direction:column; align-items:center;
+    position:relative; min-width:150px;
+  }
+  .journey-node {
+    width:88px; height:88px; border-radius:50%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-weight:700; position:relative; z-index:2;
+    border:3px solid rgba(255,255,255,0.1); transition:all 0.2s; cursor:pointer;
+  }
+  .journey-node:hover {
+    transform:scale(1.07); border-color:var(--acid);
+  }
+  .journey-node-value {
+    font-family:'Big Shoulders Display',sans-serif; font-size:22px; font-weight:900;
+    color:var(--petrol-dark);
+  }
+  .journey-ann-count {
+    position:absolute; top:-8px; right:-8px;
+    background:var(--acid); color:var(--petrol-dark);
+    font-size:10px; font-weight:900; padding:3px 7px; border-radius:10px;
+    border:2px solid var(--petrol);
+    font-family:'Big Shoulders Display',sans-serif;
+  }
+  .journey-label {
+    margin-top:14px; font-family:'Big Shoulders Display',sans-serif;
+    font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px;
+    text-align:center; max-width:130px;
+  }
+  .journey-sublabel {
+    font-size:10px; color:var(--grey); margin-top:3px; text-align:center;
+    font-style:italic;
+  }
+  .journey-connector {
+    position:absolute; top:44px; left:88px; right:0; height:2px; z-index:1;
+  }
+  .journey-connector-inner { height:100%; }
+  .journey-connector-rate {
+    position:absolute; top:-17px; left:50%; transform:translateX(-50%);
+    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-size:11px; color:var(--acid); white-space:nowrap;
+    background:var(--petrol-dark); padding:2px 8px; border-radius:2px;
+    border:1px solid var(--petrol-light); letter-spacing:0.5px;
+  }
+  .journey-hint {
+    margin-top:14px; padding:12px 16px; background:rgba(231,255,42,0.06);
+    border-left:3px solid var(--acid);
+    font-size:12px; color:var(--grey-light); letter-spacing:0.3px;
+  }
+
+  /* ===== ANNOTATIONS ===== */
+  .annotation-card {
+    background:var(--petrol); border:1px solid var(--petrol-light);
+    border-left:3px solid var(--acid);
+    padding:14px 16px; margin-bottom:6px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    transition:all 0.15s;
+  }
+  .annotation-card:hover { border-left-color:var(--white); }
+  .annotation-body { flex:1; }
+  .annotation-meta {
+    display:flex; gap:10px; align-items:center; margin-bottom:8px;
+    font-family:'Big Shoulders Display',sans-serif; font-size:10px;
+    letter-spacing:1.5px; text-transform:uppercase;
+  }
+  .annotation-date {
+    font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--acid);
+    font-size:12px;
+  }
+  .annotation-stage-badge {
+    padding:2px 8px; font-size:10px; font-weight:700;
+    background:var(--petrol-mid); color:var(--grey-light);
+    border:1px solid var(--petrol-light); border-radius:2px;
+  }
+  .annotation-text { font-size:14px; line-height:1.5; color:var(--white); }
+  .annotation-actions { display:flex; gap:4px; opacity:0.5; transition:opacity 0.15s; }
+  .annotation-card:hover .annotation-actions { opacity:1; }
+  .annotation-impact {
+    margin-top:12px; padding:12px; background:var(--petrol-dark);
+    border:1px solid var(--petrol-light); border-radius:2px;
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px;
+  }
+  .imp-item { display:flex; flex-direction:column; gap:4px; }
+  .imp-label {
+    font-family:'Big Shoulders Display',sans-serif; font-size:9px;
+    letter-spacing:1.5px; text-transform:uppercase; color:var(--grey);
+  }
+  .imp-val {
+    font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .imp-val .delta {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-size:13px; padding:1px 6px; border-radius:2px;
+  }
+  .imp-val .delta.up { color:var(--good); background:rgba(78,203,113,0.15); }
+  .imp-val .delta.down { color:var(--warn); background:rgba(255,107,53,0.15); }
+  .imp-val .delta.neutral { color:var(--grey); background:rgba(137,138,141,0.15); }
+
+  .empty-state {
+    text-align:center; padding:36px 20px; color:var(--grey);
+    font-size:12px; font-style:italic; border:1px dashed var(--petrol-light);
+    border-radius:0;
+  }
+
+  /* ===== MODAL ===== */
+  .modal-backdrop {
+    position:fixed; inset:0; background:rgba(7,30,34,0.85);
+    display:none; align-items:center; justify-content:center; z-index:500; padding:20px;
+  }
+  .modal-backdrop.show { display:flex; }
+  .modal-box {
+    background:var(--petrol); border:1px solid var(--petrol-light);
+    border-top:3px solid var(--acid); padding:28px;
+    width:100%; max-width:480px;
+  }
+  .modal-title {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-size:18px; letter-spacing:2px; text-transform:uppercase;
+    margin-bottom:18px;
+  }
+  .modal-field { margin-bottom:14px; }
+  .modal-field label {
+    display:block; font-family:'Big Shoulders Display',sans-serif;
+    font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--grey); margin-bottom:5px; font-weight:700;
+  }
+  .modal-field input, .modal-field select, .modal-field textarea {
+    width:100%; background:var(--petrol-dark); border:1px solid var(--petrol-light);
+    color:var(--white); padding:10px 12px; border-radius:2px;
+    font-size:13px; transition:border-color 0.15s;
+  }
+  .modal-field textarea { resize:vertical; min-height:80px; }
+  .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus {
+    outline:none; border-color:var(--acid);
+  }
+  .modal-actions {
+    display:flex; gap:8px; justify-content:flex-end; margin-top:18px;
+    padding-top:16px; border-top:1px solid var(--petrol-light);
+  }
 
   /* ===== TOOLTIP ===== */
   .tooltip {
-    position:fixed; background:var(--bg-dark); border:1px solid var(--accent);
-    border-radius:8px; padding:14px 18px; z-index:1000; pointer-events:none;
-    opacity:0; transition:opacity 0.2s; max-width:280px;
-    box-shadow:0 8px 30px rgba(0,0,0,0.4);
+    position:fixed; background:var(--petrol-dark); border:1px solid var(--acid);
+    padding:12px 16px; z-index:1000; pointer-events:none;
+    opacity:0; transition:opacity 0.2s; max-width:300px; border-radius:2px;
   }
   .tooltip.visible { opacity:1; }
   .tooltip h4 {
-    font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700;
-    text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:8px;
+    font-family:'Big Shoulders Display',sans-serif; font-size:13px; font-weight:900;
+    letter-spacing:1.5px; text-transform:uppercase; color:var(--acid); margin-bottom:6px;
   }
-  .tooltip p { font-size:12px; color:var(--text-dim); line-height:1.5; }
-  .tooltip .tt-row { display:flex; justify-content:space-between; padding:3px 0; font-size:12px; }
-  .tooltip .tt-label { color:var(--text-dim); }
-  .tooltip .tt-val { font-weight:600; color:var(--text); }
+  .tooltip p { font-size:11px; color:var(--grey-light); line-height:1.5; }
+  .tooltip .tt-row {
+    display:flex; justify-content:space-between; padding:3px 0; font-size:11px;
+  }
+  .tooltip .tt-label { color:var(--grey); }
+  .tooltip .tt-val { font-weight:600; color:var(--white); font-family:'JetBrains Mono',monospace; }
+
+  /* ===== REVENUE ===== */
+  .revenue-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:3px; }
+  .revenue-item {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:9px 0; border-bottom:1px solid var(--petrol-light);
+  }
+  .revenue-item:last-child { border-bottom:none; }
+  .revenue-item-label { font-size:12px; color:var(--grey-light); }
+  .revenue-item-value {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-size:18px; color:var(--white);
+  }
+  .revenue-bar-bg {
+    height:3px; background:var(--petrol-dark); overflow:hidden; margin-top:4px;
+  }
+  .revenue-bar-fill { height:100%; transition:width 0.6s; }
+
+  /* ===== CHARTS ===== */
+  .charts-grid {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr));
+    gap:16px; margin-bottom:16px;
+  }
+  .chart-card {
+    background:var(--petrol); border:1px solid var(--petrol-light);
+    border-top:3px solid var(--petrol-light); padding:22px;
+  }
+  .chart-card.accent-top { border-top-color:var(--acid); }
+  .chart-title {
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-size:14px; letter-spacing:2px; text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .chart-subtitle { font-size:11px; color:var(--grey); font-style:italic; margin-bottom:18px; }
+  .chart-wrap { position:relative; height:250px; }
+
+  /* ===== HEATMAP ===== */
+  .heatmap-grid { display:grid; grid-template-columns:90px repeat(7, 1fr); gap:3px; }
+  .heatmap-cell {
+    aspect-ratio:1.8 / 1; display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600;
+  }
+  .heatmap-cell.label {
+    background:transparent; color:var(--grey);
+    font-family:'Big Shoulders Display',sans-serif; font-size:10px;
+    letter-spacing:1.5px; text-transform:uppercase;
+    justify-content:flex-end; padding-right:10px;
+  }
+  .heatmap-cell.header {
+    background:transparent; color:var(--acid);
+    font-family:'Big Shoulders Display',sans-serif; font-size:10px;
+    letter-spacing:1.5px; text-transform:uppercase;
+  }
 
   /* ===== DATA TABLE ===== */
   .data-section {
-    background:var(--bg-card); border-radius:16px; padding:28px; margin-bottom:30px;
-    border:1px solid rgba(255,255,255,0.06); overflow-x:auto;
+    background:var(--petrol); border:1px solid var(--petrol-light);
+    border-top:3px solid var(--petrol-light); padding:22px; overflow-x:auto;
   }
-  .data-grid {
-    display:grid; gap:2px; background:rgba(0,0,0,0.2);
-    border-radius:8px; overflow:hidden;
+  .data-grid { display:grid; gap:1px; background:var(--petrol-light); border:1px solid var(--petrol-light); }
+  .data-cell {
+    padding:8px 10px; background:var(--petrol); font-size:11px;
+    display:flex; align-items:center;
   }
-  .data-cell { padding:8px 12px; background:var(--bg-card); font-size:12px; display:flex; align-items:center; }
   .data-cell.header {
-    background:var(--bg-dark); font-weight:600; font-size:10px;
-    text-transform:uppercase; letter-spacing:1px; color:var(--accent);
-    justify-content:center; font-family:'Barlow Condensed',sans-serif;
+    background:var(--petrol-dark); font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700; font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--acid); justify-content:center;
   }
-  .data-cell.label { font-weight:500; color:var(--text-dim); font-size:11px; }
+  .data-cell.label { color:var(--grey-light); font-size:11px; }
   .data-cell.computed {
-    font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:600;
-    justify-content:center; color:var(--accent);
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600;
+    justify-content:center; color:var(--white);
   }
+  .data-cell.emphasis { color:var(--acid); font-weight:700; }
 
-  @media (max-width:900px) {
-    .main { padding:20px 16px; }
-    .header { padding:16px 20px; flex-direction:column; gap:10px; }
-    .funnel-bar { padding:0 12px; height:44px; }
-    .funnel-center { gap:16px; }
-    .funnel-metric-value { font-size:16px; }
-    .kpi-row { grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
+  /* ===== TOAST ===== */
+  .toast {
+    position:fixed; bottom:24px; right:24px; z-index:2000;
+    background:var(--petrol); border:1px solid var(--acid);
+    padding:12px 18px; font-size:12px; font-weight:500;
+    transform:translateY(100px); opacity:0; transition:all 0.25s;
+    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    letter-spacing:1.5px; text-transform:uppercase;
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.success { border-color:var(--good); color:var(--good); }
+  .toast.error { border-color:var(--warn); color:var(--warn); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width:720px) {
+    header { padding:14px 16px; flex-direction:column; gap:8px; align-items:flex-start; }
+    main { padding:20px 14px 0; }
+    .tabs { padding:0 12px; }
+    .tab-btn { padding:12px 10px; font-size:11px; letter-spacing:1px; }
+    .kpi-strip { grid-template-columns:repeat(2, 1fr); }
+    .funnel-side-label { width:100px; font-size:10px; }
   }
 </style>
 </head>
@@ -288,80 +508,251 @@
     <div class="login-logo"><span>MEN</span>toreo</div>
     <div class="login-sub">Funnel Dashboard</div>
     <form id="loginForm" onsubmit="doLogin(event)">
-      <input type="password" id="passwordInput" class="login-input"
-             placeholder="Ingresa tu clave" autocomplete="current-password" autofocus>
+      <input type="password" id="passwordInput" class="login-input" placeholder="Ingresa tu clave" autocomplete="current-password" autofocus>
       <button type="submit" class="login-btn" id="loginBtn">Acceder</button>
       <div class="login-error" id="loginError">Clave incorrecta</div>
     </form>
-    <div class="login-footer">
-      Dashboard encriptado con <b>AES-256</b><br>
-      Uso exclusivo de Jose Julian (Jota)
-    </div>
+    <div class="login-footer">Encriptado con <b>AES-256</b> &middot; Uso exclusivo de <b>Jota</b></div>
   </div>
 </div>
 
-<!-- TOOLTIP -->
 <div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
 
-<!-- MAIN APP (hidden until auth) -->
+<!-- MODAL ANOTACION -->
+<div class="modal-backdrop" id="annModal">
+  <div class="modal-box">
+    <div class="modal-title" id="annModalTitle">Nueva anotaci&oacute;n</div>
+    <form id="annForm" onsubmit="saveAnnotation(event)">
+      <input type="hidden" id="annId">
+      <div class="modal-field">
+        <label>Fecha</label>
+        <input type="date" id="annDate" required>
+      </div>
+      <div class="modal-field">
+        <label>Etapa del embudo</label>
+        <select id="annStage" required>
+          <option value="general">General</option>
+          <option value="impressions">Impresiones / Ads</option>
+          <option value="clicks">Link Clicks / Creative</option>
+          <option value="lpv">Landing Page</option>
+          <option value="leads">Opt-in / Lead Magnet</option>
+          <option value="checkouts">Checkout</option>
+          <option value="purchases">Compra Low Ticket</option>
+          <option value="bump1">Bump 1</option>
+          <option value="bump2">Bump 2</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Observaci&oacute;n</label>
+        <textarea id="annText" placeholder="ej: Cambi&eacute; creative a formato carrusel" required maxlength="300"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeAnnModal()">Cancelar</button>
+        <button type="button" class="btn danger" id="annDeleteBtn" style="display:none" onclick="deleteAnnotationConfirm()">Eliminar</button>
+        <button type="submit" class="btn primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
 <div id="app" style="display:none">
 
-  <div class="header">
-    <div>
-      <h1><span>MEN</span>toreo &mdash; Funnel Dashboard</h1>
-      <div class="header-meta">Actualizado: <span id="updatedAt">-</span> &middot; Build: <span id="buildDate">-</span></div>
-    </div>
-    <div class="header-controls">
+  <header>
+    <div class="logo">MEN<span>toreo</span> <small>&middot; Funnel Dashboard</small></div>
+    <div class="header-right">
+      <span class="period-label" id="activePeriodLabel">Acumulado total</span>
+      <span class="header-meta" id="updatedAtHeader">-</span>
       <button class="btn" onclick="window.print()">Imprimir</button>
       <button class="btn" onclick="doLogout()">Salir</button>
     </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('embudo', this)">Embudo</button>
+    <button class="tab-btn" onclick="switchTab('journey', this)">Customer Journey</button>
+    <button class="tab-btn" onclick="switchTab('trends', this)">Tendencias</button>
+    <button class="tab-btn" onclick="switchTab('revenue', this)">Revenue</button>
+    <button class="tab-btn" onclick="switchTab('data', this)">Datos</button>
   </div>
 
-  <div class="main">
-
-    <!-- FILTERS -->
-    <div class="filters">
-      <span class="filter-label">Periodo:</span>
-      <button class="btn btn-small active" onclick="setFilter('all', this)">Todo</button>
-      <button class="btn btn-small" onclick="setFilter('Feb', this)">Febrero</button>
-      <button class="btn btn-small" onclick="setFilter('Mar', this)">Marzo</button>
-      <button class="btn btn-small" onclick="setFilter('Abr', this)">Abril</button>
-      <button class="btn btn-small" onclick="setFilter('last7', this)">&Uacute;ltimos 7</button>
-      <button class="btn btn-small" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
-    </div>
-
-    <div class="kpi-row" id="kpiRow"></div>
-
-    <div class="tabs">
-      <button class="tab active" onclick="switchView('funnel', this)">Embudo</button>
-      <button class="tab" onclick="switchView('journey', this)">Customer Journey</button>
-      <button class="tab" onclick="switchView('revenue', this)">Revenue</button>
-      <button class="tab" onclick="switchView('data', this)">Datos</button>
-    </div>
-
-    <div id="view-funnel" class="funnel-section">
-      <div class="section-title">Embudo de Ventas &mdash; Desaf&iacute;o 12 D&iacute;as &rarr; Low Ticket</div>
-      <div class="funnel-container" id="funnelContainer"></div>
-    </div>
-
-    <div id="view-journey" style="display:none">
-      <div class="section-title">Customer Journey Map</div>
-      <div style="background:var(--bg-card);border-radius:16px;padding:30px;border:1px solid rgba(255,255,255,0.06);overflow-x:auto;">
-        <div class="journey-map" id="journeyMap"></div>
+  <!-- TAB: EMBUDO -->
+  <div id="tab-embudo" class="tab-panel active">
+    <main>
+      <div class="period-bar">
+        <span class="period-bar-label">Per&iacute;odo</span>
+        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
+        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
+        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
+        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
+        <button class="btn" onclick="setFilter('last7', this)">&Uacute;ltimos 7</button>
+        <button class="btn" onclick="setFilter('last14', this)">&Uacute;ltimos 14</button>
+        <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
       </div>
-    </div>
+      <p class="hint">Todas las m&eacute;tricas se recalculan autom&aacute;ticamente. &Delta; vs per&iacute;odo anterior del mismo tama&ntilde;o.</p>
 
-    <div id="view-revenue" style="display:none">
-      <div class="section-title">An&aacute;lisis de Revenue</div>
-      <div class="revenue-grid" id="revenueGrid"></div>
-    </div>
+      <div class="section-title">01 &middot; M&eacute;tricas clave <span class="sub">spend, revenue, ROAS &amp; conversion</span></div>
+      <div class="kpi-strip" id="kpiStrip"></div>
 
-    <div id="view-data" class="data-section" style="display:none">
-      <div class="section-title">Datos Detallados</div>
-      <div id="dataGrid"></div>
-    </div>
+      <div class="section-title">02 &middot; Embudo completo <span class="sub">volumen por etapa con % de conversi&oacute;n</span></div>
+      <div class="panel accent">
+        <div class="funnel-visual" id="funnelVisual"></div>
+      </div>
 
+      <div class="section-title">03 &middot; Evoluci&oacute;n diaria <span class="sub">leads, compras y tasas con anotaciones</span></div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">Leads y Compras</div>
+          <div class="chart-subtitle">Volumen diario con anotaciones sobre cambios</div>
+          <div class="chart-wrap"><canvas id="chartFunnelDaily"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Tasas de conversi&oacute;n</div>
+          <div class="chart-subtitle">% por transici&oacute;n, d&iacute;a a d&iacute;a</div>
+          <div class="chart-wrap"><canvas id="chartConversions"></canvas></div>
+        </div>
+      </div>
+    </main>
   </div>
+
+  <!-- TAB: JOURNEY -->
+  <div id="tab-journey" class="tab-panel">
+    <main>
+      <div class="period-bar">
+        <span class="period-bar-label">Per&iacute;odo</span>
+        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
+        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
+        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
+        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
+        <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
+      </div>
+
+      <div class="section-title">01 &middot; Viaje del cliente <span class="sub">click en cualquier nodo para agregar observaci&oacute;n</span></div>
+      <div class="panel accent">
+        <div class="journey-wrapper">
+          <div class="journey-map" id="journeyMap"></div>
+          <div class="journey-hint">&#128161; Click en cualquier etapa para registrar un cambio (creative nuevo, landing v2, test de copy, etc.) Despu&eacute;s ver&aacute;s autom&aacute;ticamente si mejor&oacute; o no con los d&iacute;as.</div>
+        </div>
+      </div>
+
+      <div class="section-title">02 &middot; Observaciones del embudo <span class="sub">impacto se calcula 7 d&iacute;as antes vs 7 despu&eacute;s</span></div>
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Todas las anotaciones</div>
+            <div class="panel-subtitle">Ordenadas por fecha m&aacute;s reciente primero</div>
+          </div>
+          <button class="btn primary" onclick="openAnnModal()">+ Nueva observaci&oacute;n</button>
+        </div>
+        <div id="annotationsList"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- TAB: TENDENCIAS -->
+  <div id="tab-trends" class="tab-panel">
+    <main>
+      <div class="period-bar">
+        <span class="period-bar-label">Per&iacute;odo</span>
+        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
+        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
+        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
+        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
+        <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
+      </div>
+
+      <div class="section-title">01 &middot; Costos unitarios <span class="sub">evoluci&oacute;n de CPL y CPA</span></div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">CPL &mdash; Costo por Lead</div>
+          <div class="chart-subtitle">Menor es mejor &middot; anotaciones marcan cambios</div>
+          <div class="chart-wrap"><canvas id="chartCPL"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">CPA &mdash; Costo por Compra</div>
+          <div class="chart-subtitle">Menor es mejor</div>
+          <div class="chart-wrap"><canvas id="chartCPA"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section-title">02 &middot; Rentabilidad <span class="sub">ganancia diaria y ROAS</span></div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">Ganancia diaria</div>
+          <div class="chart-subtitle">Revenue &minus; Ad Spend por d&iacute;a</div>
+          <div class="chart-wrap"><canvas id="chartProfit"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">ROAS</div>
+          <div class="chart-subtitle">Return on Ad Spend &middot; meta &ge;2x</div>
+          <div class="chart-wrap"><canvas id="chartROAS"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section-title">03 &middot; Heatmap semanal <span class="sub">rendimiento por d&iacute;a de la semana</span></div>
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Compras promedio por d&iacute;a-de-semana</div>
+            <div class="panel-subtitle">Identifica qu&eacute; d&iacute;as convierten mejor. Intensidad = mayor volumen.</div>
+          </div>
+        </div>
+        <div id="heatmapContainer"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- TAB: REVENUE -->
+  <div id="tab-revenue" class="tab-panel">
+    <main>
+      <div class="period-bar">
+        <span class="period-bar-label">Per&iacute;odo</span>
+        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
+        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
+        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
+        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
+        <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
+      </div>
+
+      <div class="section-title">01 &middot; Breakdown <span class="sub">ingresos por producto y unit economics</span></div>
+      <div class="revenue-grid" id="revenueGrid"></div>
+
+      <div class="section-title">02 &middot; Evoluci&oacute;n <span class="sub">stack de revenue y take rate de bumps</span></div>
+      <div class="charts-grid">
+        <div class="chart-card accent-top">
+          <div class="chart-title">Revenue diario por producto</div>
+          <div class="chart-subtitle">Low Ticket + Bump 1 + Bump 2 stacked</div>
+          <div class="chart-wrap"><canvas id="chartRevenue"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Take rate de bumps</div>
+          <div class="chart-subtitle">% que compran cada bump sobre total de compradores</div>
+          <div class="chart-wrap"><canvas id="chartBumps"></canvas></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- TAB: DATA -->
+  <div id="tab-data" class="tab-panel">
+    <main>
+      <div class="period-bar">
+        <span class="period-bar-label">Per&iacute;odo</span>
+        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
+        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
+        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
+        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
+        <button class="btn" onclick="setFilter('last14', this)">&Uacute;ltimos 14</button>
+      </div>
+      <div class="section-title">Datos detallados <span class="sub">m&eacute;tricas d&iacute;a a d&iacute;a</span></div>
+      <div class="data-section">
+        <div id="dataGrid"></div>
+      </div>
+    </main>
+  </div>
+
 </div>
 
 <script>
@@ -377,22 +768,13 @@ async function decrypt(password, payloadB64) {
   const iv = raw.slice(16, 28);
   const authTag = raw.slice(28, 44);
   const ciphertext = raw.slice(44);
-
-  // WebCrypto AES-GCM expects ciphertext || authTag concatenated
   const ctWithTag = new Uint8Array(ciphertext.length + authTag.length);
   ctWithTag.set(ciphertext, 0);
   ctWithTag.set(authTag, ciphertext.length);
-
-  const keyMat = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2', false, ['deriveKey']
-  );
+  const keyMat = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
   const key = await crypto.subtle.deriveKey(
     { name:'PBKDF2', salt, iterations: ITERATIONS, hash:'SHA-256' },
-    keyMat,
-    { name:'AES-GCM', length:256 },
-    false, ['decrypt']
+    keyMat, { name:'AES-GCM', length:256 }, false, ['decrypt']
   );
   const plaintext = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ctWithTag);
   return JSON.parse(new TextDecoder().decode(plaintext));
@@ -403,203 +785,332 @@ async function doLogin(e) {
   const btn = document.getElementById('loginBtn');
   const err = document.getElementById('loginError');
   const pw = document.getElementById('passwordInput').value;
-  btn.disabled = true;
-  btn.textContent = 'Desencriptando...';
+  btn.disabled = true; btn.textContent = 'Desencriptando...';
   err.classList.remove('show');
-
   try {
     const data = await decrypt(pw, ENC_PAYLOAD);
     sessionStorage.setItem('funnel_pw', pw);
     onAuthSuccess(data);
   } catch (ex) {
     err.classList.add('show');
-    btn.disabled = false;
-    btn.textContent = 'Acceder';
+    btn.disabled = false; btn.textContent = 'Acceder';
     document.getElementById('passwordInput').value = '';
     document.getElementById('passwordInput').focus();
   }
 }
 
-function doLogout() {
-  sessionStorage.removeItem('funnel_pw');
-  location.reload();
-}
+function doLogout() { sessionStorage.removeItem('funnel_pw'); location.reload(); }
 
 function onAuthSuccess(data) {
   APP_DATA = data;
+  APP_DATA.annotations = APP_DATA.annotations || [];
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  document.getElementById('updatedAt').textContent = data.updatedAt || '-';
-  document.getElementById('buildDate').textContent = BUILD_DATE.split('T')[0];
+  document.getElementById('updatedAtHeader').textContent = 'Data: ' + (data.updatedAt || '-') + ' · ' + Object.keys(data.days).length + ' dias';
   renderAll();
 }
 
-// Try session auto-login
 window.addEventListener('DOMContentLoaded', async () => {
   const saved = sessionStorage.getItem('funnel_pw');
   if (saved) {
-    try {
-      const data = await decrypt(saved, ENC_PAYLOAD);
-      onAuthSuccess(data);
-    } catch { sessionStorage.removeItem('funnel_pw'); }
+    try { onAuthSuccess(await decrypt(saved, ENC_PAYLOAD)); }
+    catch { sessionStorage.removeItem('funnel_pw'); }
   }
 });
 
-// ====== DASHBOARD LOGIC ======
+// ====== STATE ======
 let APP_DATA = null;
 let currentFilter = 'all';
+let currentTab = 'embudo';
+let chartInstances = {};
 
 const STAGES = [
-  { id:'impressions', name:'Impresiones',            icon:'&#128064;', color:'var(--stage1)', desc:'Veces que el anuncio fue mostrado en Meta Ads' },
-  { id:'reach',       name:'Alcance',                icon:'&#127758;', color:'var(--stage2)', desc:'Personas \u00fanicas que vieron el anuncio' },
-  { id:'clicks',      name:'Link Clicks',            icon:'&#128073;', color:'var(--stage3)', desc:'Clics en el enlace del anuncio hacia la landing' },
-  { id:'lpv',         name:'Landing Page Views',     icon:'&#128196;', color:'var(--stage4)', desc:'Visitas efectivas a la landing del Desaf\u00edo 12 D\u00edas' },
-  { id:'leads',       name:'Leads (Opt-in)',         icon:'&#128231;', color:'var(--stage5)', desc:'Personas que dejaron sus datos en la landing' },
-  { id:'checkouts',   name:'Checkouts Iniciados',    icon:'&#128722;', color:'var(--stage6)', desc:'Personas que iniciaron el proceso de pago del Low Ticket ($37)' },
-  { id:'purchases',   name:'Compras Low Ticket',     icon:'&#128176;', color:'var(--stage7)', desc:'Compradores del Low Ticket ($37) - entrada al programa' },
-  { id:'bump1',       name:'Bump 1 (Sesion Estr.)',  icon:'&#127775;', color:'var(--stage8)', desc:'Upsell inmediato: Sesion Estrategica PRE ($42)' },
-  { id:'bump2',       name:'Bump 2 (Upgrade)',       icon:'&#128142;', color:'var(--stage9)', desc:'Segundo upsell: Sesion Estrategica Bump 2 ($48)' },
+  { id:'impressions', name:'Impresiones',        icon:'\u{1F441}', color:'#1a6070', desc:'Impresiones totales en Meta Ads' },
+  { id:'reach',       name:'Alcance',            icon:'\u{1F30E}', color:'#206b7c', desc:'Personas unicas alcanzadas' },
+  { id:'clicks',      name:'Link Clicks',        icon:'\u{1F449}', color:'#2d8295', desc:'Clicks en CTA del anuncio' },
+  { id:'lpv',         name:'Landing Page Views', icon:'\u{1F4C4}', color:'#3ba0b6', desc:'Visitas a la landing' },
+  { id:'leads',       name:'Opt-ins',            icon:'\u{1F4E7}', color:'#f7c948', desc:'Leads capturados' },
+  { id:'checkouts',   name:'Checkouts',          icon:'\u{1F6D2}', color:'#ff9f43', desc:'Checkouts iniciados' },
+  { id:'purchases',   name:'Compra Low Ticket',  icon:'\u{1F4B0}', color:'#E7FF2A', desc:'Compras del Low Ticket ($37)' },
+  { id:'bump1',       name:'Bump 1',             icon:'\u{1F31F}', color:'#4ecb71', desc:'Upsell Sesion Estrategica ($42)' },
+  { id:'bump2',       name:'Bump 2',             icon:'\u{1F48E}', color:'#10b981', desc:'Upsell Bump 2 ($48)' }
 ];
 
-function getFilteredDays() {
-  const all = APP_DATA.days;
-  const keys = Object.keys(all);
-  if (currentFilter === 'all') return keys;
-  if (currentFilter === 'last7') return keys.slice(-7);
-  if (currentFilter === 'last30') return keys.slice(-30);
-  return keys.filter(k => k.startsWith(currentFilter));
-}
+const STAGE_NAMES = {
+  general:'General', impressions:'Impresiones', clicks:'Link Clicks', lpv:'Landing',
+  leads:'Opt-in', checkouts:'Checkout', purchases:'Compra LT', bump1:'Bump 1', bump2:'Bump 2'
+};
 
-function getAggregated() {
+// ====== HELPERS ======
+const MONTHS = {Ene:0,Feb:1,Mar:2,Abr:3,May:4,Jun:5,Jul:6,Ago:7,Sep:8,Oct:9,Nov:10,Dic:11};
+const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+function getSortedDayKeys() { return Object.keys(APP_DATA.days).sort(parseDayKey); }
+function parseDayKey(a, b) {
+  const [ma,da] = a.split(' '); const [mb,db] = b.split(' ');
+  return (MONTHS[ma]*100+parseInt(da)) - (MONTHS[mb]*100+parseInt(db));
+}
+function dayKeyToDate(key) {
+  const [m,d] = key.split(' '); return new Date(2026, MONTHS[m], parseInt(d));
+}
+function dateToDayKey(d) {
+  return MONTH_NAMES[d.getMonth()] + ' ' + String(d.getDate()).padStart(2,'0');
+}
+function isoDateToDayKey(iso) {
+  const parts = iso.split('-');
+  return dateToDayKey(new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2])));
+}
+function formatNum(n) {
+  if (n == null || isNaN(n)) return '0';
+  if (Math.abs(n) >= 1000000) return (n/1000000).toFixed(1)+'M';
+  if (Math.abs(n) >= 10000) return (n/1000).toFixed(0)+'K';
+  if (Math.abs(n) >= 1000) return (n/1000).toFixed(1)+'K';
+  return Math.round(n).toLocaleString();
+}
+function fmtMoney(n) { return '$' + (n || 0).toFixed(2); }
+function fmtMoneyCompact(n) {
+  if (Math.abs(n) >= 10000) return '$' + (n/1000).toFixed(1) + 'K';
+  return '$' + Math.round(n).toLocaleString();
+}
+function fmtPct(n) { return (n || 0).toFixed(1) + '%'; }
+function getFilteredDays() {
+  const all = getSortedDayKeys();
+  if (currentFilter === 'all') return all;
+  if (currentFilter === 'last7') return all.slice(-7);
+  if (currentFilter === 'last14') return all.slice(-14);
+  if (currentFilter === 'last30') return all.slice(-30);
+  return all.filter(k => k.startsWith(currentFilter));
+}
+function getAggregated(days) {
+  days = days || getFilteredDays();
   const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
-  const agg = {};
-  fields.forEach(f => agg[f] = 0);
-  getFilteredDays().forEach(k => {
-    const d = APP_DATA.days[k];
+  const agg = Object.fromEntries(fields.map(f=>[f,0]));
+  days.forEach(k => {
+    const d = APP_DATA.days[k]; if (!d) return;
     fields.forEach(f => agg[f] += (parseFloat(d[f]) || 0));
   });
   return agg;
 }
+function computeRevenue(d) {
+  const P = APP_DATA.prices;
+  return d.purchases*P.lowTicket + d.bump1*P.bump1 + d.bump2*P.bump2;
+}
+function dayMetric(key, metric) {
+  const d = APP_DATA.days[key]; if (!d) return 0;
+  if (metric === 'revenue') return computeRevenue(d);
+  if (metric === 'profit')  return computeRevenue(d) - (d.spend||0);
+  if (metric === 'roas')    return d.spend > 0 ? computeRevenue(d)/d.spend : 0;
+  if (metric === 'cpl')     return d.leads > 0 ? d.spend/d.leads : 0;
+  if (metric === 'cpa')     return d.purchases > 0 ? d.spend/d.purchases : 0;
+  return d[metric] || 0;
+}
 
+// ====== FILTERS ======
 function setFilter(f, btn) {
   currentFilter = f;
-  document.querySelectorAll('.filters .btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.period-bar .btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  // sync across tabs
+  document.querySelectorAll('.tab-panel .period-bar').forEach(bar => {
+    bar.querySelectorAll('.btn').forEach(b => {
+      const onclickStr = b.getAttribute('onclick') || '';
+      const match = onclickStr.match(/setFilter\('([^']+)'/);
+      if (match && match[1] === f) b.classList.add('active');
+    });
+  });
+  const labelMap = {all:'Acumulado total', Feb:'Febrero 2026', Mar:'Marzo 2026', Abr:'Abril 2026', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
+  document.getElementById('activePeriodLabel').textContent = labelMap[f] || f;
   renderAll();
 }
 
-function renderAll() {
-  renderKPIs();
-  renderFunnel();
-  renderJourney();
-  renderRevenue();
-  renderDataGrid();
+// ====== TABS ======
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  if (btn) btn.classList.add('active');
+  destroyCharts();
+  renderAll();
 }
 
+function destroyCharts() {
+  Object.values(chartInstances).forEach(c => { if (c && c.destroy) c.destroy(); });
+  chartInstances = {};
+}
+
+// ====== RENDER ALL ======
+function renderAll() {
+  destroyCharts();
+  renderKPIs();
+  if (currentTab === 'embudo') { renderFunnelVisual(); setTimeout(()=>{ renderFunnelDailyChart(); renderConversionsChart(); }, 30); }
+  if (currentTab === 'journey') { renderJourney(); renderAnnotations(); }
+  if (currentTab === 'trends')  { setTimeout(()=>{ renderTrendCharts(); renderHeatmap(); }, 30); }
+  if (currentTab === 'revenue') { renderRevenue(); setTimeout(()=>{ renderRevenueCharts(); }, 30); }
+  if (currentTab === 'data')    { renderDataGrid(); }
+}
+
+// ====== KPIs ======
 function renderKPIs() {
   const d = getAggregated();
-  const P = APP_DATA.prices;
-  const revenue = (d.purchases * P.lowTicket) + (d.bump1 * P.bump1) + (d.bump2 * P.bump2);
-  const roas = d.spend > 0 ? revenue / d.spend : 0;
-  const cpl = d.leads > 0 ? d.spend / d.leads : 0;
-  const cpa = d.purchases > 0 ? d.spend / d.purchases : 0;
-  const convRate = d.lpv > 0 ? (d.purchases / d.lpv * 100) : 0;
-  const aov = d.purchases > 0 ? revenue / d.purchases : 0;
-  const ganancia = revenue - d.spend;
-  const nDias = getFilteredDays().length;
+  const days = getFilteredDays();
+  const revenue = computeRevenue(d);
+  const profit = revenue - d.spend;
+  const roas = d.spend > 0 ? revenue/d.spend : 0;
+  const cpl = d.leads > 0 ? d.spend/d.leads : 0;
+  const cpa = d.purchases > 0 ? d.spend/d.purchases : 0;
+  const aov = d.purchases > 0 ? revenue/d.purchases : 0;
+
+  const allDays = getSortedDayKeys();
+  const nDays = days.length;
+  const firstIdx = allDays.indexOf(days[0]);
+  const prevStart = Math.max(0, firstIdx - nDays);
+  const prevDays = allDays.slice(prevStart, firstIdx);
+  const prev = prevDays.length > 0 ? getAggregated(prevDays) : null;
+  const prevRev = prev ? computeRevenue(prev) : 0;
+  const prevProfit = prev ? prevRev - prev.spend : 0;
+  const prevCpl = (prev && prev.leads > 0) ? prev.spend/prev.leads : 0;
+  const prevCpa = (prev && prev.purchases > 0) ? prev.spend/prev.purchases : 0;
+  const prevRoas = (prev && prev.spend > 0) ? prevRev/prev.spend : 0;
+  const prevAov = (prev && prev.purchases > 0) ? prevRev/prev.purchases : 0;
+
+  function deltaHtml(cur, prev, invertGood) {
+    if (!prev || prev === 0 || !isFinite(cur)) return '';
+    const pct = ((cur - prev)/prev*100);
+    if (!isFinite(pct) || isNaN(pct)) return '';
+    const isUp = pct > 0;
+    const good = invertGood ? !isUp : isUp;
+    const cls = Math.abs(pct) < 1 ? 'neutral' : (good ? 'up' : 'down');
+    const arrow = Math.abs(pct) < 1 ? '\u2192' : (isUp ? '\u25B2' : '\u25BC');
+    return '<span class="kpi-delta '+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</span>';
+  }
 
   const kpis = [
-    { label:'Ad Spend',      value:'$'+d.spend.toFixed(2),     cls:'blue',    sub:nDias + ' d\u00edas' },
-    { label:'Revenue',       value:'$'+revenue.toFixed(2),     cls:'green',   sub:d.purchases + ' ventas' },
-    { label:'Ganancia',      value:(ganancia>=0?'+':'')+'$'+ganancia.toFixed(2), cls:ganancia>=0?'green':'red', sub:'Revenue - Spend' },
-    { label:'ROAS',          value:roas.toFixed(2)+'x',        cls:roas>=2?'green':roas>=1?'orange':'red', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo' },
-    { label:'Cost / Lead',   value:'$'+cpl.toFixed(2),         cls:'purple',  sub:d.leads + ' leads' },
-    { label:'Cost / Compra', value:'$'+cpa.toFixed(2),         cls:'accent',  sub:d.purchases + ' compras' },
-    { label:'Conv. Rate',    value:convRate.toFixed(2)+'%',    cls:convRate>1?'green':'orange', sub:'LPV \u2192 Compra' },
-    { label:'AOV',           value:'$'+aov.toFixed(2),         cls:'accent',  sub:'Valor promedio orden' },
+    { id:'spend',    label:'Ad Spend',      value:fmtMoneyCompact(d.spend),      valCls:'', sub:nDays+' d'+(nDays===1?'ía':'ías'), cur:d.spend, prev:prev?prev.spend:0, invert:false },
+    { id:'revenue',  label:'Revenue',       value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false },
+    { id:'profit',   label:'Ganancia',      value:(profit>=0?'+':'')+fmtMoneyCompact(profit).replace('$','$'), valCls: profit>=0?'good':'warn', sub:'Rev - Spend', cur:profit, prev:prevProfit, invert:false },
+    { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo', cur:roas, prev:prevRoas, invert:false },
+    { id:'cpl',      label:'Cost / Lead',   value:fmtMoney(cpl),                 valCls:'', sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true },
+    { id:'cpa',      label:'Cost / Compra', value:fmtMoney(cpa),                 valCls:'acid', sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true },
+    { id:'aov',      label:'AOV',           value:fmtMoney(aov),                 valCls:'acid', sub:'Valor orden', cur:aov, prev:prevAov, invert:false }
   ];
 
-  document.getElementById('kpiRow').innerHTML = kpis.map(k => `
-    <div class="kpi-card">
-      <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value ${k.cls}">${k.value}</div>
-      <div class="kpi-sub">${k.sub}</div>
+  document.getElementById('kpiStrip').innerHTML = kpis.map(k => `
+    <div class="kpi-cell">
+      <div class="kpi-head">
+        <span class="kpi-label">${k.label}</span>
+        ${deltaHtml(k.cur, k.prev, k.invert)}
+      </div>
+      <div class="kpi-value ${k.valCls}">${k.value}</div>
+      <div class="kpi-sub"><span>${k.sub}</span><span style="font-style:italic">vs prev</span></div>
+      <div class="kpi-sparkline"><canvas id="spark_${k.id}"></canvas></div>
     </div>
   `).join('');
+
+  kpis.forEach(k => {
+    let values;
+    if (k.id === 'revenue') values = days.map(key => dayMetric(key, 'revenue'));
+    else if (k.id === 'profit') values = days.map(key => dayMetric(key, 'profit'));
+    else if (k.id === 'roas') values = days.map(key => dayMetric(key, 'roas'));
+    else if (k.id === 'cpl') values = days.map(key => dayMetric(key, 'cpl'));
+    else if (k.id === 'cpa') values = days.map(key => dayMetric(key, 'cpa'));
+    else if (k.id === 'aov') values = days.map(key => { const dd=APP_DATA.days[key]; return dd.purchases>0 ? computeRevenue(dd)/dd.purchases : 0; });
+    else values = days.map(key => dayMetric(key, k.id));
+
+    const color = k.valCls === 'acid' ? '#E7FF2A' :
+                  k.valCls === 'good' ? '#4ecb71' :
+                  k.valCls === 'warn' ? '#ff6b35' :
+                  k.valCls === 'mid'  ? '#f7c948' : '#1a6070';
+    drawSparkline('spark_' + k.id, values, color);
+  });
 }
 
-function renderFunnel() {
-  const d = getAggregated();
-  const maxVal = Math.max(d.impressions, 1);
-  let html = '';
+function drawSparkline(canvasId, values, color) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx || !values || values.length < 2) return;
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: values.map((_,i)=>i),
+      datasets: [{ data: values, borderColor: color, borderWidth: 1.5, fill: true, backgroundColor: color+'22', pointRadius: 0, tension: 0.35 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{display:false}, tooltip:{enabled:false} },
+      scales: { x:{display:false}, y:{display:false} },
+      animation: { duration: 250 }
+    }
+  });
+}
 
+// ====== FUNNEL VISUAL ======
+function renderFunnelVisual() {
+  const d = getAggregated();
+  const max = Math.max(d.impressions, 1);
+  const wrap = document.getElementById('funnelVisual');
+
+  function convClass(p) {
+    if (p == null) return 'neutral';
+    if (p >= 60) return 'good'; if (p >= 20) return 'mid'; return 'warn';
+  }
+  function hexColor(cls) {
+    return cls === 'good' ? '#4ecb71' : cls === 'mid' ? '#f7c948' : cls === 'warn' ? '#ff6b35' : '#1a6070';
+  }
+
+  let html = '';
   STAGES.forEach((stage, i) => {
     const val = d[stage.id] || 0;
-    const widthPct = Math.max(15, (val / maxVal) * 100);
-    const prevVal = i > 0 ? (d[STAGES[i-1].id] || 0) : 0;
-    const convRate = prevVal > 0 ? ((val / prevVal) * 100) : 0;
-    const dropRate = prevVal > 0 ? (((prevVal - val) / prevVal) * 100) : 0;
-    const costPer = d.spend > 0 && val > 0 ? (d.spend / val) : 0;
+    const widthPct = Math.max(10, (val/max)*100);
+    const prevVal = i > 0 ? (d[STAGES[i-1].id] || 0) : null;
+    const convPct = (i > 0 && prevVal > 0) ? Math.round((val/prevVal)*100) : null;
+    const barColor = i === 0 ? '#1a6070' : hexColor(convClass(convPct));
 
     if (i > 0) {
-      html += `<div class="funnel-arrow">
-        <svg viewBox="0 0 20 20" fill="var(--text-dim)"><path d="M10 14l-5-5h10z"/></svg>
-        ${dropRate > 0 ? `<span class="funnel-drop">-${dropRate.toFixed(0)}% drop</span>` : ''}
-      </div>`;
+      html += `<div class="funnel-arrow" style="color:${hexColor(convClass(convPct))}">\u25BC ${convPct!==null?convPct+'%':''}</div>`;
     }
-
-    html += `<div class="funnel-stage"
-        onmouseenter="showTooltip(event, ${JSON.stringify(stage).replace(/"/g,'&quot;')}, ${val}, ${convRate}, ${costPer})"
+    html += `<div class="funnel-stage-row"
+        onmouseenter="showTooltip(event, ${JSON.stringify(stage).replace(/"/g,'&quot;')}, ${val}, ${convPct||0}, ${d.spend>0&&val>0?d.spend/val:0})"
         onmouseleave="hideTooltip()">
-      <div class="funnel-bar" style="width:${widthPct}%; background:${stage.color};">
-        <div class="funnel-left">
-          <div class="funnel-icon">${stage.icon}</div>
-          <span class="funnel-name">${stage.name}</span>
-        </div>
-        <div class="funnel-center">
-          <div class="funnel-metric">
-            <div class="funnel-metric-value">${formatNum(val)}</div>
-            <div class="funnel-metric-label">Total</div>
-          </div>
-          ${costPer > 0 ? `<div class="funnel-metric">
-            <div class="funnel-metric-value">$${costPer.toFixed(2)}</div>
-            <div class="funnel-metric-label">Costo/Unit</div>
-          </div>` : ''}
-        </div>
-        <div class="funnel-right">
-          ${i > 0 ? `<div class="funnel-conversion">
-            <div class="funnel-conversion-rate">${convRate.toFixed(1)}%</div>
-            <div class="funnel-conversion-label">Conv.</div>
-          </div>` : ''}
+      <div class="funnel-side-label">${stage.name}</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar" style="width:${widthPct}%; background:${barColor};">
+          <span class="funnel-bar-label">${formatNum(val)}</span>
         </div>
       </div>
+      <div class="funnel-side-pct" style="color:${hexColor(convClass(convPct))}">${convPct!==null?convPct+'%':''}</div>
     </div>`;
   });
-
-  document.getElementById('funnelContainer').innerHTML = html;
+  wrap.innerHTML = html;
 }
 
+// ====== JOURNEY ======
 function renderJourney() {
   const d = getAggregated();
   const steps = [
-    { label:'Ad View',      sub:'Meta Ads',            val:formatNum(d.impressions), color:'var(--stage1)', key:'impressions' },
-    { label:'Ad Click',     sub:'CTA en anuncio',      val:formatNum(d.clicks),      color:'var(--stage3)', key:'clicks' },
-    { label:'Landing',      sub:'Desaf\u00edo 12 D\u00edas', val:formatNum(d.lpv),         color:'var(--stage4)', key:'lpv' },
-    { label:'Opt-in',       sub:'Deja sus datos',      val:formatNum(d.leads),       color:'var(--stage5)', key:'leads' },
-    { label:'Checkout',     sub:'P\u00e1gina de pago', val:formatNum(d.checkouts),   color:'var(--stage6)', key:'checkouts' },
-    { label:'Compra',       sub:'Low Ticket $37',      val:formatNum(d.purchases),   color:'var(--stage7)', key:'purchases' },
-    { label:'Bump 1',       sub:'Sesi\u00f3n $42',     val:formatNum(d.bump1),       color:'var(--stage8)', key:'bump1' },
-    { label:'Bump 2',       sub:'Upgrade $48',         val:formatNum(d.bump2),       color:'var(--stage9)', key:'bump2' },
+    { label:'Ad View',      sub:'Meta Ads',     val:formatNum(d.impressions), color:'#1a6070', key:'impressions' },
+    { label:'Ad Click',     sub:'CTA',          val:formatNum(d.clicks),      color:'#2d8295', key:'clicks' },
+    { label:'Landing',      sub:'Desafio',      val:formatNum(d.lpv),         color:'#3ba0b6', key:'lpv' },
+    { label:'Opt-in',       sub:'Datos',        val:formatNum(d.leads),       color:'#f7c948', key:'leads' },
+    { label:'Checkout',     sub:'Pago',         val:formatNum(d.checkouts),   color:'#ff9f43', key:'checkouts' },
+    { label:'Compra',       sub:'LT $37',       val:formatNum(d.purchases),   color:'#E7FF2A', key:'purchases' },
+    { label:'Bump 1',       sub:'Sesion $42',   val:formatNum(d.bump1),       color:'#4ecb71', key:'bump1' },
+    { label:'Bump 2',       sub:'Upgrade $48',  val:formatNum(d.bump2),       color:'#10b981', key:'bump2' }
   ];
+
+  const annsByStage = {};
+  (APP_DATA.annotations || []).forEach(a => {
+    annsByStage[a.stage] = (annsByStage[a.stage] || 0) + 1;
+  });
 
   let html = '';
   steps.forEach((s, i) => {
     const prev = i > 0 ? (d[steps[i-1].key] || 0) : 0;
     const cur = d[s.key] || 0;
-    const rate = prev > 0 ? ((cur/prev)*100).toFixed(1)+'%' : '';
+    const rate = prev > 0 ? (cur/prev*100).toFixed(1)+'%' : '';
+    const annCount = annsByStage[s.key] || 0;
     html += `<div class="journey-step">
-      <div class="journey-node" style="background:${s.color};">
+      <div class="journey-node" style="background:${s.color};" onclick="openAnnModal({stage:'${s.key}'})" title="Click para agregar observacion">
         <div class="journey-node-value">${s.val}</div>
+        ${annCount > 0 ? `<div class="journey-ann-count">${annCount}</div>` : ''}
       </div>
       <div class="journey-label">${s.label}</div>
       <div class="journey-sublabel">${s.sub}</div>
@@ -612,61 +1123,423 @@ function renderJourney() {
   document.getElementById('journeyMap').innerHTML = html;
 }
 
+// ====== ANNOTATIONS ======
+function computeImpact(annotation, windowDays) {
+  windowDays = windowDays || 7;
+  const annDate = dayKeyToDate(isoDateToDayKey(annotation.date));
+  const allKeys = getSortedDayKeys();
+  const before = [], after = [];
+  allKeys.forEach(k => {
+    const kd = dayKeyToDate(k);
+    const diff = (kd - annDate) / (1000*60*60*24);
+    if (diff >= -windowDays && diff < 0) before.push(k);
+    else if (diff >= 0 && diff < windowDays) after.push(k);
+  });
+  function stats(keys) {
+    if (keys.length === 0) return null;
+    const agg = getAggregated(keys);
+    return {
+      cpl: agg.leads > 0 ? agg.spend/agg.leads : 0,
+      cpa: agg.purchases > 0 ? agg.spend/agg.purchases : 0,
+      convRate: agg.lpv > 0 ? agg.purchases/agg.lpv*100 : 0,
+      leadsPerDay: agg.leads / keys.length,
+      purchasesPerDay: agg.purchases / keys.length
+    };
+  }
+  const b = stats(before); const a = stats(after);
+  if (!b || !a) return null;
+  function deltaPct(bv, av) { if (bv === 0) return null; return ((av - bv) / bv) * 100; }
+  return {
+    before: b, after: a,
+    deltaCpl: deltaPct(b.cpl, a.cpl),
+    deltaCpa: deltaPct(b.cpa, a.cpa),
+    deltaConv: deltaPct(b.convRate, a.convRate),
+    deltaPurchases: deltaPct(b.purchasesPerDay, a.purchasesPerDay),
+    nBefore: before.length, nAfter: after.length
+  };
+}
+
+function renderAnnotations() {
+  const list = document.getElementById('annotationsList');
+  if (!list) return;
+  const anns = (APP_DATA.annotations || []).slice().sort((a,b) => b.date.localeCompare(a.date));
+  if (anns.length === 0) {
+    list.innerHTML = '<div class="empty-state">Todav&iacute;a no hay observaciones. Click en cualquier nodo del journey o en "+ Nueva observaci&oacute;n" para empezar.</div>';
+    return;
+  }
+  list.innerHTML = anns.map(ann => {
+    const impact = computeImpact(ann);
+    const stageLabel = STAGE_NAMES[ann.stage] || ann.stage;
+    let impactHtml = '';
+    if (impact && impact.nBefore > 0 && impact.nAfter > 0) {
+      function delta(v, invert) {
+        if (v == null || !isFinite(v)) return '<span class="delta neutral">\u2014</span>';
+        const good = invert ? v < 0 : v > 0;
+        const cls = Math.abs(v) < 1 ? 'neutral' : (good ? 'up' : 'down');
+        const sign = v > 0 ? '+' : '';
+        return '<span class="delta '+cls+'">'+sign+v.toFixed(0)+'%</span>';
+      }
+      impactHtml = `
+        <div class="annotation-impact">
+          <div class="imp-item"><div class="imp-label">CPL</div><div class="imp-val">${fmtMoney(impact.before.cpl)} \u2192 ${fmtMoney(impact.after.cpl)} ${delta(impact.deltaCpl, true)}</div></div>
+          <div class="imp-item"><div class="imp-label">CPA</div><div class="imp-val">${fmtMoney(impact.before.cpa)} \u2192 ${fmtMoney(impact.after.cpa)} ${delta(impact.deltaCpa, true)}</div></div>
+          <div class="imp-item"><div class="imp-label">Conv %</div><div class="imp-val">${impact.before.convRate.toFixed(2)}% \u2192 ${impact.after.convRate.toFixed(2)}% ${delta(impact.deltaConv, false)}</div></div>
+          <div class="imp-item"><div class="imp-label">Compras/d&iacute;a</div><div class="imp-val">${impact.before.purchasesPerDay.toFixed(1)} \u2192 ${impact.after.purchasesPerDay.toFixed(1)} ${delta(impact.deltaPurchases, false)}</div></div>
+        </div>`;
+    } else {
+      impactHtml = `<div class="annotation-impact"><div class="imp-item"><div class="imp-label">Impacto</div><div class="imp-val" style="color:var(--grey);font-style:italic">Datos insuficientes (necesita 7 d&iacute;as antes y 7 despu&eacute;s)</div></div></div>`;
+    }
+    return `<div class="annotation-card">
+      <div class="annotation-body">
+        <div class="annotation-meta">
+          <span class="annotation-date">${ann.date}</span>
+          <span class="annotation-stage-badge">${stageLabel}</span>
+        </div>
+        <div class="annotation-text">${escapeHtml(ann.text)}</div>
+        ${impactHtml}
+      </div>
+      <div class="annotation-actions">
+        <button class="btn" onclick='openAnnModal(${JSON.stringify(ann).replace(/'/g,"&#39;")})'>Editar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function openAnnModal(ann) {
+  const modal = document.getElementById('annModal');
+  const title = document.getElementById('annModalTitle');
+  const delBtn = document.getElementById('annDeleteBtn');
+  if (ann && ann.id) {
+    title.textContent = 'Editar observacion';
+    document.getElementById('annId').value = ann.id;
+    document.getElementById('annDate').value = ann.date;
+    document.getElementById('annStage').value = ann.stage;
+    document.getElementById('annText').value = ann.text;
+    delBtn.style.display = 'inline-block';
+  } else {
+    title.textContent = 'Nueva observacion';
+    document.getElementById('annId').value = '';
+    document.getElementById('annDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('annStage').value = (ann && ann.stage) || 'general';
+    document.getElementById('annText').value = '';
+    delBtn.style.display = 'none';
+  }
+  modal.classList.add('show');
+}
+
+function closeAnnModal() { document.getElementById('annModal').classList.remove('show'); }
+
+async function saveAnnotation(e) {
+  e.preventDefault();
+  const id = document.getElementById('annId').value || ('ann_' + Date.now() + '_' + Math.random().toString(36).slice(2,7));
+  const ann = {
+    id,
+    date: document.getElementById('annDate').value,
+    stage: document.getElementById('annStage').value,
+    text: document.getElementById('annText').value.trim(),
+    createdAt: new Date().toISOString()
+  };
+  const existingIdx = (APP_DATA.annotations || []).findIndex(a => a.id === id);
+  if (existingIdx >= 0) APP_DATA.annotations[existingIdx] = ann;
+  else APP_DATA.annotations = [...(APP_DATA.annotations || []), ann];
+  closeAnnModal();
+  renderAll();
+  showToast('Guardado localmente', 'success');
+  await syncAnnotation('upsert', ann);
+}
+
+async function deleteAnnotationConfirm() {
+  const id = document.getElementById('annId').value;
+  if (!id || !confirm('Eliminar esta observacion?')) return;
+  APP_DATA.annotations = (APP_DATA.annotations || []).filter(a => a.id !== id);
+  closeAnnModal();
+  renderAll();
+  showToast('Eliminada localmente', 'success');
+  await syncAnnotation('delete', { id });
+}
+
+async function syncAnnotation(action, annotation) {
+  if (!APP_DATA.webAppUrl || !APP_DATA.annotationSecret) {
+    showToast('Sync remoto deshabilitado', 'error');
+    return;
+  }
+  try {
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('secret', APP_DATA.annotationSecret);
+    formData.append('annotation', JSON.stringify(annotation));
+    await fetch(APP_DATA.webAppUrl, { method:'POST', body: formData });
+    showToast('Sync a Sheet OK', 'success');
+  } catch (e) {
+    showToast('Error de sync: ' + e.message, 'error');
+  }
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type||'') + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ====== CHARTS ======
+const CHART_PALETTE = {
+  acid:'#E7FF2A', good:'#4ecb71', warn:'#ff6b35', mid:'#f7c948',
+  purple:'#a855f7', blue:'#3b82f6', teal:'#14b8a6', pink:'#ec4899',
+  petrolLight:'#1a6070'
+};
+
+function commonChartOptions(extra) {
+  return Object.assign({
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index', intersect:false},
+    plugins:{
+      legend:{ labels:{color:'#c4c5c7', font:{family:'DM Sans', size:11, weight:'500'}, padding:12, boxWidth:10, usePointStyle:true} },
+      tooltip:{
+        backgroundColor:'#071e22', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
+        borderColor:'#1a6070', borderWidth:1, padding:12, cornerRadius:2,
+        titleFont:{family:'Big Shoulders Display', size:13, weight:'900'},
+        bodyFont:{family:'JetBrains Mono', size:11}
+      }
+    },
+    scales:{
+      x:{ ticks:{color:'#898A8D', font:{family:'DM Sans', size:10}}, grid:{color:'rgba(26,96,112,0.25)'} },
+      y:{ ticks:{color:'#898A8D', font:{family:'DM Sans', size:10}}, grid:{color:'rgba(26,96,112,0.25)'} }
+    }
+  }, extra || {});
+}
+
+function annotationsForChart(allKeys) {
+  const anns = (APP_DATA.annotations || []);
+  const annots = {};
+  anns.forEach((ann, i) => {
+    const key = isoDateToDayKey(ann.date);
+    const idx = allKeys.indexOf(key);
+    if (idx < 0) return;
+    annots['ann_'+ann.id] = {
+      type:'line', scaleID:'x', value: idx,
+      borderColor:'#E7FF2A', borderWidth:1.5, borderDash:[4,4],
+      label:{
+        content: ann.text.length > 22 ? ann.text.slice(0,20)+'…' : ann.text,
+        display:true, position:'start',
+        backgroundColor:'#E7FF2A', color:'#071e22',
+        font:{family:'Big Shoulders Display', size:10, weight:'700'},
+        padding:{top:3,bottom:3,left:7,right:7},
+        yAdjust: (i%3)*18, borderRadius:2
+      }
+    };
+  });
+  return annots;
+}
+
+function renderFunnelDailyChart() {
+  const keys = getFilteredDays();
+  const leads = keys.map(k => dayMetric(k, 'leads'));
+  const purchases = keys.map(k => dayMetric(k, 'purchases'));
+  const ctx = document.getElementById('chartFunnelDaily'); if (!ctx) return;
+  chartInstances.funnelDaily = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: keys,
+      datasets:[
+        { label:'Leads', data:leads, borderColor:CHART_PALETTE.mid, backgroundColor:'rgba(247,201,72,0.14)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 },
+        { label:'Compras', data:purchases, borderColor:CHART_PALETTE.acid, backgroundColor:'rgba(231,255,42,0.18)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }
+      ]
+    },
+    options: commonChartOptions({
+      plugins: { legend:{labels:{color:'#c4c5c7'}}, annotation: { annotations: annotationsForChart(keys) } }
+    })
+  });
+}
+
+function renderConversionsChart() {
+  const keys = getFilteredDays();
+  const clickToLpv = keys.map(k => { const d=APP_DATA.days[k]; return d.clicks>0 ? d.lpv/d.clicks*100 : 0; });
+  const lpvToLead = keys.map(k => { const d=APP_DATA.days[k]; return d.lpv>0 ? d.leads/d.lpv*100 : 0; });
+  const leadToPurchase = keys.map(k => { const d=APP_DATA.days[k]; return d.leads>0 ? d.purchases/d.leads*100 : 0; });
+  const ctx = document.getElementById('chartConversions'); if (!ctx) return;
+  chartInstances.conversions = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: keys,
+      datasets:[
+        { label:'Click \u2192 LPV', data:clickToLpv, borderColor:CHART_PALETTE.blue, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false },
+        { label:'LPV \u2192 Lead', data:lpvToLead, borderColor:CHART_PALETTE.pink, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false },
+        { label:'Lead \u2192 Compra', data:leadToPurchase, borderColor:CHART_PALETTE.acid, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false }
+      ]
+    },
+    options: commonChartOptions({
+      plugins: { annotation: { annotations: annotationsForChart(keys) } },
+      scales: {
+        x:{ ticks:{color:'#898A8D', font:{size:10}}, grid:{color:'rgba(26,96,112,0.25)'} },
+        y:{ ticks:{color:'#898A8D', font:{size:10}, callback:v=>v.toFixed(0)+'%'}, grid:{color:'rgba(26,96,112,0.25)'} }
+      }
+    })
+  });
+}
+
+function renderTrendCharts() {
+  const keys = getFilteredDays();
+  const annConfig = annotationsForChart(keys);
+
+  chartInstances.cpl = new Chart(document.getElementById('chartCPL'), {
+    type:'line',
+    data:{ labels:keys, datasets:[{ label:'CPL', data:keys.map(k=>dayMetric(k,'cpl')), borderColor:CHART_PALETTE.purple, backgroundColor:'rgba(168,85,247,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
+    options: commonChartOptions({
+      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPL: $'+ctx.parsed.y.toFixed(2)}} },
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+    })
+  });
+
+  chartInstances.cpa = new Chart(document.getElementById('chartCPA'), {
+    type:'line',
+    data:{ labels:keys, datasets:[{ label:'CPA', data:keys.map(k=>dayMetric(k,'cpa')), borderColor:CHART_PALETTE.warn, backgroundColor:'rgba(255,107,53,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
+    options: commonChartOptions({
+      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPA: $'+ctx.parsed.y.toFixed(2)}} },
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+    })
+  });
+
+  const profit = keys.map(k=>dayMetric(k,'profit'));
+  chartInstances.profit = new Chart(document.getElementById('chartProfit'), {
+    type:'bar',
+    data:{ labels:keys, datasets:[{ label:'Ganancia', data:profit, backgroundColor: profit.map(v=>v>=0?'rgba(78,203,113,0.75)':'rgba(255,107,53,0.75)'), borderColor: profit.map(v=>v>=0?CHART_PALETTE.good:CHART_PALETTE.warn), borderWidth:1 }] },
+    options: commonChartOptions({
+      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>(ctx.parsed.y>=0?'+':'')+'$'+ctx.parsed.y.toFixed(2)}} },
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+    })
+  });
+
+  chartInstances.roas = new Chart(document.getElementById('chartROAS'), {
+    type:'line',
+    data:{ labels:keys, datasets:[{ label:'ROAS', data:keys.map(k=>dayMetric(k,'roas')), borderColor:CHART_PALETTE.acid, backgroundColor:'rgba(231,255,42,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
+    options: commonChartOptions({
+      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'ROAS: '+ctx.parsed.y.toFixed(2)+'x'}} },
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>v.toFixed(1)+'x'},grid:{color:'rgba(26,96,112,0.25)'}} }
+    })
+  });
+}
+
+function renderHeatmap() {
+  const keys = getFilteredDays();
+  const dayNames = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+  const weekCounts = new Array(7).fill(0).map(()=>({count:0, purchases:0}));
+  keys.forEach(k => {
+    const d = dayKeyToDate(k);
+    const w = d.getDay();
+    weekCounts[w].purchases += (APP_DATA.days[k].purchases || 0);
+    weekCounts[w].count += 1;
+  });
+  const avgs = weekCounts.map(w => w.count > 0 ? w.purchases / w.count : 0);
+  const max = Math.max(...avgs, 0.01);
+  let html = '<div class="heatmap-grid"><div class="heatmap-cell header"></div>';
+  dayNames.forEach(name => html += '<div class="heatmap-cell header">'+name+'</div>');
+  html += '<div class="heatmap-cell label">Compras/d&iacute;a</div>';
+  dayNames.forEach((_, i) => {
+    const val = avgs[i];
+    const intensity = val/max;
+    const bg = 'rgba(231,255,42,'+(0.08 + intensity*0.88).toFixed(2)+')';
+    html += '<div class="heatmap-cell" style="background:'+bg+';color:'+(intensity > 0.4 ? '#071e22' : '#f5f7f5')+'">'+val.toFixed(1)+'</div>';
+  });
+  html += '</div>';
+  document.getElementById('heatmapContainer').innerHTML = html;
+}
+
 function renderRevenue() {
   const d = getAggregated();
   const P = APP_DATA.prices;
-  const ltRev = d.purchases * P.lowTicket;
-  const b1Rev = d.bump1 * P.bump1;
-  const b2Rev = d.bump2 * P.bump2;
-  const totalRev = ltRev + b1Rev + b2Rev;
+  const ltRev = d.purchases*P.lowTicket;
+  const b1Rev = d.bump1*P.bump1;
+  const b2Rev = d.bump2*P.bump2;
+  const totalRev = ltRev+b1Rev+b2Rev;
   const ganancia = totalRev - d.spend;
-  const aov = d.purchases > 0 ? totalRev / d.purchases : 0;
-  const b1Rate = d.purchases > 0 ? (d.bump1 / d.purchases * 100) : 0;
-  const b2Rate = d.purchases > 0 ? (d.bump2 / d.purchases * 100) : 0;
+  const aov = d.purchases > 0 ? totalRev/d.purchases : 0;
+  const b1Rate = d.purchases > 0 ? d.bump1/d.purchases*100 : 0;
+  const b2Rate = d.purchases > 0 ? d.bump2/d.purchases*100 : 0;
 
   document.getElementById('revenueGrid').innerHTML = `
-    <div class="revenue-card">
-      <h3>Desglose de Revenue</h3>
-      <div class="revenue-item"><span class="revenue-item-label">Low Ticket ($${P.lowTicket} x ${d.purchases})</span><span class="revenue-item-value" style="color:var(--stage7)">$${ltRev.toFixed(2)}</span></div>
-      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?ltRev/totalRev*100:0}%;background:var(--stage7)"></div></div></div>
-      <div class="revenue-item" style="margin-top:12px"><span class="revenue-item-label">Bump 1 ($${P.bump1} x ${d.bump1})</span><span class="revenue-item-value" style="color:var(--stage8)">$${b1Rev.toFixed(2)}</span></div>
-      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b1Rev/totalRev*100:0}%;background:var(--stage8)"></div></div></div>
-      <div class="revenue-item" style="margin-top:12px"><span class="revenue-item-label">Bump 2 ($${P.bump2} x ${d.bump2})</span><span class="revenue-item-value" style="color:var(--stage9)">$${b2Rev.toFixed(2)}</span></div>
-      <div class="revenue-bar-container"><div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b2Rev/totalRev*100:0}%;background:var(--stage9)"></div></div></div>
-      <div class="revenue-item" style="margin-top:16px;border-top:2px solid var(--accent);padding-top:12px"><span class="revenue-item-label" style="font-weight:700">TOTAL REVENUE</span><span class="revenue-item-value" style="color:var(--accent);font-size:24px">$${totalRev.toFixed(2)}</span></div>
+    <div class="panel accent">
+      <div class="panel-title" style="margin-bottom:12px">Desglose</div>
+      <div class="revenue-item"><span class="revenue-item-label">Low Ticket ($${P.lowTicket} \u00d7 ${d.purchases})</span><span class="revenue-item-value" style="color:var(--acid)">${fmtMoney(ltRev)}</span></div>
+      <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?ltRev/totalRev*100:0}%;background:var(--acid)"></div></div>
+      <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 1 ($${P.bump1} \u00d7 ${d.bump1})</span><span class="revenue-item-value" style="color:var(--good)">${fmtMoney(b1Rev)}</span></div>
+      <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b1Rev/totalRev*100:0}%;background:var(--good)"></div></div>
+      <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 2 ($${P.bump2} \u00d7 ${d.bump2})</span><span class="revenue-item-value" style="color:#10b981">${fmtMoney(b2Rev)}</span></div>
+      <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b2Rev/totalRev*100:0}%;background:#10b981"></div></div>
+      <div class="revenue-item" style="margin-top:14px;border-top:2px solid var(--acid);padding-top:10px"><span class="revenue-item-label" style="font-weight:700">TOTAL</span><span class="revenue-item-value" style="color:var(--acid);font-size:24px">${fmtMoney(totalRev)}</span></div>
     </div>
-
-    <div class="revenue-card">
-      <h3>Unit Economics</h3>
-      <div class="revenue-item"><span class="revenue-item-label">CPL</span><span class="revenue-item-value" style="color:var(--purple)">$${d.leads>0?(d.spend/d.leads).toFixed(2):'0.00'}</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">CPA (Costo/Compra)</span><span class="revenue-item-value" style="color:var(--orange)">$${d.purchases>0?(d.spend/d.purchases).toFixed(2):'0.00'}</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">AOV</span><span class="revenue-item-value" style="color:var(--accent)">$${aov.toFixed(2)}</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Bump 1 Take Rate</span><span class="revenue-item-value" style="color:var(--stage8)">${b1Rate.toFixed(1)}%</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Bump 2 Take Rate</span><span class="revenue-item-value" style="color:var(--stage9)">${b2Rate.toFixed(1)}%</span></div>
-      <div class="revenue-item" style="margin-top:8px;border-top:2px solid ${ganancia>=0?'var(--green)':'var(--red)'};padding-top:12px"><span class="revenue-item-label" style="font-weight:700">GANANCIA NETA</span><span class="revenue-item-value" style="color:${ganancia>=0?'var(--green)':'var(--red)'};font-size:24px">${ganancia>=0?'+':''}$${ganancia.toFixed(2)}</span></div>
+    <div class="panel">
+      <div class="panel-title" style="margin-bottom:12px">Unit Economics</div>
+      <div class="revenue-item"><span class="revenue-item-label">CPL</span><span class="revenue-item-value" style="color:var(--purple)">${fmtMoney(d.leads>0?d.spend/d.leads:0)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">CPA</span><span class="revenue-item-value" style="color:var(--warn)">${fmtMoney(d.purchases>0?d.spend/d.purchases:0)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">AOV</span><span class="revenue-item-value" style="color:var(--acid)">${fmtMoney(aov)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Bump 1 Take Rate</span><span class="revenue-item-value" style="color:var(--good)">${fmtPct(b1Rate)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Bump 2 Take Rate</span><span class="revenue-item-value" style="color:#10b981">${fmtPct(b2Rate)}</span></div>
+      <div class="revenue-item" style="margin-top:6px;border-top:2px solid ${ganancia>=0?'var(--good)':'var(--warn)'};padding-top:10px"><span class="revenue-item-label" style="font-weight:700">GANANCIA NETA</span><span class="revenue-item-value" style="color:${ganancia>=0?'var(--good)':'var(--warn)'};font-size:22px">${ganancia>=0?'+':''}${fmtMoney(ganancia)}</span></div>
     </div>
-
-    <div class="revenue-card">
-      <h3>Eficiencia del Embudo</h3>
-      <div class="revenue-item"><span class="revenue-item-label">CTR</span><span class="revenue-item-value" style="color:var(--blue)">${d.impressions>0?(d.clicks/d.impressions*100).toFixed(2):'0.00'}%</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Landing \u2192 Lead</span><span class="revenue-item-value" style="color:var(--stage5)">${d.lpv>0?(d.leads/d.lpv*100).toFixed(1):'0.0'}%</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Lead \u2192 Checkout</span><span class="revenue-item-value" style="color:var(--stage6)">${d.leads>0?(d.checkouts/d.leads*100).toFixed(1):'0.0'}%</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Checkout \u2192 Compra</span><span class="revenue-item-value" style="color:var(--stage7)">${d.checkouts>0?(d.purchases/d.checkouts*100).toFixed(1):'0.0'}%</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Impression \u2192 Compra</span><span class="revenue-item-value" style="color:var(--accent)">${d.impressions>0?(d.purchases/d.impressions*100).toFixed(4):'0.0000'}%</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Cost per Landing View</span><span class="revenue-item-value" style="color:var(--text-dim)">$${d.lpv>0?(d.spend/d.lpv).toFixed(2):'0.00'}</span></div>
+    <div class="panel">
+      <div class="panel-title" style="margin-bottom:12px">Eficiencia del Embudo</div>
+      <div class="revenue-item"><span class="revenue-item-label">CTR</span><span class="revenue-item-value" style="color:var(--blue)">${fmtPct(d.impressions>0?d.clicks/d.impressions*100:0)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Landing \u2192 Lead</span><span class="revenue-item-value" style="color:#f7c948">${fmtPct(d.lpv>0?d.leads/d.lpv*100:0)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Lead \u2192 Checkout</span><span class="revenue-item-value" style="color:var(--warn)">${fmtPct(d.leads>0?d.checkouts/d.leads*100:0)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Checkout \u2192 Compra</span><span class="revenue-item-value" style="color:var(--acid)">${fmtPct(d.checkouts>0?d.purchases/d.checkouts*100:0)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Cost per LPV</span><span class="revenue-item-value" style="color:var(--grey-light)">${fmtMoney(d.lpv>0?d.spend/d.lpv:0)}</span></div>
     </div>
   `;
+}
+
+function renderRevenueCharts() {
+  const keys = getFilteredDays();
+  const P = APP_DATA.prices;
+  const lt = keys.map(k => (APP_DATA.days[k].purchases||0)*P.lowTicket);
+  const b1 = keys.map(k => (APP_DATA.days[k].bump1||0)*P.bump1);
+  const b2 = keys.map(k => (APP_DATA.days[k].bump2||0)*P.bump2);
+
+  chartInstances.revenue = new Chart(document.getElementById('chartRevenue'), {
+    type:'bar',
+    data:{
+      labels:keys,
+      datasets:[
+        { label:'Low Ticket', data:lt, backgroundColor:'rgba(231,255,42,0.8)', stack:'rev', borderColor:CHART_PALETTE.acid, borderWidth:1 },
+        { label:'Bump 1', data:b1, backgroundColor:'rgba(78,203,113,0.8)', stack:'rev', borderColor:CHART_PALETTE.good, borderWidth:1 },
+        { label:'Bump 2', data:b2, backgroundColor:'rgba(16,185,129,0.8)', stack:'rev', borderColor:'#10b981', borderWidth:1 }
+      ]
+    },
+    options: commonChartOptions({
+      scales:{ x:{stacked:true,ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{stacked:true,ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} },
+      plugins:{ annotation:{annotations: annotationsForChart(keys)} }
+    })
+  });
+
+  const b1Rate = keys.map(k => { const d=APP_DATA.days[k]; return d.purchases>0 ? d.bump1/d.purchases*100 : 0; });
+  const b2Rate = keys.map(k => { const d=APP_DATA.days[k]; return d.purchases>0 ? d.bump2/d.purchases*100 : 0; });
+  chartInstances.bumps = new Chart(document.getElementById('chartBumps'), {
+    type:'line',
+    data:{
+      labels:keys,
+      datasets:[
+        { label:'Bump 1', data:b1Rate, borderColor:CHART_PALETTE.good, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false },
+        { label:'Bump 2', data:b2Rate, borderColor:'#10b981', tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false }
+      ]
+    },
+    options: commonChartOptions({
+      plugins: { annotation: { annotations: annotationsForChart(keys) } },
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>v.toFixed(0)+'%'},grid:{color:'rgba(26,96,112,0.25)'}} }
+    })
+  });
 }
 
 function renderDataGrid() {
   const days = getFilteredDays();
   const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
-  const labels = ['Impresiones','Alcance','Clicks','LPV','Leads','Checkouts','Compras','Bump 1','Bump 2','Spend ($)'];
+  const labels = ['Impresiones','Alcance','Clicks','LPV','Leads','Checkouts','Compras','Bump 1','Bump 2','Spend'];
   const P = APP_DATA.prices;
 
-  let html = `<div class="data-grid" style="grid-template-columns: 140px repeat(${days.length}, minmax(70px, 1fr));">`;
-  html += `<div class="data-cell header">M\u00e9trica</div>`;
-  days.forEach(p => { html += `<div class="data-cell header">${p.replace(' 0',' ')}</div>`; });
+  let html = `<div class="data-grid" style="grid-template-columns: 130px repeat(${days.length}, minmax(60px, 1fr));">`;
+  html += `<div class="data-cell header">Metrica</div>`;
+  days.forEach(p => html += `<div class="data-cell header">${p.replace(' 0',' ')}</div>`);
 
   fields.forEach((f, fi) => {
     html += `<div class="data-cell label">${labels[fi]}</div>`;
@@ -676,51 +1549,36 @@ function renderDataGrid() {
     });
   });
 
-  // Computed
   const computed = [
-    { lbl:'Revenue',    fn:d => '$' + ((d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2)).toFixed(0) },
-    { lbl:'ROAS',       fn:d => { const r=(d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2); return d.spend>0?(r/d.spend).toFixed(2)+'x':'-'; } },
-    { lbl:'CPL',        fn:d => d.leads>0 ? '$'+(d.spend/d.leads).toFixed(1) : '-' },
+    { lbl:'Revenue', fn:d => '$' + Math.round((d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2)).toLocaleString() },
+    { lbl:'ROAS', fn:d => { const r=(d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2); return d.spend>0?(r/d.spend).toFixed(2)+'x':'-'; } },
+    { lbl:'CPL', fn:d => d.leads>0 ? '$'+(d.spend/d.leads).toFixed(1) : '-' }
   ];
   computed.forEach(c => {
-    html += `<div class="data-cell label" style="color:var(--accent)">${c.lbl}</div>`;
-    days.forEach(p => html += `<div class="data-cell computed">${c.fn(APP_DATA.days[p])}</div>`);
+    html += `<div class="data-cell label emphasis">${c.lbl}</div>`;
+    days.forEach(p => html += `<div class="data-cell computed emphasis">${c.fn(APP_DATA.days[p])}</div>`);
   });
-
   html += '</div>';
   document.getElementById('dataGrid').innerHTML = html;
 }
 
-function switchView(view, tabEl) {
-  ['funnel','journey','revenue','data'].forEach(v => {
-    const el = document.getElementById('view-'+v);
-    if (el) el.style.display = v === view ? '' : 'none';
-  });
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  if (tabEl) tabEl.classList.add('active');
-}
-
-function showTooltip(event, stage, val, convRate, costPer) {
+function showTooltip(event, stage, val, convPct, costPer) {
   const tt = document.getElementById('tooltip');
   tt.innerHTML = `
     <h4>${stage.name}</h4>
     <p style="margin-bottom:8px">${stage.desc}</p>
     <div class="tt-row"><span class="tt-label">Total:</span><span class="tt-val">${formatNum(val)}</span></div>
-    ${convRate > 0 ? `<div class="tt-row"><span class="tt-label">Conv. desde anterior:</span><span class="tt-val">${convRate.toFixed(1)}%</span></div>` : ''}
-    ${costPer > 0 ? `<div class="tt-row"><span class="tt-label">Costo unitario:</span><span class="tt-val">$${costPer.toFixed(2)}</span></div>` : ''}
+    ${convPct > 0 ? `<div class="tt-row"><span class="tt-label">Conv. anterior:</span><span class="tt-val">${convPct}%</span></div>` : ''}
+    ${costPer > 0 ? `<div class="tt-row"><span class="tt-label">Costo unit:</span><span class="tt-val">${fmtMoney(costPer)}</span></div>` : ''}
   `;
-  tt.style.left = Math.min(event.clientX + 15, window.innerWidth - 300) + 'px';
+  tt.style.left = Math.min(event.clientX + 15, window.innerWidth - 310) + 'px';
   tt.style.top = (event.clientY - 10) + 'px';
   tt.classList.add('visible');
 }
-
 function hideTooltip() { document.getElementById('tooltip').classList.remove('visible'); }
 
-function formatNum(n) {
-  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
-  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
-  return Math.round(n).toString();
-}
+document.addEventListener('click', (e) => { if (e.target.id === 'annModal') closeAnnModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAnnModal(); });
 </script>
 </body>
 </html>
