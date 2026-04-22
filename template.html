@@ -971,14 +971,15 @@ let chartInstances = {};
 
 const STAGES = [
   { id:'impressions', name:'Impresiones',        icon:'\u{1F441}', color:'#1a6070', desc:'Impresiones totales en Meta Ads' },
-  { id:'reach',       name:'Alcance',            icon:'\u{1F30E}', color:'#206b7c', desc:'Personas unicas alcanzadas' },
-  { id:'clicks',      name:'Link Clicks',        icon:'\u{1F449}', color:'#2d8295', desc:'Clicks en CTA del anuncio' },
-  { id:'lpv',         name:'Landing Page Views', icon:'\u{1F4C4}', color:'#3ba0b6', desc:'Visitas a la landing' },
-  { id:'leads',       name:'Opt-ins',            icon:'\u{1F4E7}', color:'#f7c948', desc:'Leads capturados' },
-  { id:'checkouts',   name:'Checkouts',          icon:'\u{1F6D2}', color:'#ff9f43', desc:'Checkouts iniciados' },
-  { id:'purchases',   name:'Compra Low Ticket',  icon:'\u{1F4B0}', color:'#E7FF2A', desc:'Compras del Low Ticket ($37)' },
-  { id:'bump1',       name:'Bump 1',             icon:'\u{1F31F}', color:'#4ecb71', desc:'Upsell Sesion Estrategica ($42)' },
-  { id:'bump2',       name:'Bump 2',             icon:'\u{1F48E}', color:'#10b981', desc:'Upsell Bump 2 ($48)' }
+  { id:'reach',       name:'Alcance',            icon:'\u{1F30E}', color:'#206b7c', desc:'Personas unicas alcanzadas', compareTo:'impressions' },
+  { id:'clicks',      name:'Link Clicks',        icon:'\u{1F449}', color:'#2d8295', desc:'Clicks en CTA del anuncio', compareTo:'reach' },
+  { id:'lpv',         name:'Landing Page Views', icon:'\u{1F4C4}', color:'#3ba0b6', desc:'Visitas a la landing', compareTo:'clicks' },
+  { id:'leads',       name:'Opt-ins',            icon:'\u{1F4E7}', color:'#f7c948', desc:'Leads capturados', compareTo:'lpv' },
+  { id:'checkouts',   name:'Checkouts',          icon:'\u{1F6D2}', color:'#ff9f43', desc:'Checkouts iniciados', compareTo:'leads' },
+  { id:'purchases',   name:'Compra Low Ticket',  icon:'\u{1F4B0}', color:'#E7FF2A', desc:'Compras del Low Ticket ($37)', compareTo:'checkouts' },
+  // Bumps son upsells PARALELOS al checkout, se miden contra Low Ticket (no entre si)
+  { id:'bump1',       name:'Bump 1 (take rate)', icon:'\u{1F31F}', color:'#4ecb71', desc:'Upsell Sesion Estrategica ($42) - % de compradores LT que tomaron', compareTo:'purchases' },
+  { id:'bump2',       name:'Bump 2 (take rate)', icon:'\u{1F48E}', color:'#10b981', desc:'Upsell Bump 2 ($48) - % de compradores LT que tomaron', compareTo:'purchases' }
 ];
 
 const STAGE_NAMES = {
@@ -1249,17 +1250,27 @@ function renderFunnelVisual() {
   function hexColor(cls) {
     return cls === 'good' ? '#4ecb71' : cls === 'mid' ? '#f7c948' : cls === 'warn' ? '#ff6b35' : '#1a6070';
   }
+  // Log-scale: rango 2.7M a 15 es demasiado para linear. Log mantiene forma + stages chicos visibles.
+  function funnelWidthPct(val, mx) {
+    if (val <= 0) return 8;
+    return Math.max(8, (Math.log10(val + 1) / Math.log10(mx + 1)) * 100);
+  }
 
   let html = '';
   STAGES.forEach((stage, i) => {
     const val = d[stage.id] || 0;
-    const widthPct = Math.max(10, (val/max)*100);
-    const prevVal = i > 0 ? (d[STAGES[i-1].id] || 0) : null;
-    const convPct = (i > 0 && prevVal > 0) ? Math.round((val/prevVal)*100) : null;
+    const widthPct = funnelWidthPct(val, max);
+    const defaultPrevId = i > 0 ? STAGES[i-1].id : null;
+    const compareId = stage.compareTo || defaultPrevId;
+    const prevVal = compareId ? (d[compareId] || 0) : null;
+    const convPct = (prevVal != null && prevVal > 0) ? Math.round((val/prevVal)*100) : null;
     const barColor = i === 0 ? '#1a6070' : hexColor(convClass(convPct));
+    const isCustomCompare = compareId && compareId !== defaultPrevId;
+    const compareLabel = isCustomCompare ? (STAGE_NAMES[compareId] || compareId) : '';
 
     if (i > 0) {
-      html += `<div class="funnel-arrow" style="color:${hexColor(convClass(convPct))}">\u25BC ${convPct!==null?convPct+'%':''}</div>`;
+      const extra = compareLabel ? ` <span style="color:var(--grey);font-weight:400;font-size:10px;letter-spacing:0.3px;margin-left:4px">vs ${compareLabel}</span>` : "";
+      html += `<div class="funnel-arrow" style="color:${hexColor(convClass(convPct))}">\u25BC ${convPct!==null?convPct+'%':''}${extra}</div>`;
     }
     html += `<div class="funnel-stage-row"
         onmouseenter="showTooltip(event, ${JSON.stringify(stage).replace(/"/g,'&quot;')}, ${val}, ${convPct||0}, ${d.spend>0&&val>0?d.spend/val:0})"
@@ -1286,8 +1297,8 @@ function renderJourney() {
     { label:'Opt-in',       sub:'Datos',        val:formatNum(d.leads),       color:'#f7c948', key:'leads' },
     { label:'Checkout',     sub:'Pago',         val:formatNum(d.checkouts),   color:'#ff9f43', key:'checkouts' },
     { label:'Compra',       sub:'LT $37',       val:formatNum(d.purchases),   color:'#E7FF2A', key:'purchases' },
-    { label:'Bump 1',       sub:'Sesion $42',   val:formatNum(d.bump1),       color:'#4ecb71', key:'bump1' },
-    { label:'Bump 2',       sub:'Upgrade $48',  val:formatNum(d.bump2),       color:'#10b981', key:'bump2' }
+    { label:'Bump 1',       sub:'take rate',    val:formatNum(d.bump1),       color:'#4ecb71', key:'bump1', compareTo:'purchases' },
+    { label:'Bump 2',       sub:'take rate',    val:formatNum(d.bump2),       color:'#10b981', key:'bump2', compareTo:'purchases' }
   ];
 
   const annsByStage = {};
@@ -1297,10 +1308,17 @@ function renderJourney() {
 
   let html = '';
   steps.forEach((s, i) => {
-    const prev = i > 0 ? (d[steps[i-1].key] || 0) : 0;
-    const cur = d[s.key] || 0;
-    const rate = prev > 0 ? (cur/prev*100).toFixed(1)+'%' : '';
     const annCount = annsByStage[s.key] || 0;
+    const next = steps[i+1];
+    // El rate en el conector representa la conversion hacia el siguiente nodo,
+    // respetando compareTo (bump1/purchases, bump2/purchases).
+    let nextRate = '';
+    if (next) {
+      const compareKey = next.compareTo || s.key;
+      const baseVal = d[compareKey] || 0;
+      const nextVal = d[next.key] || 0;
+      if (baseVal > 0) nextRate = (nextVal/baseVal*100).toFixed(1)+'%';
+    }
     html += `<div class="journey-step">
       <div class="journey-node" style="background:${s.color};" onclick="openAnnModal({stage:'${s.key}'})" title="Click para agregar observacion">
         <div class="journey-node-value">${s.val}</div>
@@ -1308,9 +1326,9 @@ function renderJourney() {
       </div>
       <div class="journey-label">${s.label}</div>
       <div class="journey-sublabel">${s.sub}</div>
-      ${i < steps.length - 1 ? `<div class="journey-connector">
-        <div class="journey-connector-inner" style="background:linear-gradient(90deg, ${s.color}, ${steps[i+1].color});"></div>
-        ${rate && i > 0 ? `<div class="journey-connector-rate">${rate}</div>` : ''}
+      ${next ? `<div class="journey-connector">
+        <div class="journey-connector-inner" style="background:linear-gradient(90deg, ${s.color}, ${next.color});"></div>
+        ${nextRate ? `<div class="journey-connector-rate">${nextRate}</div>` : ''}
       </div>` : ''}
     </div>`;
   });
