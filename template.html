@@ -188,7 +188,13 @@
     font-size:10px; color:var(--grey); margin-top:4px;
     display:flex; justify-content:space-between; align-items:center;
   }
-  .kpi-sparkline { margin-top:8px; height:26px; position:relative; }
+  .kpi-sparkline { margin-top:10px; height:44px; position:relative; }
+  .kpi-range-text {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:9px; color:var(--grey); font-family:'JetBrains Mono',monospace;
+    margin-top:4px; letter-spacing:0.3px; padding:0 2px;
+  }
+  .kpi-range-text .minmax { color:var(--grey-light); font-weight:600; }
 
   /* ===== PANELS ===== */
   .panel {
@@ -240,7 +246,7 @@
 
   /* ===== JOURNEY ===== */
   .journey-wrapper { padding:20px 0 10px; }
-  .journey-map { display:flex; gap:0; overflow-x:auto; padding:24px 0 14px; }
+  .journey-map { display:flex; gap:0; overflow-x:auto; padding:50px 0 14px; }
   .journey-step {
     flex:0 0 auto; display:flex; flex-direction:column; align-items:center;
     position:relative; min-width:150px;
@@ -275,15 +281,19 @@
     font-style:italic;
   }
   .journey-connector {
-    position:absolute; top:44px; left:88px; right:0; height:2px; z-index:1;
+    position:absolute; top:44px; left:119px; right:-31px; height:2px; z-index:1;
   }
   .journey-connector-inner { height:100%; }
   .journey-connector-rate {
-    position:absolute; top:-17px; left:50%; transform:translateX(-50%);
+    position:absolute; top:-48px; left:50%; transform:translateX(-50%);
     font-family:'Big Shoulders Display',sans-serif; font-weight:900;
     font-size:11px; color:var(--acid); white-space:nowrap;
-    background:var(--petrol-dark); padding:2px 8px; border-radius:2px;
-    border:1px solid var(--petrol-light); letter-spacing:0.5px;
+    background:var(--petrol-dark); padding:3px 10px; border-radius:2px;
+    border:1px solid var(--acid); letter-spacing:0.5px;
+  }
+  .journey-connector-rate::after {
+    content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+    width:1px; height:8px; background:var(--acid);
   }
   .journey-hint {
     margin-top:14px; padding:12px 16px; background:rgba(231,255,42,0.06);
@@ -532,9 +542,11 @@
     .kpi-cell { padding:14px 12px; }
     .kpi-value { font-size:22px; }
     .kpi-label { font-size:9px; letter-spacing:1.5px; }
-    .kpi-sparkline { height:22px; }
+    .kpi-sparkline { height:38px; }
     .kpi-sub { font-size:9px; }
     .kpi-delta { font-size:9px; padding:1px 5px; }
+    .kpi-range-text { font-size:8px; flex-wrap:wrap; gap:4px; }
+    .kpi-range-text .minmax { width:100%; text-align:center; }
 
     .panel { padding:16px 12px; margin-bottom:12px; }
     .panel-title { font-size:12px; letter-spacing:1.5px; }
@@ -562,12 +574,12 @@
 
     /* JOURNEY mobile */
     .journey-wrapper { padding:8px 0; }
-    .journey-map { padding:18px 0 10px; }
+    .journey-map { padding:44px 0 10px; }
     .journey-node { width:68px; height:68px; border-width:2px; }
     .journey-node:hover { transform:scale(1.04); }
     .journey-node-value { font-size:16px; }
-    .journey-connector { top:34px; left:68px; }
-    .journey-connector-rate { font-size:10px; padding:1px 6px; }
+    .journey-connector { top:34px; left:89px; right:-21px; }
+    .journey-connector-rate { font-size:10px; padding:2px 8px; top:-40px; }
     .journey-step { min-width:110px; }
     .journey-label { font-size:10px; letter-spacing:0.5px; margin-top:10px; max-width:100px; }
     .journey-sublabel { font-size:9px; }
@@ -624,7 +636,9 @@
     .journey-node { width:60px; height:60px; }
     .journey-node-value { font-size:14px; }
     .journey-step { min-width:100px; }
-    .journey-connector { top:30px; left:60px; }
+    .journey-connector { top:30px; left:80px; right:-20px; }
+    .journey-connector-rate { top:-36px; font-size:9px; }
+    .journey-map { padding:40px 0 10px; }
     .tab-btn { padding:12px 12px; font-size:10px; letter-spacing:1px; }
     .logo { font-size:16px; }
   }
@@ -1116,27 +1130,17 @@ function renderKPIs() {
   }
 
   const kpis = [
-    { id:'spend',    label:'Ad Spend',      value:fmtMoneyCompact(d.spend),      valCls:'', sub:nDays+' d'+(nDays===1?'ía':'ías'), cur:d.spend, prev:prev?prev.spend:0, invert:false },
-    { id:'revenue',  label:'Revenue',       value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false },
-    { id:'profit',   label:'Ganancia',      value:(profit>=0?'+':'')+fmtMoneyCompact(profit).replace('$','$'), valCls: profit>=0?'good':'warn', sub:'Rev - Spend', cur:profit, prev:prevProfit, invert:false },
-    { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo', cur:roas, prev:prevRoas, invert:false },
-    { id:'cpl',      label:'Cost / Lead',   value:fmtMoney(cpl),                 valCls:'', sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true },
-    { id:'cpa',      label:'Cost / Compra', value:fmtMoney(cpa),                 valCls:'acid', sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true },
-    { id:'aov',      label:'AOV',           value:fmtMoney(aov),                 valCls:'acid', sub:'Valor orden', cur:aov, prev:prevAov, invert:false }
+    { id:'spend',    label:'Ad Spend',      value:fmtMoneyCompact(d.spend),      valCls:'', sub:nDays+' d'+(nDays===1?'ía':'ías'), cur:d.spend, prev:prev?prev.spend:0, invert:false, fmt:'money' },
+    { id:'revenue',  label:'Revenue',       value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false, fmt:'money' },
+    { id:'profit',   label:'Ganancia',      value:(profit>=0?'+':'')+fmtMoneyCompact(profit).replace('$','$'), valCls: profit>=0?'good':'warn', sub:'Rev - Spend', cur:profit, prev:prevProfit, invert:false, fmt:'money' },
+    { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo', cur:roas, prev:prevRoas, invert:false, fmt:'roas' },
+    { id:'cpl',      label:'Cost / Lead',   value:fmtMoney(cpl),                 valCls:'', sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true, fmt:'money' },
+    { id:'cpa',      label:'Cost / Compra', value:fmtMoney(cpa),                 valCls:'acid', sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true, fmt:'money' },
+    { id:'aov',      label:'AOV',           value:fmtMoney(aov),                 valCls:'acid', sub:'Valor orden', cur:aov, prev:prevAov, invert:false, fmt:'money' }
   ];
 
-  document.getElementById('kpiStrip').innerHTML = kpis.map(k => `
-    <div class="kpi-cell">
-      <div class="kpi-head">
-        <span class="kpi-label">${k.label}</span>
-        ${deltaHtml(k.cur, k.prev, k.invert)}
-      </div>
-      <div class="kpi-value ${k.valCls}">${k.value}</div>
-      <div class="kpi-sub"><span>${k.sub}</span><span style="font-style:italic">vs prev</span></div>
-      <div class="kpi-sparkline"><canvas id="spark_${k.id}"></canvas></div>
-    </div>
-  `).join('');
-
+  // Precompute values for sparklines
+  const kpiValues = {};
   kpis.forEach(k => {
     let values;
     if (k.id === 'revenue') values = days.map(key => dayMetric(key, 'revenue'));
@@ -1146,27 +1150,86 @@ function renderKPIs() {
     else if (k.id === 'cpa') values = days.map(key => dayMetric(key, 'cpa'));
     else if (k.id === 'aov') values = days.map(key => { const dd=APP_DATA.days[key]; return dd.purchases>0 ? computeRevenue(dd)/dd.purchases : 0; });
     else values = days.map(key => dayMetric(key, k.id));
+    kpiValues[k.id] = values;
+  });
 
+  function fmtVal(v, kind) {
+    if (kind === 'roas') return v.toFixed(2) + 'x';
+    if (kind === 'money') {
+      if (Math.abs(v) >= 1000) return '$' + v.toFixed(0);
+      return '$' + v.toFixed(2);
+    }
+    return String(Math.round(v));
+  }
+
+  const firstDay = days[0] || '';
+  const lastDay = days[days.length - 1] || '';
+
+  document.getElementById('kpiStrip').innerHTML = kpis.map(k => {
+    const vals = kpiValues[k.id].filter(v => isFinite(v));
+    const minV = vals.length ? Math.min(...vals) : 0;
+    const maxV = vals.length ? Math.max(...vals) : 0;
+    return `
+      <div class="kpi-cell">
+        <div class="kpi-head">
+          <span class="kpi-label">${k.label}</span>
+          ${deltaHtml(k.cur, k.prev, k.invert)}
+        </div>
+        <div class="kpi-value ${k.valCls}">${k.value}</div>
+        <div class="kpi-sub"><span>${k.sub}</span><span style="font-style:italic">vs prev</span></div>
+        <div class="kpi-sparkline"><canvas id="spark_${k.id}"></canvas></div>
+        <div class="kpi-range-text">
+          <span>${firstDay}</span>
+          <span class="minmax">min ${fmtVal(minV, k.fmt)} · max ${fmtVal(maxV, k.fmt)}</span>
+          <span>${lastDay}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  kpis.forEach(k => {
     const color = k.valCls === 'acid' ? '#E7FF2A' :
                   k.valCls === 'good' ? '#4ecb71' :
                   k.valCls === 'warn' ? '#ff6b35' :
                   k.valCls === 'mid'  ? '#f7c948' : '#1a6070';
-    drawSparkline('spark_' + k.id, values, color);
+    drawSparkline('spark_' + k.id, kpiValues[k.id], color, days, k.fmt);
   });
 }
 
-function drawSparkline(canvasId, values, color) {
+function drawSparkline(canvasId, values, color, labels, fmt) {
   const ctx = document.getElementById(canvasId);
   if (!ctx || !values || values.length < 2) return;
+  const formatVal = (v) => {
+    if (fmt === 'roas') return v.toFixed(2) + 'x';
+    if (fmt === 'money') {
+      if (Math.abs(v) >= 1000) return '$' + v.toFixed(0);
+      return '$' + v.toFixed(2);
+    }
+    return Math.round(v).toString();
+  };
   chartInstances[canvasId] = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: values.map((_,i)=>i),
-      datasets: [{ data: values, borderColor: color, borderWidth: 1.5, fill: true, backgroundColor: color+'22', pointRadius: 0, tension: 0.35 }]
+      labels: labels || values.map((_,i)=>i),
+      datasets: [{ data: values, borderColor: color, borderWidth: 1.8, fill: true, backgroundColor: color+'26', pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: color, pointHoverBorderColor:'#071e22', pointHoverBorderWidth:2, tension: 0.35 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend:{display:false}, tooltip:{enabled:false} },
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend:{display:false},
+        tooltip:{
+          enabled:true, backgroundColor:'#071e22', titleColor:'#E7FF2A',
+          bodyColor:'#f5f7f5', borderColor:color, borderWidth:1,
+          padding:8, cornerRadius:2, displayColors:false,
+          titleFont:{family:'Big Shoulders Display', size:11, weight:'700'},
+          bodyFont:{family:'JetBrains Mono', size:11},
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (ctx) => formatVal(ctx.parsed.y)
+          }
+        }
+      },
       scales: { x:{display:false}, y:{display:false} },
       animation: { duration: 250 }
     }
@@ -1520,7 +1583,7 @@ function renderTrendCharts() {
     data:{ labels:keys, datasets:[{ label:'CPL', data:keys.map(k=>dayMetric(k,'cpl')), borderColor:CHART_PALETTE.purple, backgroundColor:'rgba(168,85,247,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
     options: commonChartOptions({
       plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPL: $'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
     })
   });
 
@@ -1529,7 +1592,7 @@ function renderTrendCharts() {
     data:{ labels:keys, datasets:[{ label:'CPA', data:keys.map(k=>dayMetric(k,'cpa')), borderColor:CHART_PALETTE.warn, backgroundColor:'rgba(255,107,53,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
     options: commonChartOptions({
       plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPA: $'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
     })
   });
 
@@ -1539,7 +1602,7 @@ function renderTrendCharts() {
     data:{ labels:keys, datasets:[{ label:'Ganancia', data:profit, backgroundColor: profit.map(v=>v>=0?'rgba(78,203,113,0.75)':'rgba(255,107,53,0.75)'), borderColor: profit.map(v=>v>=0?CHART_PALETTE.good:CHART_PALETTE.warn), borderWidth:1 }] },
     options: commonChartOptions({
       plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>(ctx.parsed.y>=0?'+':'')+'$'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
     })
   });
 
@@ -1548,7 +1611,7 @@ function renderTrendCharts() {
     data:{ labels:keys, datasets:[{ label:'ROAS', data:keys.map(k=>dayMetric(k,'roas')), borderColor:CHART_PALETTE.acid, backgroundColor:'rgba(231,255,42,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
     options: commonChartOptions({
       plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'ROAS: '+ctx.parsed.y.toFixed(2)+'x'}} },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>v.toFixed(1)+'x'},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>v.toFixed(1)+'x'},grid:{color:'rgba(26,96,112,0.25)'}} }
     })
   });
 }
@@ -1639,7 +1702,7 @@ function renderRevenueCharts() {
       ]
     },
     options: commonChartOptions({
-      scales:{ x:{stacked:true,ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{stacked:true,ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} },
+      scales:{ x:{stacked:true,ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{stacked:true,ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} },
       plugins:{ annotation:{annotations: annotationsForChart(keys)} }
     })
   });
@@ -1657,7 +1720,7 @@ function renderRevenueCharts() {
     },
     options: commonChartOptions({
       plugins: { annotation: { annotations: annotationsForChart(keys) } },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10}},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>v.toFixed(0)+'%'},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>v.toFixed(0)+'%'},grid:{color:'rgba(26,96,112,0.25)'}} }
     })
   });
 }
