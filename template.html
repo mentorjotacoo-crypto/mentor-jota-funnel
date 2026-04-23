@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MENtoreo — Funnel Dashboard</title>
 <meta name="robots" content="noindex, nofollow">
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@700,600,500,400&f[]=general-sans@700,600,500,400,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   :root {
-    --petrol:#0C4650; --petrol-dark:#071e22; --petrol-mid:#134f5c; --petrol-light:#1a6070;
+    --petrol:#0C4650; --petrol-dark:#082E38; --petrol-mid:#134f5c; --petrol-light:#1a6070;
     --acid:#E7FF2A;
     --grey:#898A8D; --grey-light:#c4c5c7;
     --white:#f5f7f5;
@@ -20,7 +21,7 @@
   }
   body {
     background:var(--petrol-dark); color:var(--white);
-    font-family:'DM Sans', sans-serif;
+    font-family:'General Sans',sans-serif;
     min-height:100vh; padding:0 0 80px;
     font-feature-settings:'ss01','cv11';
   }
@@ -36,17 +37,17 @@
     background:var(--petrol-mid); border:1px solid var(--petrol-light); border-top:3px solid var(--acid);
     padding:44px; width:100%; max-width:440px;
   }
+  .login-brand-logo { text-align:center; margin-bottom:10px; }
+  .login-brand-logo svg { width:62px; height:auto; display:inline-block; }
   .login-logo {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:900; font-size:32px;
-    letter-spacing:3px; text-align:center; margin-bottom:4px; text-transform:uppercase;
+    font-family:'Clash Display',sans-serif; font-weight:600; font-size:28px;
+    letter-spacing:0.3px; text-align:center; margin-bottom:4px; color:var(--white);
   }
-  .login-logo span { color:var(--acid); }
   .login-sub {
     text-align:center; color:var(--grey); font-size:11px;
     letter-spacing:3px; text-transform:uppercase; margin-bottom:28px;
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-weight:700;
   }
-  .login-lock { text-align:center; font-size:48px; margin-bottom:14px; color:var(--acid); }
   .login-input {
     width:100%; background:var(--petrol-dark); border:1px solid var(--petrol-light);
     color:var(--white); padding:14px 16px; border-radius:3px;
@@ -56,7 +57,7 @@
   .login-btn {
     width:100%; margin-top:12px; padding:14px; background:var(--acid);
     color:var(--petrol-dark); border:none; border-radius:3px;
-    font-family:'Big Shoulders Display',sans-serif; font-size:14px; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-size:14px; font-weight:700;
     letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:all 0.12s;
   }
   .login-btn:hover:not(:disabled) { background:var(--white); }
@@ -80,18 +81,21 @@
     position:sticky; top:0; z-index:100;
   }
   .logo {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:900; font-size:22px;
-    letter-spacing:2px; text-transform:uppercase;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   }
-  .logo span { color:var(--acid); }
+  .logo .logo-iso { width:34px; height:auto; flex-shrink:0; }
+  .logo-wordmark {
+    font-family:'Clash Display',sans-serif; font-weight:600; font-size:22px;
+    letter-spacing:0.3px; color:var(--white);
+  }
   .logo small {
     font-size:12px; color:var(--grey-light); font-weight:400;
-    letter-spacing:1px; margin-left:8px; font-family:'DM Sans',sans-serif;
+    letter-spacing:1px; margin-left:8px; font-family:'General Sans',sans-serif;
   }
   .header-right { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   .period-label {
     background:var(--acid); color:var(--petrol-dark);
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:11px; letter-spacing:1.5px; padding:4px 12px; border-radius:2px;
     text-transform:uppercase;
   }
@@ -104,7 +108,7 @@
   }
   .tab-btn {
     background:transparent; border:none; border-bottom:3px solid transparent;
-    color:var(--grey-light); font-family:'Big Shoulders Display',sans-serif;
+    color:var(--grey-light); font-family:'Clash Display',sans-serif;
     font-weight:700; font-size:13px; letter-spacing:2px; text-transform:uppercase;
     padding:14px 22px; cursor:pointer; transition:all 0.15s;
   }
@@ -117,21 +121,21 @@
   main { max-width:1400px; margin:0 auto; padding:30px 24px 0; }
 
   .section-title {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:900;
     font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--acid);
     margin:36px 0 14px; display:flex; align-items:center; gap:12px;
   }
   .section-title:first-child { margin-top:0; }
   .section-title::after { content:''; flex:1; height:1px; background:var(--petrol-light); }
   .section-title .sub {
-    font-family:'DM Sans',sans-serif; font-weight:300; font-style:italic;
+    font-family:'General Sans',sans-serif; font-weight:300; font-style:italic;
     font-size:12px; color:var(--grey-light); letter-spacing:0.3px; text-transform:none;
   }
 
   /* ===== BUTTONS / FILTERS ===== */
   .btn {
     background:transparent; border:1px solid var(--petrol-light); color:var(--grey-light);
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
     padding:7px 14px; cursor:pointer; transition:all 0.15s; border-radius:2px;
   }
@@ -143,7 +147,7 @@
 
   .period-bar { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
   .period-bar-label {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:10px;
+    font-family:'Clash Display',sans-serif; font-weight:700; font-size:10px;
     letter-spacing:2px; text-transform:uppercase; color:var(--grey);
     padding-right:10px; margin-right:2px;
   }
@@ -166,7 +170,7 @@
     margin-bottom:6px;
   }
   .kpi-label {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--grey);
   }
   .kpi-delta {
@@ -177,7 +181,7 @@
   .kpi-delta.down { color:var(--warn); background:rgba(255,107,53,0.12); }
   .kpi-delta.neutral { color:var(--grey); background:rgba(137,138,141,0.12); }
   .kpi-value {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:900;
     font-size:30px; line-height:1; letter-spacing:-0.3px; color:var(--white);
   }
   .kpi-value.acid { color:var(--acid); }
@@ -208,7 +212,7 @@
     margin-bottom:16px; flex-wrap:wrap; gap:10px;
   }
   .panel-title {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:14px; letter-spacing:2px; text-transform:uppercase;
   }
   .panel-subtitle { font-size:11px; color:var(--grey); font-style:italic; }
@@ -222,7 +226,7 @@
   }
   .funnel-side-label {
     font-size:11px; color:var(--grey-light); width:180px; text-align:right;
-    font-family:'DM Sans',sans-serif;
+    font-family:'General Sans',sans-serif;
   }
   .funnel-bar-wrap { flex:1; display:flex; justify-content:center; }
   .funnel-bar {
@@ -230,16 +234,16 @@
     transition:width 0.5s ease; min-width:60px; position:relative; overflow:hidden;
   }
   .funnel-bar-label {
-    position:relative; z-index:1; font-family:'Big Shoulders Display',sans-serif;
+    position:relative; z-index:1; font-family:'Clash Display',sans-serif;
     font-weight:700; font-size:15px; white-space:nowrap; padding:0 12px;
     color:var(--petrol-dark);
   }
   .funnel-side-pct {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:900;
     font-size:14px; width:60px; text-align:left;
   }
   .funnel-arrow {
-    font-family:'Big Shoulders Display',sans-serif; font-size:12px;
+    font-family:'Clash Display',sans-serif; font-size:12px;
     color:var(--petrol-light); text-align:center; width:100%; padding:2px 0;
     font-weight:700; letter-spacing:1px;
   }
@@ -261,7 +265,7 @@
     transform:scale(1.07); border-color:var(--acid);
   }
   .journey-node-value {
-    font-family:'Big Shoulders Display',sans-serif; font-size:22px; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-size:22px; font-weight:900;
     color:var(--petrol-dark);
   }
   .journey-ann-count {
@@ -269,10 +273,10 @@
     background:var(--acid); color:var(--petrol-dark);
     font-size:10px; font-weight:900; padding:3px 7px; border-radius:10px;
     border:2px solid var(--petrol);
-    font-family:'Big Shoulders Display',sans-serif;
+    font-family:'Clash Display',sans-serif;
   }
   .journey-label {
-    margin-top:14px; font-family:'Big Shoulders Display',sans-serif;
+    margin-top:14px; font-family:'Clash Display',sans-serif;
     font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px;
     text-align:center; max-width:130px;
   }
@@ -286,7 +290,7 @@
   .journey-connector-inner { height:100%; }
   .journey-connector-rate {
     position:absolute; top:-48px; left:50%; transform:translateX(-50%);
-    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:900;
     font-size:11px; color:var(--acid); white-space:nowrap;
     background:var(--petrol-dark); padding:3px 10px; border-radius:2px;
     border:1px solid var(--acid); letter-spacing:0.5px;
@@ -313,7 +317,7 @@
   .annotation-body { flex:1; }
   .annotation-meta {
     display:flex; gap:10px; align-items:center; margin-bottom:8px;
-    font-family:'Big Shoulders Display',sans-serif; font-size:10px;
+    font-family:'Clash Display',sans-serif; font-size:10px;
     letter-spacing:1.5px; text-transform:uppercase;
   }
   .annotation-date {
@@ -335,7 +339,7 @@
   }
   .imp-item { display:flex; flex-direction:column; gap:4px; }
   .imp-label {
-    font-family:'Big Shoulders Display',sans-serif; font-size:9px;
+    font-family:'Clash Display',sans-serif; font-size:9px;
     letter-spacing:1.5px; text-transform:uppercase; color:var(--grey);
   }
   .imp-val {
@@ -343,7 +347,7 @@
     display:flex; align-items:center; gap:6px;
   }
   .imp-val .delta {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:900;
     font-size:13px; padding:1px 6px; border-radius:2px;
   }
   .imp-val .delta.up { color:var(--good); background:rgba(78,203,113,0.15); }
@@ -368,13 +372,13 @@
     width:100%; max-width:480px;
   }
   .modal-title {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:900;
     font-size:18px; letter-spacing:2px; text-transform:uppercase;
     margin-bottom:18px;
   }
   .modal-field { margin-bottom:14px; }
   .modal-field label {
-    display:block; font-family:'Big Shoulders Display',sans-serif;
+    display:block; font-family:'Clash Display',sans-serif;
     font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
     color:var(--grey); margin-bottom:5px; font-weight:700;
   }
@@ -400,7 +404,7 @@
   }
   .tooltip.visible { opacity:1; }
   .tooltip h4 {
-    font-family:'Big Shoulders Display',sans-serif; font-size:13px; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-size:13px; font-weight:900;
     letter-spacing:1.5px; text-transform:uppercase; color:var(--acid); margin-bottom:6px;
   }
   .tooltip p { font-size:11px; color:var(--grey-light); line-height:1.5; }
@@ -419,7 +423,7 @@
   .revenue-item:last-child { border-bottom:none; }
   .revenue-item-label { font-size:12px; color:var(--grey-light); }
   .revenue-item-value {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:18px; color:var(--white);
   }
   .revenue-bar-bg {
@@ -438,7 +442,7 @@
   }
   .chart-card.accent-top { border-top-color:var(--acid); }
   .chart-title {
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:14px; letter-spacing:2px; text-transform:uppercase;
     margin-bottom:4px;
   }
@@ -453,13 +457,13 @@
   }
   .heatmap-cell.label {
     background:transparent; color:var(--grey);
-    font-family:'Big Shoulders Display',sans-serif; font-size:10px;
+    font-family:'Clash Display',sans-serif; font-size:10px;
     letter-spacing:1.5px; text-transform:uppercase;
     justify-content:flex-end; padding-right:10px;
   }
   .heatmap-cell.header {
     background:transparent; color:var(--acid);
-    font-family:'Big Shoulders Display',sans-serif; font-size:10px;
+    font-family:'Clash Display',sans-serif; font-size:10px;
     letter-spacing:1.5px; text-transform:uppercase;
   }
 
@@ -474,7 +478,7 @@
     display:flex; align-items:center;
   }
   .data-cell.header {
-    background:var(--petrol-dark); font-family:'Big Shoulders Display',sans-serif;
+    background:var(--petrol-dark); font-family:'Clash Display',sans-serif;
     font-weight:700; font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
     color:var(--acid); justify-content:center;
   }
@@ -491,7 +495,7 @@
     background:var(--petrol); border:1px solid var(--acid);
     padding:12px 18px; font-size:12px; font-weight:500;
     transform:translateY(100px); opacity:0; transition:all 0.25s;
-    font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     letter-spacing:1.5px; text-transform:uppercase;
   }
   .toast.show { transform:translateY(0); opacity:1; }
@@ -520,7 +524,8 @@
       padding:14px 14px; flex-direction:column; gap:10px;
       align-items:flex-start;
     }
-    .logo { font-size:18px; letter-spacing:1.5px; }
+    .logo .logo-iso { width:28px; }
+    .logo-wordmark { font-size:18px; }
     .logo small { display:none; }
     .header-right { flex-wrap:wrap; gap:6px; width:100%; justify-content:flex-end; }
     .period-label { font-size:10px; padding:3px 10px; }
@@ -560,7 +565,7 @@
     }
     .funnel-side-label {
       width:100%; text-align:left; font-size:10px;
-      font-family:'Big Shoulders Display',sans-serif; font-weight:700;
+      font-family:'Clash Display',sans-serif; font-weight:700;
       letter-spacing:1.5px; text-transform:uppercase; color:var(--grey-light);
     }
     .funnel-bar-wrap { justify-content:flex-start; }
@@ -640,7 +645,7 @@
     .journey-connector-rate { top:-36px; font-size:9px; }
     .journey-map { padding:40px 0 10px; }
     .tab-btn { padding:12px 12px; font-size:10px; letter-spacing:1px; }
-    .logo { font-size:16px; }
+    .logo .logo-iso { width:24px; } .logo-wordmark { font-size:16px; }
   }
 </style>
 </head>
@@ -649,8 +654,13 @@
 <!-- LOGIN OVERLAY -->
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
-    <div class="login-lock">&#128274;</div>
-    <div class="login-logo"><span>MEN</span>toreo</div>
+    <div class="login-brand-logo">
+      <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" aria-label="MENtoreo">
+        <polygon points="0,102 30,8 92,8 62,102" fill="#E7FF2A"/>
+        <polygon points="98,30 192,8 192,102 98,102" fill="#E7FF2A"/>
+      </svg>
+    </div>
+    <div class="login-logo">mentoreo</div>
     <div class="login-sub">Funnel Dashboard</div>
     <form id="loginForm" onsubmit="doLogin(event)">
       <input type="password" id="passwordInput" class="login-input" placeholder="Ingresa tu clave" autocomplete="current-password" autofocus>
@@ -705,7 +715,14 @@
 <div id="app" style="display:none">
 
   <header>
-    <div class="logo">MEN<span>toreo</span> <small>&middot; Funnel Dashboard</small></div>
+    <div class="logo">
+      <svg class="logo-iso" viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" aria-label="MENtoreo">
+        <polygon points="0,102 30,8 92,8 62,102" fill="#E7FF2A"/>
+        <polygon points="98,30 192,8 192,102 98,102" fill="#E7FF2A"/>
+      </svg>
+      <span class="logo-wordmark">mentoreo</span>
+      <small>&middot; Funnel Dashboard</small>
+    </div>
     <div class="header-right">
       <span class="period-label" id="activePeriodLabel">Acumulado total</span>
       <span class="header-meta" id="updatedAtHeader">-</span>
@@ -1223,7 +1240,7 @@ function drawSparkline(canvasId, values, color, labels, fmt) {
           enabled:true, backgroundColor:'#071e22', titleColor:'#E7FF2A',
           bodyColor:'#f5f7f5', borderColor:color, borderWidth:1,
           padding:8, cornerRadius:2, displayColors:false,
-          titleFont:{family:'Big Shoulders Display', size:11, weight:'700'},
+          titleFont:{family:'Clash Display', size:11, weight:'700'},
           bodyFont:{family:'JetBrains Mono', size:11},
           callbacks: {
             title: (items) => items[0].label,
@@ -1512,7 +1529,7 @@ function commonChartOptions(extra) {
       tooltip:{
         backgroundColor:'#071e22', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
         borderColor:'#1a6070', borderWidth:1, padding:12, cornerRadius:2,
-        titleFont:{family:'Big Shoulders Display', size:13, weight:'900'},
+        titleFont:{family:'Clash Display', size:13, weight:'900'},
         bodyFont:{family:'JetBrains Mono', size:11}
       }
     },
@@ -1537,7 +1554,7 @@ function annotationsForChart(allKeys) {
         content: ann.text.length > 22 ? ann.text.slice(0,20)+'…' : ann.text,
         display:true, position:'start',
         backgroundColor:'#E7FF2A', color:'#071e22',
-        font:{family:'Big Shoulders Display', size:10, weight:'700'},
+        font:{family:'Clash Display', size:10, weight:'700'},
         padding:{top:3,bottom:3,left:7,right:7},
         yAdjust: (i%3)*18, borderRadius:2
       }
