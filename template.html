@@ -448,6 +448,36 @@
   }
   .chart-subtitle { font-size:11px; color:var(--grey); font-style:italic; margin-bottom:18px; }
   .chart-wrap { position:relative; height:250px; }
+  .chart-summary {
+    display:flex; flex-wrap:wrap; gap:14px; margin-bottom:14px;
+    padding:12px 14px; background:var(--petrol-dark); border-left:3px solid var(--acid);
+    border-radius:0 3px 3px 0;
+  }
+  .chart-stat-group {
+    display:flex; flex-direction:column; gap:4px; flex:1; min-width:180px;
+  }
+  .chart-stat-title {
+    font-family:'Clash Display',sans-serif; font-weight:600;
+    font-size:11px; letter-spacing:1.2px; text-transform:uppercase;
+    display:flex; align-items:center; gap:6px;
+  }
+  .chart-stat-title::before {
+    content:''; width:8px; height:8px; border-radius:50%;
+    background:var(--stat-color, var(--acid));
+  }
+  .chart-stat-row {
+    display:flex; flex-wrap:wrap; gap:10px;
+    font-size:11px; color:var(--grey-light); font-family:'JetBrains Mono',monospace;
+  }
+  .chart-stat-row .stat-item { display:flex; gap:4px; align-items:baseline; }
+  .chart-stat-row .stat-label { color:var(--grey); font-size:9px; text-transform:uppercase; letter-spacing:0.8px; }
+  .chart-stat-row .stat-val { font-weight:600; color:var(--white); }
+  .chart-stat-row .stat-val.highlight { color:var(--acid); }
+  @media (max-width:720px) {
+    .chart-summary { gap:10px; padding:10px; }
+    .chart-stat-group { min-width:100%; }
+    .chart-stat-row { font-size:10px; }
+  }
 
   /* ===== HEATMAP ===== */
   .heatmap-grid { display:grid; grid-template-columns:90px repeat(7, 1fr); gap:3px; }
@@ -761,11 +791,13 @@
         <div class="chart-card">
           <div class="chart-title">Leads y Compras</div>
           <div class="chart-subtitle">Volumen diario con anotaciones sobre cambios</div>
+          <div class="chart-summary" id="chartFunnelDailyStats"></div>
           <div class="chart-wrap"><canvas id="chartFunnelDaily"></canvas></div>
         </div>
         <div class="chart-card">
           <div class="chart-title">Tasas de conversi&oacute;n</div>
           <div class="chart-subtitle">% por transici&oacute;n, d&iacute;a a d&iacute;a</div>
+          <div class="chart-summary" id="chartConversionsStats"></div>
           <div class="chart-wrap"><canvas id="chartConversions"></canvas></div>
         </div>
       </div>
@@ -1556,24 +1588,147 @@ function annotationsForChart(allKeys) {
   return annots;
 }
 
+// Plugin Chart.js: muestra el valor del ultimo punto como etiqueta flotante
+const lastPointLabelPlugin = {
+  id: 'lastPointLabel',
+  afterDatasetsDraw(chart) {
+    const {ctx} = chart;
+    chart.data.datasets.forEach((ds, i) => {
+      if (ds._skipLastLabel) return;
+      const meta = chart.getDatasetMeta(i);
+      if (!meta.data || !meta.data.length) return;
+      const last = meta.data[meta.data.length - 1];
+      const val = ds.data[ds.data.length - 1];
+      if (val == null || !isFinite(val)) return;
+      const txt = ds._fmt ? ds._fmt(val) : String(Math.round(val));
+      ctx.save();
+      ctx.font = '700 11px "Clash Display", sans-serif';
+      const metrics = ctx.measureText(txt);
+      const w = metrics.width + 10, h = 18;
+      const x = Math.min(last.x + 8, chart.chartArea.right - w);
+      const y = last.y - h/2;
+      ctx.fillStyle = ds.borderColor;
+      ctx.strokeStyle = '#071e22';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 3);
+      else ctx.rect(x, y, w, h);
+      ctx.fill();
+      ctx.fillStyle = '#071e22';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(txt, x + 5, y + h/2 + 0.5);
+      ctx.restore();
+    });
+  }
+};
+
+function computeSeriesStats(values, labels, fmt) {
+  fmt = fmt || (v => Math.round(v).toLocaleString());
+  const nonZero = values.map((v,i) => ({v, i})).filter(x => x.v > 0);
+  const total = values.reduce((s,v) => s + (v||0), 0);
+  const nDays = values.length;
+  const avg = nDays > 0 ? total / nDays : 0;
+  let maxV = -Infinity, maxIdx = -1;
+  values.forEach((v, i) => { if (v > maxV) { maxV = v; maxIdx = i; } });
+  const lastVal = values[values.length - 1];
+  const lastLabel = labels[labels.length - 1];
+  return {
+    total, avg, nDays,
+    max: maxV > -Infinity ? maxV : 0,
+    maxLabel: maxIdx >= 0 ? labels[maxIdx] : '-',
+    last: lastVal || 0,
+    lastLabel: lastLabel || '-',
+    fmt
+  };
+}
+
+function renderChartStatsHTML(containerId, series) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = series.map(s => `
+    <div class="chart-stat-group" style="--stat-color:${s.color}">
+      <div class="chart-stat-title">${s.label}</div>
+      <div class="chart-stat-row">
+        <div class="stat-item"><span class="stat-label">Total</span><span class="stat-val">${s.stats.fmt(s.stats.total)}</span></div>
+        <div class="stat-item"><span class="stat-label">Prom.</span><span class="stat-val">${s.stats.fmt(s.stats.avg)}/d</span></div>
+        <div class="stat-item"><span class="stat-label">Pico</span><span class="stat-val">${s.stats.fmt(s.stats.max)}<span style="color:var(--grey);font-size:9px;margin-left:2px">(${s.stats.maxLabel})</span></span></div>
+        <div class="stat-item"><span class="stat-label">Hoy</span><span class="stat-val highlight">${s.stats.fmt(s.stats.last)}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
 function renderFunnelDailyChart() {
   const keys = getFilteredDays();
   const leads = keys.map(k => dayMetric(k, 'leads'));
   const purchases = keys.map(k => dayMetric(k, 'purchases'));
   const ctx = document.getElementById('chartFunnelDaily'); if (!ctx) return;
+
+  const leadsStats = computeSeriesStats(leads, keys);
+  const purStats = computeSeriesStats(purchases, keys);
+
+  renderChartStatsHTML('chartFunnelDailyStats', [
+    { label: 'Leads',   color: CHART_PALETTE.mid,  stats: leadsStats },
+    { label: 'Compras', color: CHART_PALETTE.acid, stats: purStats }
+  ]);
+
+  const anns = Object.assign({}, annotationsForChart(keys));
+  // Lineas horizontales de promedio (sutiles)
+  if (leadsStats.avg > 0) anns.avgLeads = {
+    type:'line', yMin: leadsStats.avg, yMax: leadsStats.avg,
+    borderColor: CHART_PALETTE.mid, borderWidth: 1, borderDash:[2,4],
+    label: { display:true, content:`prom ${Math.round(leadsStats.avg)}`, position:'end', backgroundColor:'rgba(247,201,72,0.2)', color: CHART_PALETTE.mid, font:{size:9, family:'JetBrains Mono'}, padding:{top:2,bottom:2,left:5,right:5}, borderRadius:2 }
+  };
+  if (purStats.avg > 0) anns.avgPur = {
+    type:'line', yMin: purStats.avg, yMax: purStats.avg,
+    borderColor: CHART_PALETTE.acid, borderWidth: 1, borderDash:[2,4],
+    label: { display:true, content:`prom ${Math.round(purStats.avg)}`, position:'end', backgroundColor:'rgba(231,255,42,0.2)', color: CHART_PALETTE.acid, font:{size:9, family:'JetBrains Mono'}, padding:{top:2,bottom:2,left:5,right:5}, borderRadius:2 }
+  };
+
   chartInstances.funnelDaily = new Chart(ctx, {
     type:'line',
     data:{
       labels: keys,
       datasets:[
-        { label:'Leads', data:leads, borderColor:CHART_PALETTE.mid, backgroundColor:'rgba(247,201,72,0.14)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 },
-        { label:'Compras', data:purchases, borderColor:CHART_PALETTE.acid, backgroundColor:'rgba(231,255,42,0.18)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }
+        { label:'Leads',   data:leads,     borderColor:CHART_PALETTE.mid,  backgroundColor:'rgba(247,201,72,0.14)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:5, borderWidth:2, _fmt:(v)=>Math.round(v) },
+        { label:'Compras', data:purchases, borderColor:CHART_PALETTE.acid, backgroundColor:'rgba(231,255,42,0.18)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:5, borderWidth:2, _fmt:(v)=>Math.round(v) }
       ]
     },
     options: commonChartOptions({
-      plugins: { legend:{labels:{color:'#c4c5c7'}}, annotation: { annotations: annotationsForChart(keys) } }
-    })
+      plugins: {
+        legend: { position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}} },
+        annotation: { annotations: anns },
+        tooltip: {
+          backgroundColor:'#071e22', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
+          borderColor:'#1a6070', borderWidth:1, padding:12, cornerRadius:3,
+          titleFont:{family:'Clash Display', size:13, weight:'700'},
+          bodyFont:{family:'JetBrains Mono', size:11},
+          callbacks: {
+            title: (items) => items[0].label + ' ' + weekdayLabel(items[0].label),
+            label: (ctx) => {
+              const v = ctx.parsed.y;
+              const idx = ctx.dataIndex;
+              const prev = idx > 0 ? ctx.dataset.data[idx-1] : null;
+              const delta = (prev !== null && prev > 0) ? ` (${v > prev ? '+' : ''}${((v-prev)/prev*100).toFixed(0)}% vs ayer)` : '';
+              return `  ${ctx.dataset.label}: ${Math.round(v)}${delta}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x:{ ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'} },
+        y:{ beginAtZero:true, ticks:{color:'#898A8D', font:{size:10}, callback:v=>Math.round(v)}, grid:{color:'rgba(26,96,112,0.25)'}, title:{display:true, text:'Cantidad por d\u00EDa', color:'#898A8D', font:{size:10, family:'Clash Display', weight:'600'}} }
+      }
+    }),
+    plugins: [lastPointLabelPlugin]
   });
+}
+
+function weekdayLabel(dayKey) {
+  try {
+    const d = dayKeyToDate(dayKey);
+    const days = ['dom','lun','mar','mi\u00E9','jue','vie','s\u00E1b'];
+    return '(' + days[d.getDay()] + ')';
+  } catch(e) { return ''; }
 }
 
 function renderConversionsChart() {
@@ -1582,23 +1737,49 @@ function renderConversionsChart() {
   const lpvToLead = keys.map(k => { const d=APP_DATA.days[k]; return d.lpv>0 ? d.leads/d.lpv*100 : 0; });
   const leadToPurchase = keys.map(k => { const d=APP_DATA.days[k]; return d.leads>0 ? d.purchases/d.leads*100 : 0; });
   const ctx = document.getElementById('chartConversions'); if (!ctx) return;
+
+  const pctFmt = (v) => (v||0).toFixed(1)+'%';
+  const s1 = computeSeriesStats(clickToLpv, keys, pctFmt);
+  const s2 = computeSeriesStats(lpvToLead, keys, pctFmt);
+  const s3 = computeSeriesStats(leadToPurchase, keys, pctFmt);
+
+  renderChartStatsHTML('chartConversionsStats', [
+    { label: 'Click \u2192 LPV',    color: CHART_PALETTE.blue, stats: s1 },
+    { label: 'LPV \u2192 Lead',     color: CHART_PALETTE.pink, stats: s2 },
+    { label: 'Lead \u2192 Compra',  color: CHART_PALETTE.acid, stats: s3 }
+  ]);
+
   chartInstances.conversions = new Chart(ctx, {
     type:'line',
     data:{
       labels: keys,
       datasets:[
-        { label:'Click \u2192 LPV', data:clickToLpv, borderColor:CHART_PALETTE.blue, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false },
-        { label:'LPV \u2192 Lead', data:lpvToLead, borderColor:CHART_PALETTE.pink, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false },
-        { label:'Lead \u2192 Compra', data:leadToPurchase, borderColor:CHART_PALETTE.acid, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false }
+        { label:'Click \u2192 LPV',    data:clickToLpv,     borderColor:CHART_PALETTE.blue, tension:0.35, pointRadius:0, pointHoverRadius:5, borderWidth:2, fill:false, _fmt:(v)=>v.toFixed(1)+'%' },
+        { label:'LPV \u2192 Lead',     data:lpvToLead,      borderColor:CHART_PALETTE.pink, tension:0.35, pointRadius:0, pointHoverRadius:5, borderWidth:2, fill:false, _fmt:(v)=>v.toFixed(1)+'%' },
+        { label:'Lead \u2192 Compra',  data:leadToPurchase, borderColor:CHART_PALETTE.acid, tension:0.35, pointRadius:0, pointHoverRadius:5, borderWidth:2, fill:false, _fmt:(v)=>v.toFixed(1)+'%' }
       ]
     },
     options: commonChartOptions({
-      plugins: { annotation: { annotations: annotationsForChart(keys) } },
+      plugins: {
+        legend: { position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}} },
+        annotation: { annotations: annotationsForChart(keys) },
+        tooltip: {
+          backgroundColor:'#071e22', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
+          borderColor:'#1a6070', borderWidth:1, padding:12, cornerRadius:3,
+          titleFont:{family:'Clash Display', size:13, weight:'700'},
+          bodyFont:{family:'JetBrains Mono', size:11},
+          callbacks: {
+            title: (items) => items[0].label + ' ' + weekdayLabel(items[0].label),
+            label: (ctx) => `  ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`
+          }
+        }
+      },
       scales: {
-        x:{ ticks:{color:'#898A8D', font:{size:10}}, grid:{color:'rgba(26,96,112,0.25)'} },
-        y:{ ticks:{color:'#898A8D', font:{size:10}, callback:v=>v.toFixed(0)+'%'}, grid:{color:'rgba(26,96,112,0.25)'} }
+        x:{ ticks:{color:'#898A8D', font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0}, grid:{color:'rgba(26,96,112,0.25)'} },
+        y:{ beginAtZero:true, ticks:{color:'#898A8D', font:{size:10}, callback:v=>v.toFixed(0)+'%'}, grid:{color:'rgba(26,96,112,0.25)'}, title:{display:true, text:'% conversi\u00F3n', color:'#898A8D', font:{size:10, family:'Clash Display', weight:'600'}} }
       }
-    })
+    }),
+    plugins: [lastPointLabelPlugin]
   });
 }
 
