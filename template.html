@@ -12,6 +12,10 @@
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   :root {
+    /* Background profesional: slate oscuro casi negro con hint de teal */
+    --bg:#0A1014;
+    --bg-elev:#0F171C;
+    /* Brand petrol - usado en cards, header y acentos */
     --petrol:#0C4650; --petrol-dark:#082E38; --petrol-mid:#134f5c; --petrol-light:#1a6070;
     --acid:#E7FF2A;
     --grey:#898A8D; --grey-light:#c4c5c7;
@@ -20,7 +24,7 @@
     --purple:#a855f7; --blue:#3b82f6;
   }
   body {
-    background:var(--petrol-dark); color:var(--white);
+    background:var(--bg); color:var(--white);
     font-family:'General Sans',sans-serif;
     min-height:100vh; padding:0 0 80px;
     font-feature-settings:'ss01','cv11';
@@ -104,7 +108,7 @@
   /* ===== TABS ===== */
   .tabs {
     display:flex; gap:0; border-bottom:1px solid var(--petrol-light);
-    background:var(--petrol); padding:0 32px;
+    background:var(--bg-elev); padding:0 32px;
   }
   .tab-btn {
     background:transparent; border:none; border-bottom:3px solid transparent;
@@ -450,7 +454,7 @@
   .chart-wrap { position:relative; height:250px; }
   .chart-summary {
     display:flex; flex-wrap:wrap; gap:14px; margin-bottom:14px;
-    padding:12px 14px; background:var(--petrol-dark); border-left:3px solid var(--acid);
+    padding:12px 14px; background:var(--bg-elev); border-left:3px solid var(--acid);
     border-radius:0 3px 3px 0;
   }
   .chart-stat-group {
@@ -587,25 +591,30 @@
     .panel-title { font-size:12px; letter-spacing:1.5px; }
     .panel-header { flex-direction:column; align-items:flex-start; }
 
-    /* FUNNEL mobile: stacked per row */
+    /* FUNNEL mobile: grid - label arriba, barra + % abajo lado a lado */
     .funnel-visual { padding:4px 0; }
     .funnel-stage-row {
-      flex-direction:column; gap:4px; align-items:stretch;
-      padding:4px 0;
+      display:grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "label label" "bar pct";
+      column-gap:10px; row-gap:4px;
+      padding:6px 0; align-items:center;
     }
     .funnel-side-label {
-      width:100%; text-align:left; font-size:10px;
+      grid-area:label; width:auto; text-align:left; font-size:10px;
       font-family:'Clash Display',sans-serif; font-weight:700;
       letter-spacing:1.5px; text-transform:uppercase; color:var(--grey-light);
     }
-    .funnel-bar-wrap { justify-content:flex-start; }
-    .funnel-bar { height:32px; min-width:40%; }
+    .funnel-bar-wrap { grid-area:bar; justify-content:flex-start; min-width:0; }
+    .funnel-bar { height:32px; min-width:60px; max-width:100%; }
     .funnel-bar-label { font-size:12px; padding:0 10px; }
     .funnel-side-pct {
-      position:absolute; right:8px; align-self:center;
-      width:auto; font-size:11px;
+      grid-area:pct; position:static; width:auto;
+      font-size:13px; font-family:'Clash Display',sans-serif;
+      font-weight:900; white-space:nowrap;
     }
-    .funnel-arrow { padding:3px 0; font-size:11px; }
+    .funnel-arrow { padding:3px 0; font-size:11px; text-align:left; }
+    .funnel-arrow span { display:inline; }
 
     /* JOURNEY mobile */
     .journey-wrapper { padding:8px 0; }
