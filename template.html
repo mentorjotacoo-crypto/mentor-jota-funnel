@@ -38,7 +38,7 @@
     padding:44px; width:100%; max-width:440px;
   }
   .login-brand-logo { text-align:center; margin-bottom:10px; }
-  .login-brand-logo svg { width:62px; height:auto; display:inline-block; }
+  .login-brand-logo img { width:200px; max-width:80%; height:auto; display:inline-block; }
   .login-logo {
     font-family:'Clash Display',sans-serif; font-weight:600; font-size:28px;
     letter-spacing:0.3px; text-align:center; margin-bottom:4px; color:var(--white);
@@ -83,7 +83,7 @@
   .logo {
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   }
-  .logo .logo-iso { width:34px; height:auto; flex-shrink:0; }
+  .logo .logo-iso { width:44px; height:auto; flex-shrink:0; }
   .logo-wordmark {
     font-family:'Clash Display',sans-serif; font-weight:600; font-size:22px;
     letter-spacing:0.3px; color:var(--white);
@@ -524,7 +524,7 @@
       padding:14px 14px; flex-direction:column; gap:10px;
       align-items:flex-start;
     }
-    .logo .logo-iso { width:28px; }
+    .logo .logo-iso { width:36px; }
     .logo-wordmark { font-size:18px; }
     .logo small { display:none; }
     .header-right { flex-wrap:wrap; gap:6px; width:100%; justify-content:flex-end; }
@@ -655,12 +655,8 @@
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-brand-logo">
-      <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" aria-label="MENtoreo">
-        <polygon points="0,102 30,8 92,8 62,102" fill="#E7FF2A"/>
-        <polygon points="98,30 192,8 192,102 98,102" fill="#E7FF2A"/>
-      </svg>
+      <img src="logo-mentoreo.png" alt="MENtoreo">
     </div>
-    <div class="login-logo">mentoreo</div>
     <div class="login-sub">Funnel Dashboard</div>
     <form id="loginForm" onsubmit="doLogin(event)">
       <input type="password" id="passwordInput" class="login-input" placeholder="Ingresa tu clave" autocomplete="current-password" autofocus>
@@ -716,10 +712,7 @@
 
   <header>
     <div class="logo">
-      <svg class="logo-iso" viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" aria-label="MENtoreo">
-        <polygon points="0,102 30,8 92,8 62,102" fill="#E7FF2A"/>
-        <polygon points="98,30 192,8 192,102 98,102" fill="#E7FF2A"/>
-      </svg>
+      <img src="logo-mentoreo-iso.png" class="logo-iso" alt="MENtoreo">
       <span class="logo-wordmark">mentoreo</span>
       <small>&middot; Funnel Dashboard</small>
     </div>
