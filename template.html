@@ -85,12 +85,11 @@
     position:sticky; top:0; z-index:100;
   }
   .logo {
-    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
   }
-  .logo .logo-iso { width:44px; height:auto; flex-shrink:0; }
-  .logo-wordmark {
-    font-family:'Clash Display',sans-serif; font-weight:600; font-size:22px;
-    letter-spacing:0.3px; color:var(--white);
+  .logo .logo-img {
+    height:38px; width:auto; flex-shrink:0;
+    /* La imagen ya incluye isotipo + wordmark "mentoreo" oficial */
   }
   .logo small {
     font-size:12px; color:var(--grey-light); font-weight:400;
@@ -558,8 +557,7 @@
       padding:14px 14px; flex-direction:column; gap:10px;
       align-items:flex-start;
     }
-    .logo .logo-iso { width:36px; }
-    .logo-wordmark { font-size:18px; }
+    .logo .logo-img { height:30px; }
     .logo small { display:none; }
     .header-right { flex-wrap:wrap; gap:6px; width:100%; justify-content:flex-end; }
     .period-label { font-size:10px; padding:3px 10px; }
@@ -684,7 +682,7 @@
     .journey-connector-rate { top:-36px; font-size:9px; }
     .journey-map { padding:40px 0 10px; }
     .tab-btn { padding:12px 12px; font-size:10px; letter-spacing:1px; }
-    .logo .logo-iso { width:24px; } .logo-wordmark { font-size:16px; }
+    .logo .logo-img { height:24px; }
   }
 </style>
 </head>
@@ -751,8 +749,7 @@
 
   <header>
     <div class="logo">
-      <img src="logo-mentoreo-iso.png" class="logo-iso" alt="MENtoreo">
-      <span class="logo-wordmark">mentoreo</span>
+      <img src="logo-mentoreo.png" class="logo-img" alt="MENtoreo">
       <small>&middot; Funnel Dashboard</small>
     </div>
     <div class="header-right">
