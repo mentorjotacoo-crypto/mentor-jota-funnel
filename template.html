@@ -1105,7 +1105,7 @@ function getFilteredDays() {
 }
 function getAggregated(days) {
   days = days || getFilteredDays();
-  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
+  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend','revenue'];
   const agg = Object.fromEntries(fields.map(f=>[f,0]));
   days.forEach(k => {
     const d = APP_DATA.days[k]; if (!d) return;
@@ -1114,8 +1114,7 @@ function getAggregated(days) {
   return agg;
 }
 function computeRevenue(d) {
-  const P = APP_DATA.prices;
-  return d.purchases*P.lowTicket + d.bump1*P.bump1 + d.bump2*P.bump2;
+  return d.revenue || 0;
 }
 function dayMetric(key, metric) {
   const d = APP_DATA.days[key]; if (!d) return 0;
