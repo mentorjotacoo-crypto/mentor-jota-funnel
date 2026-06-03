@@ -779,6 +779,7 @@
         <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
         <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
         <button class="btn" onclick="setFilter('May', this)">May</button>
+        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
         <button class="btn" onclick="setFilter('last7', this)">&Uacute;ltimos 7</button>
         <button class="btn" onclick="setFilter('last14', this)">&Uacute;ltimos 14</button>
         <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
@@ -821,6 +822,7 @@
         <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
         <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
         <button class="btn" onclick="setFilter('May', this)">May</button>
+        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
         <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
       </div>
 
@@ -856,6 +858,7 @@
         <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
         <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
         <button class="btn" onclick="setFilter('May', this)">May</button>
+        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
         <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
       </div>
 
@@ -929,6 +932,7 @@
         <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
         <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
         <button class="btn" onclick="setFilter('May', this)">May</button>
+        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
         <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
       </div>
 
@@ -961,6 +965,7 @@
         <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
         <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
         <button class="btn" onclick="setFilter('May', this)">May</button>
+        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
         <button class="btn" onclick="setFilter('last14', this)">&Uacute;ltimos 14</button>
       </div>
       <div class="section-title">Datos detallados <span class="sub">m&eacute;tricas d&iacute;a a d&iacute;a</span></div>
@@ -1135,7 +1140,7 @@ function setFilter(f, btn) {
       if (match && match[1] === f) b.classList.add('active');
     });
   });
-  const labelMap = {all:'Acumulado total', Feb:'Febrero 2026', Mar:'Marzo 2026', Abr:'Abril 2026', May:'Mayo 2026', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
+  const labelMap = {all:'Acumulado total', Feb:'Febrero 2026', Mar:'Marzo 2026', Abr:'Abril 2026', May:'Mayo 2026', Jun:'Junio 2026', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
   document.getElementById('activePeriodLabel').textContent = labelMap[f] || f;
   renderAll();
 }
