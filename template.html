@@ -1109,7 +1109,7 @@ function getFilteredDays() {
 }
 function getAggregated(days) {
   days = days || getFilteredDays();
-  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend','revenue'];
+  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend','revenue','revenue_lt','revenue_b1','revenue_b2'];
   const agg = Object.fromEntries(fields.map(f=>[f,0]));
   days.forEach(k => {
     const d = APP_DATA.days[k]; if (!d) return;
@@ -2019,11 +2019,10 @@ function renderHeatmap() {
 
 function renderRevenue() {
   const d = getAggregated();
-  const P = APP_DATA.prices;
-  const ltRev = d.purchases*P.lowTicket;
-  const b1Rev = d.bump1*P.bump1;
-  const b2Rev = d.bump2*P.bump2;
-  const totalRev = ltRev+b1Rev+b2Rev;
+  const ltRev = d.revenue_lt || 0;
+  const b1Rev = d.revenue_b1 || 0;
+  const b2Rev = d.revenue_b2 || 0;
+  const totalRev = d.revenue || (ltRev+b1Rev+b2Rev);
   const ganancia = totalRev - d.spend;
   const aov = d.purchases > 0 ? totalRev/d.purchases : 0;
   const b1Rate = d.purchases > 0 ? d.bump1/d.purchases*100 : 0;
@@ -2032,11 +2031,11 @@ function renderRevenue() {
   document.getElementById('revenueGrid').innerHTML = `
     <div class="panel accent">
       <div class="panel-title" style="margin-bottom:12px">Desglose</div>
-      <div class="revenue-item"><span class="revenue-item-label">Low Ticket ($${P.lowTicket} \u00d7 ${d.purchases})</span><span class="revenue-item-value" style="color:var(--acid)">${fmtMoney(ltRev)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Low Ticket (${d.purchases} ventas)</span><span class="revenue-item-value" style="color:var(--acid)">${fmtMoney(ltRev)}</span></div>
       <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?ltRev/totalRev*100:0}%;background:var(--acid)"></div></div>
-      <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 1 ($${P.bump1} \u00d7 ${d.bump1})</span><span class="revenue-item-value" style="color:var(--good)">${fmtMoney(b1Rev)}</span></div>
+      <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 1 (${d.bump1} ventas)</span><span class="revenue-item-value" style="color:var(--good)">${fmtMoney(b1Rev)}</span></div>
       <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b1Rev/totalRev*100:0}%;background:var(--good)"></div></div>
-      <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 2 ($${P.bump2} \u00d7 ${d.bump2})</span><span class="revenue-item-value" style="color:#10b981">${fmtMoney(b2Rev)}</span></div>
+      <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 2 (${d.bump2} ventas)</span><span class="revenue-item-value" style="color:#10b981">${fmtMoney(b2Rev)}</span></div>
       <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b2Rev/totalRev*100:0}%;background:#10b981"></div></div>
       <div class="revenue-item" style="margin-top:14px;border-top:2px solid var(--acid);padding-top:10px"><span class="revenue-item-label" style="font-weight:700">TOTAL</span><span class="revenue-item-value" style="color:var(--acid);font-size:24px">${fmtMoney(totalRev)}</span></div>
     </div>
@@ -2062,10 +2061,9 @@ function renderRevenue() {
 
 function renderRevenueCharts() {
   const keys = getFilteredDays();
-  const P = APP_DATA.prices;
-  const lt = keys.map(k => (APP_DATA.days[k].purchases||0)*P.lowTicket);
-  const b1 = keys.map(k => (APP_DATA.days[k].bump1||0)*P.bump1);
-  const b2 = keys.map(k => (APP_DATA.days[k].bump2||0)*P.bump2);
+  const lt = keys.map(k => (APP_DATA.days[k].revenue_lt||0));
+  const b1 = keys.map(k => (APP_DATA.days[k].revenue_b1||0));
+  const b2 = keys.map(k => (APP_DATA.days[k].revenue_b2||0));
 
   chartInstances.revenue = new Chart(document.getElementById('chartRevenue'), {
     type:'bar',
@@ -2120,8 +2118,8 @@ function renderDataGrid() {
   });
 
   const computed = [
-    { lbl:'Revenue', fn:d => '$' + Math.round((d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2)).toLocaleString() },
-    { lbl:'ROAS', fn:d => { const r=(d.purchases*P.lowTicket)+(d.bump1*P.bump1)+(d.bump2*P.bump2); return d.spend>0?(r/d.spend).toFixed(2)+'x':'-'; } },
+    { lbl:'Revenue', fn:d => '$' + Math.round(d.revenue||0).toLocaleString() },
+    { lbl:'ROAS', fn:d => { const r=d.revenue||0; return d.spend>0?(r/d.spend).toFixed(2)+'x':'-'; } },
     { lbl:'CPL', fn:d => d.leads>0 ? '$'+(d.spend/d.leads).toFixed(1) : '-' }
   ];
   computed.forEach(c => {
