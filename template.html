@@ -156,6 +156,62 @@
   }
   .hint { font-size:11px; color:var(--grey); font-style:italic; margin-top:6px; }
 
+  /* ===== COMPARE ===== */
+  .compare-controls {
+    display:grid; grid-template-columns:1fr auto 1fr; gap:18px; align-items:end;
+  }
+  .compare-side { display:flex; flex-direction:column; gap:6px; }
+  .compare-label {
+    font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--grey-light); font-weight:700; font-family:'Clash Display',sans-serif;
+  }
+  .compare-select {
+    background:var(--bg-elev); color:var(--white); border:1px solid var(--petrol-light);
+    padding:10px 12px; border-radius:3px; font-size:14px;
+    font-family:'Clash Display',sans-serif; font-weight:700;
+  }
+  .compare-select:focus { border-color:var(--acid); outline:none; }
+  .compare-vs {
+    font-family:'Clash Display',sans-serif; font-weight:900; font-size:18px;
+    color:var(--acid); padding-bottom:10px; letter-spacing:2px;
+  }
+  .compare-grid {
+    display:grid; grid-template-columns:1fr 80px 1fr; gap:0;
+    background:var(--petrol); border:1px solid var(--petrol-light);
+  }
+  .cmp-head {
+    padding:12px; background:var(--bg-elev);
+    font-family:'Clash Display',sans-serif; font-weight:700; font-size:11px;
+    text-transform:uppercase; letter-spacing:1.5px; color:var(--grey-light);
+    border-bottom:1px solid var(--petrol-light);
+  }
+  .cmp-cell {
+    padding:14px 16px; border-bottom:1px solid var(--petrol-light);
+    font-family:'Clash Display',sans-serif; font-weight:700; font-size:16px;
+    color:var(--white); display:flex; align-items:center; gap:10px;
+  }
+  .cmp-cell.label {
+    background:var(--bg-elev); color:var(--grey-light);
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    justify-content:center; text-align:center;
+  }
+  .cmp-cell.a { justify-content:flex-end; text-align:right; }
+  .cmp-cell.b { justify-content:flex-start; text-align:left; }
+  .cmp-delta {
+    font-size:11px; padding:2px 6px; border-radius:2px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .cmp-delta.up   { color:var(--good); background:rgba(78,203,113,0.12); }
+  .cmp-delta.down { color:var(--warn); background:rgba(255,107,53,0.12); }
+  .cmp-delta.neutral { color:var(--grey); background:rgba(137,138,141,0.12); }
+  @media (max-width:768px) {
+    .compare-controls { grid-template-columns:1fr; gap:10px; }
+    .compare-vs { justify-self:center; padding:0; }
+    .compare-grid { grid-template-columns:1fr 60px 1fr; }
+    .cmp-cell { font-size:13px; padding:10px; }
+    .cmp-cell.label { font-size:9px; padding:6px; }
+  }
+
   /* ===== SIMULATOR ===== */
   .simulator-grid {
     display:grid; grid-template-columns:280px 1fr; gap:24px; align-items:start;
@@ -858,6 +914,7 @@
     <button class="tab-btn" onclick="switchTab('trends', this)">Tendencias</button>
     <button class="tab-btn" onclick="switchTab('revenue', this)">Revenue</button>
     <button class="tab-btn" onclick="switchTab('forecast', this)">Proyecci&oacute;n</button>
+    <button class="tab-btn" onclick="switchTab('compare', this)">Comparar</button>
     <button class="tab-btn" onclick="switchTab('data', this)">Datos</button>
   </div>
 
@@ -1107,6 +1164,28 @@
     </main>
   </div>
 
+  <!-- TAB: COMPARE -->
+  <div id="tab-compare" class="tab-panel">
+    <main>
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-title">Comparaci&oacute;n A vs B</div>
+        <p class="hint" style="margin-bottom:14px">Selecciona dos per&iacute;odos para comparar lado a lado. Los presets son los m&aacute;s usados.</p>
+        <div class="compare-controls">
+          <div class="compare-side">
+            <div class="compare-label">PER&Iacute;ODO A</div>
+            <select id="cmpA" class="compare-select" onchange="renderCompare()"></select>
+          </div>
+          <div class="compare-vs">VS</div>
+          <div class="compare-side">
+            <div class="compare-label">PER&Iacute;ODO B</div>
+            <select id="cmpB" class="compare-select" onchange="renderCompare()"></select>
+          </div>
+        </div>
+      </div>
+      <div id="compareGrid" style="margin-top:18px"></div>
+    </main>
+  </div>
+
   <!-- TAB: DATA -->
   <div id="tab-data" class="tab-panel">
     <main>
@@ -1326,6 +1405,7 @@ function renderAll() {
   if (currentTab === 'trends')  { setTimeout(()=>{ renderTrendCharts(); renderAccumulatedMonthCharts(); renderHeatmap(); }, 30); }
   if (currentTab === 'revenue') { renderRevenue(); setTimeout(()=>{ renderRevenueCharts(); }, 30); }
   if (currentTab === 'forecast'){ renderForecast(); runSimulator(); setTimeout(()=>{ renderForecastCharts(); }, 30); }
+  if (currentTab === 'compare') { populateCompareSelectors(); renderCompare(); }
   if (currentTab === 'data')    { renderDataGrid(); }
 }
 
@@ -2660,6 +2740,123 @@ function runSimulator() {
       <div class="sim-out-sub">${c.sub}</div>
     </div>
   `).join('');
+}
+
+// ====== COMPARE ======
+function getComparePresets() {
+  const all = getSortedDayKeys();
+  const withData = all.filter(k => { const d=APP_DATA.days[k]; return d && (d.impressions>0 || d.spend>0 || d.purchases>0); });
+  const monthsAvail = [...new Set(withData.map(k => k.split(' ')[0]))];
+  const monthFull = {Feb:'Febrero',Mar:'Marzo',Abr:'Abril',May:'Mayo',Jun:'Junio',Jul:'Julio',Ago:'Agosto',Sep:'Septiembre',Oct:'Octubre',Nov:'Noviembre',Dic:'Diciembre',Ene:'Enero'};
+  const presets = [];
+  // Meses
+  monthsAvail.forEach(m => {
+    const days = withData.filter(k => k.startsWith(m));
+    presets.push({ id:'month:'+m, label:monthFull[m]+' 2026', keys:days });
+  });
+  // Últimas semanas
+  presets.push({ id:'last7',    label:'Últimos 7 días',  keys:withData.slice(-7) });
+  presets.push({ id:'prev7',    label:'Semana previa (8-14)', keys:withData.slice(-14, -7) });
+  presets.push({ id:'last14',   label:'Últimos 14 días', keys:withData.slice(-14) });
+  presets.push({ id:'prev14',   label:'Período previo 14d', keys:withData.slice(-28, -14) });
+  presets.push({ id:'last30',   label:'Últimos 30 días', keys:withData.slice(-30) });
+  presets.push({ id:'prev30',   label:'Período previo 30d', keys:withData.slice(-60, -30) });
+  return presets.filter(p => p.keys.length > 0);
+}
+function populateCompareSelectors() {
+  const presets = getComparePresets();
+  const a = document.getElementById('cmpA');
+  const b = document.getElementById('cmpB');
+  if (!a || !b) return;
+  const html = presets.map(p => `<option value="${p.id}">${p.label} (${p.keys.length}d)</option>`).join('');
+  a.innerHTML = html;
+  b.innerHTML = html;
+  // Defaults inteligentes: mes actual vs mes previo (si hay)
+  const months = presets.filter(p => p.id.startsWith('month:'));
+  if (months.length >= 2) {
+    a.value = months[months.length-1].id;
+    b.value = months[months.length-2].id;
+  } else if (presets.find(p=>p.id==='last7') && presets.find(p=>p.id==='prev7')) {
+    a.value = 'last7';
+    b.value = 'prev7';
+  }
+}
+function renderCompare() {
+  const presets = getComparePresets();
+  const aSel = document.getElementById('cmpA');
+  const bSel = document.getElementById('cmpB');
+  if (!aSel.options.length) populateCompareSelectors();
+  const A = presets.find(p => p.id === aSel.value);
+  const B = presets.find(p => p.id === bSel.value);
+  if (!A || !B) return;
+  const aAgg = getAggregated(A.keys);
+  const bAgg = getAggregated(B.keys);
+  const aDays = A.keys.length;
+  const bDays = B.keys.length;
+
+  function metric(label, aV, bV, fmt, invertGood, dailyA, dailyB) {
+    const formatVal = (v) => {
+      if (fmt === 'money')   return fmtMoney(v);
+      if (fmt === 'moneyc')  return fmtMoneyCompact(v);
+      if (fmt === 'pct')     return v.toFixed(2) + '%';
+      if (fmt === 'roas')    return v.toFixed(2) + 'x';
+      return Math.round(v).toLocaleString();
+    };
+    let dCls = 'neutral', arrow = '→', pct = 0;
+    if (bV !== 0 && isFinite(bV)) {
+      pct = (aV - bV)/bV*100;
+      if (Math.abs(pct) >= 1) {
+        const isUp = pct > 0;
+        const good = invertGood ? !isUp : isUp;
+        dCls = good ? 'up' : 'down';
+        arrow = isUp ? '▲' : '▼';
+      }
+    }
+    const dailyHint = dailyA !== undefined ? `<div style="font-size:10px;color:var(--grey);font-weight:400;margin-top:3px">~${formatVal(dailyA)}/d</div>` : '';
+    const dailyHintB = dailyB !== undefined ? `<div style="font-size:10px;color:var(--grey);font-weight:400;margin-top:3px">~${formatVal(dailyB)}/d</div>` : '';
+    return `
+      <div class="cmp-cell a"><div><div>${formatVal(aV)}</div>${dailyHint}</div></div>
+      <div class="cmp-cell label"><div>${label}<br><span class="cmp-delta ${dCls}">${arrow} ${Math.abs(pct).toFixed(0)}%</span></div></div>
+      <div class="cmp-cell b"><div><div>${formatVal(bV)}</div>${dailyHintB}</div></div>
+    `;
+  }
+  const aRev = aAgg.revenue, bRev = bAgg.revenue;
+  const aROAS = aAgg.spend>0 ? aRev/aAgg.spend : 0;
+  const bROAS = bAgg.spend>0 ? bRev/bAgg.spend : 0;
+  const aCPA = aAgg.purchases>0 ? aAgg.spend/aAgg.purchases : 0;
+  const bCPA = bAgg.purchases>0 ? bAgg.spend/bAgg.purchases : 0;
+  const aCPL = aAgg.leads>0 ? aAgg.spend/aAgg.leads : 0;
+  const bCPL = bAgg.leads>0 ? bAgg.spend/bAgg.leads : 0;
+  const aAOV = aAgg.purchases>0 ? aRev/aAgg.purchases : 0;
+  const bAOV = bAgg.purchases>0 ? bRev/bAgg.purchases : 0;
+  const aTCL = aAgg.lpv>0 ? aAgg.purchases/aAgg.lpv*100 : 0;
+  const bTCL = bAgg.lpv>0 ? bAgg.purchases/bAgg.lpv*100 : 0;
+  const aProfit = aRev - aAgg.spend;
+  const bProfit = bRev - bAgg.spend;
+
+  let html = `<div class="compare-grid">
+    <div class="cmp-head" style="text-align:right">${A.label} (${aDays}d)</div>
+    <div class="cmp-head" style="text-align:center">vs</div>
+    <div class="cmp-head" style="text-align:left">${B.label} (${bDays}d)</div>`;
+
+  html += metric('Spend total',       aAgg.spend,    bAgg.spend,    'moneyc', false, aAgg.spend/aDays, bAgg.spend/bDays);
+  html += metric('Revenue',           aRev,          bRev,          'moneyc', false, aRev/aDays, bRev/bDays);
+  html += metric('Ganancia neta',     aProfit,       bProfit,       'moneyc', false, aProfit/aDays, bProfit/bDays);
+  html += metric('ROAS',              aROAS,         bROAS,         'roas',   false);
+  html += metric('Compras LT',        aAgg.purchases,bAgg.purchases,'num',    false, aAgg.purchases/aDays, bAgg.purchases/bDays);
+  html += metric('Leads',             aAgg.leads,    bAgg.leads,    'num',    false, aAgg.leads/aDays, bAgg.leads/bDays);
+  html += metric('Checkouts',         aAgg.checkouts,bAgg.checkouts,'num',    false);
+  html += metric('Bump 1',            aAgg.bump1,    bAgg.bump1,    'num',    false);
+  html += metric('Bump 2',            aAgg.bump2,    bAgg.bump2,    'num',    false);
+  html += metric('CPL',               aCPL,          bCPL,          'money',  true);
+  html += metric('CPA',               aCPA,          bCPA,          'money',  true);
+  html += metric('AOV',               aAOV,          bAOV,          'money',  false);
+  html += metric('Tasa Conv Landing', aTCL,          bTCL,          'pct',    false);
+  html += metric('Impresiones',       aAgg.impressions, bAgg.impressions, 'num', false);
+  html += metric('LPV',               aAgg.lpv,      bAgg.lpv,      'num',    false);
+  html += '</div>';
+
+  document.getElementById('compareGrid').innerHTML = html;
 }
 
 function renderDataGrid() {
