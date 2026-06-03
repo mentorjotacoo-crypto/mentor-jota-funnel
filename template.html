@@ -2054,6 +2054,7 @@ function renderRevenue() {
       <div class="revenue-item"><span class="revenue-item-label">Landing \u2192 Lead</span><span class="revenue-item-value" style="color:#f7c948">${fmtPct(d.lpv>0?d.leads/d.lpv*100:0)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">Lead \u2192 Checkout</span><span class="revenue-item-value" style="color:var(--warn)">${fmtPct(d.leads>0?d.checkouts/d.leads*100:0)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">Checkout \u2192 Compra</span><span class="revenue-item-value" style="color:var(--acid)">${fmtPct(d.checkouts>0?d.purchases/d.checkouts*100:0)}</span></div>
+      <div class="revenue-item" style="border-top:1px dashed var(--petrol-light);margin-top:6px;padding-top:8px"><span class="revenue-item-label">Tasa Conv Landing <span style="color:var(--grey-light);font-size:11px">(compras/LPV)</span></span><span class="revenue-item-value" style="color:var(--acid)">${fmtPct(d.lpv>0?d.purchases/d.lpv*100:0)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">Cost per LPV</span><span class="revenue-item-value" style="color:var(--grey-light)">${fmtMoney(d.lpv>0?d.spend/d.lpv:0)}</span></div>
     </div>
   `;
