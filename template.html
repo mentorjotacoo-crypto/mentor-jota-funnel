@@ -156,6 +156,61 @@
   }
   .hint { font-size:11px; color:var(--grey); font-style:italic; margin-top:6px; }
 
+  /* ===== SIMULATOR ===== */
+  .simulator-grid {
+    display:grid; grid-template-columns:280px 1fr; gap:24px; align-items:start;
+  }
+  .simulator-controls .sim-row { margin-bottom:14px; }
+  .simulator-controls label {
+    display:block; font-size:10px; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--grey-light); font-weight:700;
+    margin-bottom:6px; font-family:'Clash Display',sans-serif;
+  }
+  .sim-input-wrap {
+    display:flex; align-items:center; background:var(--bg-elev);
+    border:1px solid var(--petrol-light); border-radius:3px;
+  }
+  .sim-input-wrap:focus-within { border-color:var(--acid); }
+  .sim-prefix, .sim-suffix {
+    padding:0 10px; color:var(--grey); font-size:14px;
+    font-family:'Clash Display',sans-serif; font-weight:700;
+  }
+  .sim-input-wrap input {
+    flex:1; background:transparent; border:none; outline:none;
+    padding:10px 4px; color:var(--white); font-size:18px;
+    font-family:'Clash Display',sans-serif; font-weight:700;
+  }
+  .sim-presets {
+    display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;
+  }
+  .btn.small {
+    padding:6px 10px; font-size:10px; min-width:0;
+  }
+  .simulator-output {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+    gap:8px;
+  }
+  .sim-out-card {
+    background:var(--bg-elev); padding:14px;
+    border-left:3px solid var(--acid); border-radius:2px;
+  }
+  .sim-out-label {
+    font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--grey-light); font-family:'Clash Display',sans-serif; font-weight:700;
+    margin-bottom:4px;
+  }
+  .sim-out-value {
+    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-size:24px; line-height:1; color:var(--white);
+  }
+  .sim-out-value.acid { color:var(--acid); }
+  .sim-out-value.good { color:var(--good); }
+  .sim-out-value.warn { color:var(--warn); }
+  .sim-out-sub { font-size:10px; color:var(--grey); margin-top:5px; }
+  @media (max-width:768px) {
+    .simulator-grid { grid-template-columns:1fr; gap:14px; }
+  }
+
   /* ===== INSIGHTS ===== */
   .insights-panel {
     display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
@@ -1000,9 +1055,36 @@
     <main>
       <div class="panel" style="margin-top:16px">
         <div class="panel-title">Proyecci&oacute;n a 4 semanas</div>
-        <p class="hint" style="margin-bottom:10px">Basada en los &uacute;ltimos 30 d&iacute;as con regresi&oacute;n lineal + estacionalidad por d&iacute;a de semana. Rango muestra &plusmn;1 desviaci&oacute;n est&aacute;ndar.</p>
+        <p class="hint" style="margin-bottom:10px">Basada en los &uacute;ltimos 30 d&iacute;as con regresi&oacute;n lineal + estacionalidad por d&iacute;a de semana. Rango muestra escenario optimista / pesimista.</p>
         <div id="forecastSummary" class="kpi-strip" style="margin-bottom:16px"></div>
       </div>
+
+      <div class="panel accent" style="margin-top:18px">
+        <div class="panel-title">Simulador what-if &mdash; &iquest;qu&eacute; pasa si subo o bajo el spend?</div>
+        <p class="hint" style="margin-bottom:14px">Usa CPA y AOV promedio de los &uacute;ltimos 30 d&iacute;as. Sirve para tener una intuici&oacute;n &mdash; cambios de oferta o creativos pueden alterar el resultado.</p>
+        <div class="simulator-grid">
+          <div class="simulator-controls">
+            <div class="sim-row">
+              <label for="simSpend">Spend diario hipot&eacute;tico</label>
+              <div class="sim-input-wrap"><span class="sim-prefix">$</span><input type="number" id="simSpend" min="0" max="5000" step="50" value="500" oninput="runSimulator()" /></div>
+            </div>
+            <div class="sim-row">
+              <label for="simDays">Horizonte (d&iacute;as)</label>
+              <div class="sim-input-wrap"><input type="number" id="simDays" min="1" max="90" step="1" value="28" oninput="runSimulator()" /><span class="sim-suffix">d</span></div>
+            </div>
+            <div class="sim-presets">
+              <button class="btn small" onclick="setSimSpend(250)">$250</button>
+              <button class="btn small" onclick="setSimSpend(500)">$500</button>
+              <button class="btn small" onclick="setSimSpend(750)">$750</button>
+              <button class="btn small" onclick="setSimSpend(1000)">$1k</button>
+              <button class="btn small" onclick="setSimSpend(1500)">$1.5k</button>
+              <button class="btn small" onclick="setSimSpend(2000)">$2k</button>
+            </div>
+          </div>
+          <div class="simulator-output" id="simulatorOutput"></div>
+        </div>
+      </div>
+
       <div class="charts-grid" style="margin-top:18px">
         <div class="chart-card">
           <div class="chart-card-title">Compras Low Ticket &mdash; pr&oacute;ximos 28 d&iacute;as</div>
@@ -1243,7 +1325,7 @@ function renderAll() {
   if (currentTab === 'journey') { renderJourney(); renderAnnotations(); }
   if (currentTab === 'trends')  { setTimeout(()=>{ renderTrendCharts(); renderAccumulatedMonthCharts(); renderHeatmap(); }, 30); }
   if (currentTab === 'revenue') { renderRevenue(); setTimeout(()=>{ renderRevenueCharts(); }, 30); }
-  if (currentTab === 'forecast'){ renderForecast(); setTimeout(()=>{ renderForecastCharts(); }, 30); }
+  if (currentTab === 'forecast'){ renderForecast(); runSimulator(); setTimeout(()=>{ renderForecastCharts(); }, 30); }
   if (currentTab === 'data')    { renderDataGrid(); }
 }
 
@@ -2510,6 +2592,74 @@ function renderForecastCharts() {
       })
     });
   });
+}
+
+// ====== SIMULATOR ======
+function setSimSpend(v) {
+  const el = document.getElementById('simSpend');
+  if (el) { el.value = v; runSimulator(); }
+}
+function runSimulator() {
+  const spendInput = parseFloat(document.getElementById('simSpend').value) || 0;
+  const daysInput = Math.max(1, Math.min(90, parseInt(document.getElementById('simDays').value) || 28));
+
+  // Base: ultimos 30 dias con data
+  const all = getSortedDayKeys();
+  const withData = all.filter(k => {
+    const d = APP_DATA.days[k];
+    return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
+  });
+  const base = withData.slice(-30);
+  if (base.length < 5) {
+    document.getElementById('simulatorOutput').innerHTML = '<div class="sim-out-card"><div class="sim-out-label">Sin data</div><div class="sim-out-value">-</div></div>';
+    return;
+  }
+  const agg = getAggregated(base);
+  // Ratios historicos
+  const cpa = agg.purchases > 0 ? agg.spend/agg.purchases : 0;
+  const cpl = agg.leads > 0 ? agg.spend/agg.leads : 0;
+  const aov = agg.purchases > 0 ? agg.revenue/agg.purchases : 0;
+  const histDailySpend = agg.spend / base.length;
+  const histDailyPurchases = agg.purchases / base.length;
+  const histDailyRevenue = agg.revenue / base.length;
+
+  // Proyeccion: usando CPA historico
+  const projDailyPurchases = cpa > 0 ? spendInput / cpa : 0;
+  const projDailyLeads = cpl > 0 ? spendInput / cpl : 0;
+  const projDailyRevenue = projDailyPurchases * aov;
+  const projDailyProfit = projDailyRevenue - spendInput;
+  const projRoas = spendInput > 0 ? projDailyRevenue/spendInput : 0;
+
+  const totSpend = spendInput * daysInput;
+  const totPurch = projDailyPurchases * daysInput;
+  const totLeads = projDailyLeads * daysInput;
+  const totRev = projDailyRevenue * daysInput;
+  const totProfit = projDailyProfit * daysInput;
+
+  const deltaSpend = histDailySpend > 0 ? (spendInput - histDailySpend)/histDailySpend*100 : 0;
+  const deltaPurch = histDailyPurchases > 0 ? (projDailyPurchases - histDailyPurchases)/histDailyPurchases*100 : 0;
+  const deltaRev = histDailyRevenue > 0 ? (projDailyRevenue - histDailyRevenue)/histDailyRevenue*100 : 0;
+
+  function deltaTxt(v) {
+    if (Math.abs(v) < 1) return '';
+    const arrow = v > 0 ? '▲' : '▼';
+    return ` ${arrow}${Math.abs(v).toFixed(0)}%`;
+  }
+  const cards = [
+    { label:'Spend total', value:fmtMoneyCompact(totSpend), sub:`$${spendInput.toFixed(0)}/d&iacute;a${deltaTxt(deltaSpend)}`, cls:'' },
+    { label:'Compras', value:Math.round(totPurch).toLocaleString(), sub:`~${projDailyPurchases.toFixed(1)}/d&iacute;a${deltaTxt(deltaPurch)}`, cls:'acid' },
+    { label:'Leads', value:Math.round(totLeads).toLocaleString(), sub:`~${projDailyLeads.toFixed(1)}/d&iacute;a`, cls:'' },
+    { label:'Revenue', value:fmtMoneyCompact(totRev), sub:`~$${projDailyRevenue.toFixed(0)}/d&iacute;a${deltaTxt(deltaRev)}`, cls:'acid' },
+    { label:'Ganancia', value:(totProfit>=0?'+':'')+fmtMoneyCompact(totProfit), sub:`~$${projDailyProfit.toFixed(0)}/d&iacute;a`, cls:totProfit>=0?'good':'warn' },
+    { label:'ROAS', value:projRoas.toFixed(2)+'x', sub:projRoas>=1.5?'Rentable':projRoas>=1?'Break-even':'Perdiendo', cls:projRoas>=1.5?'good':projRoas>=1?'':'warn' }
+  ];
+  document.getElementById('simulatorOutput').innerHTML = cards.map(c => `
+    <div class="sim-out-card">
+      <div class="sim-out-label">${c.label}</div>
+      <div class="sim-out-value ${c.cls}">${c.value}</div>
+      <div class="sim-out-sub">${c.sub}</div>
+    </div>
+  `).join('');
 }
 
 function renderDataGrid() {
