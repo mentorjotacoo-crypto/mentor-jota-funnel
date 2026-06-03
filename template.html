@@ -901,6 +901,7 @@
     </div>
     <div class="header-right">
       <span class="period-label" id="activePeriodLabel">Acumulado total</span>
+      <span class="header-meta" id="lastDataHeader">-</span>
       <span class="header-meta" id="updatedAtHeader">-</span>
       <button class="btn" onclick="window.print()">Imprimir</button>
       <button class="btn" onclick="doLogout()">Salir</button>
@@ -1259,7 +1260,13 @@ function onAuthSuccess(data) {
   APP_DATA.annotations = APP_DATA.annotations || [];
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  document.getElementById('updatedAtHeader').textContent = 'Data: ' + (data.updatedAt || '-') + ' · ' + Object.keys(data.days).length + ' dias';
+  // Última fecha con data
+  const withData = getSortedDayKeys().filter(k => {
+    const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
+  });
+  const lastDay = withData[withData.length - 1] || '-';
+  document.getElementById('lastDataHeader').textContent = 'Última data: ' + lastDay;
+  document.getElementById('updatedAtHeader').textContent = 'Sincronizado: ' + (data.updatedAt || '-');
   renderAll();
 }
 
@@ -1610,13 +1617,13 @@ function renderKPIs() {
   }
 
   const kpis = [
-    { id:'spend',    label:'Ad Spend',      value:fmtMoneyCompact(d.spend),      valCls:'', sub:nDays+' d'+(nDays===1?'ía':'ías'), cur:d.spend, prev:prev?prev.spend:0, invert:false, fmt:'money' },
-    { id:'revenue',  label:'Revenue',       value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false, fmt:'money' },
-    { id:'profit',   label:'Ganancia',      value:(profit>=0?'+':'')+fmtMoneyCompact(profit).replace('$','$'), valCls: profit>=0?'good':'warn', sub:'Rev - Spend', cur:profit, prev:prevProfit, invert:false, fmt:'money' },
-    { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo', cur:roas, prev:prevRoas, invert:false, fmt:'roas' },
-    { id:'cpl',      label:'Cost / Lead',   value:fmtMoney(cpl),                 valCls:'', sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true, fmt:'money' },
-    { id:'cpa',      label:'Cost / Compra', value:fmtMoney(cpa),                 valCls:'acid', sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true, fmt:'money' },
-    { id:'aov',      label:'AOV',           value:fmtMoney(aov),                 valCls:'acid', sub:'Valor orden', cur:aov, prev:prevAov, invert:false, fmt:'money' }
+    { id:'spend',    label:'Ad Spend',      value:fmtMoneyCompact(d.spend),      valCls:'', sub:nDays+' d'+(nDays===1?'ía':'ías'), cur:d.spend, prev:prev?prev.spend:0, invert:false, fmt:'money', tip:'Total invertido en Meta Ads en el período seleccionado.' },
+    { id:'revenue',  label:'Revenue',       value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false, fmt:'money', tip:'Revenue total reportado por Meta (LT + Bump 1 + Bump 2).' },
+    { id:'profit',   label:'Ganancia',      value:(profit>=0?'+':'')+fmtMoneyCompact(profit).replace('$','$'), valCls: profit>=0?'good':'warn', sub:'Rev - Spend', cur:profit, prev:prevProfit, invert:false, fmt:'money', tip:'Revenue - Spend. Solo considera ad spend, NO incluye costo de producto, fees, etc.' },
+    { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo', cur:roas, prev:prevRoas, invert:false, fmt:'roas', tip:'Revenue / Spend. Cuánto generas por cada $1 invertido en ads.' },
+    { id:'cpl',      label:'Cost / Lead',   value:fmtMoney(cpl),                 valCls:'', sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true, fmt:'money', tip:'Spend / Leads. Costo de adquirir un opt-in.' },
+    { id:'cpa',      label:'Cost / Compra', value:fmtMoney(cpa),                 valCls:'acid', sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true, fmt:'money', tip:'Spend / Compras LT. Costo de adquirir un cliente.' },
+    { id:'aov',      label:'AOV',           value:fmtMoney(aov),                 valCls:'acid', sub:'Valor orden', cur:aov, prev:prevAov, invert:false, fmt:'money', tip:'Revenue / Compras LT. Valor promedio de cada orden (incluye bumps).' }
   ];
 
   // Precompute values for sparklines
@@ -1650,7 +1657,7 @@ function renderKPIs() {
     const minV = vals.length ? Math.min(...vals) : 0;
     const maxV = vals.length ? Math.max(...vals) : 0;
     return `
-      <div class="kpi-cell">
+      <div class="kpi-cell" title="${k.tip || ''}">
         <div class="kpi-head">
           <span class="kpi-label">${k.label}</span>
           ${deltaHtml(k.cur, k.prev, k.invert)}
