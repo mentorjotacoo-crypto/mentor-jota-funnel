@@ -156,6 +156,40 @@
   }
   .hint { font-size:11px; color:var(--grey); font-style:italic; margin-top:6px; }
 
+  /* ===== INSIGHTS ===== */
+  .insights-panel {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    gap:8px; margin-top:12px; margin-bottom:24px;
+  }
+  .insight-card {
+    background:var(--petrol); border-left:3px solid var(--acid);
+    padding:12px 14px; border-radius:2px;
+    display:flex; align-items:flex-start; gap:10px;
+    transition:border-left-color 0.2s, transform 0.2s;
+  }
+  .insight-card:hover { transform:translateX(2px); }
+  .insight-card.good   { border-left-color:var(--good); }
+  .insight-card.warn   { border-left-color:var(--warn); }
+  .insight-card.info   { border-left-color:var(--blue); }
+  .insight-card.record { border-left-color:var(--acid); background:linear-gradient(90deg, rgba(231,255,42,0.08), var(--petrol)); }
+  .insight-icon {
+    font-size:18px; line-height:1; flex-shrink:0; margin-top:1px;
+  }
+  .insight-body { flex:1; min-width:0; }
+  .insight-title {
+    font-family:'Clash Display',sans-serif; font-weight:700;
+    font-size:12px; letter-spacing:0.5px; color:var(--white);
+    margin-bottom:3px; text-transform:uppercase;
+  }
+  .insight-detail { font-size:12px; color:var(--grey-light); line-height:1.4; }
+  .insight-detail .num { color:var(--acid); font-weight:700; }
+  .insight-detail .num.warn { color:var(--warn); }
+  .insight-detail .num.good { color:var(--good); }
+  .insight-empty {
+    grid-column:1/-1; padding:14px; color:var(--grey); font-size:12px;
+    text-align:center; border:1px dashed var(--petrol-light); border-radius:2px;
+  }
+
   /* ===== KPI STRIP ===== */
   .kpi-strip {
     display:grid; grid-template-columns:repeat(7, minmax(0, 1fr));
@@ -789,6 +823,9 @@
       </div>
       <p class="hint">Todas las m&eacute;tricas se recalculan autom&aacute;ticamente. &Delta; vs per&iacute;odo anterior del mismo tama&ntilde;o.</p>
 
+      <div class="section-title">00 &middot; Insights del momento <span class="sub">lo m&aacute;s relevante de la data actual</span></div>
+      <div id="insightsPanel" class="insights-panel"></div>
+
       <div class="section-title">01 &middot; M&eacute;tricas clave <span class="sub">spend, revenue, ROAS &amp; conversion</span></div>
       <div class="kpi-strip" id="kpiStrip"></div>
 
@@ -1200,6 +1237,7 @@ function destroyCharts() {
 // ====== RENDER ALL ======
 function renderAll() {
   destroyCharts();
+  renderInsights();
   renderKPIs();
   if (currentTab === 'embudo') { renderFunnelVisual(); setTimeout(()=>{ renderFunnelDailyChart(); renderConversionsChart(); }, 30); }
   if (currentTab === 'journey') { renderJourney(); renderAnnotations(); }
@@ -1210,6 +1248,171 @@ function renderAll() {
 }
 
 // ====== KPIs ======
+function renderInsights() {
+  const all = getSortedDayKeys();
+  const withData = all.filter(k => {
+    const d = APP_DATA.days[k];
+    return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
+  });
+  if (withData.length < 7) {
+    document.getElementById('insightsPanel').innerHTML = '<div class="insight-empty">Se necesitan al menos 7 días con data para generar insights.</div>';
+    return;
+  }
+  const insights = [];
+  const filtered = getFilteredDays();
+  const filteredAgg = getAggregated(filtered);
+  const periodLabel = filtered.length >= 28 ? 'este período' : 'estos ' + filtered.length + ' días';
+
+  // 1. Récord de compras en periodo seleccionado
+  let maxP = {key:null, val:0};
+  filtered.forEach(k => {
+    const v = APP_DATA.days[k].purchases || 0;
+    if (v > maxP.val) maxP = {key:k, val:v};
+  });
+  if (maxP.val > 0) {
+    insights.push({
+      type:'record', icon:'★',
+      title:'Mejor día de compras',
+      detail:`<span class="num">${maxP.val}</span> compras LT el <strong>${maxP.key}</strong>`
+    });
+  }
+
+  // 2. CPA actual vs CPA promedio histórico
+  const last7 = withData.slice(-7);
+  const prev7 = withData.slice(-14, -7);
+  if (last7.length >= 3 && prev7.length >= 3) {
+    const a7 = getAggregated(last7);
+    const a14 = getAggregated(prev7);
+    const cpa7 = a7.purchases > 0 ? a7.spend/a7.purchases : 0;
+    const cpa14 = a14.purchases > 0 ? a14.spend/a14.purchases : 0;
+    if (cpa7 > 0 && cpa14 > 0) {
+      const pct = (cpa7 - cpa14)/cpa14*100;
+      if (Math.abs(pct) > 8) {
+        const subiendo = pct > 0;
+        insights.push({
+          type: subiendo ? 'warn' : 'good',
+          icon: subiendo ? '▲' : '▼',
+          title:`CPA ${subiendo?'subiendo':'bajando'} ${Math.abs(pct).toFixed(0)}%`,
+          detail:`Últimos 7d: <span class="num ${subiendo?'warn':'good'}">$${cpa7.toFixed(1)}</span> vs $${cpa14.toFixed(1)} semana previa`
+        });
+      }
+    }
+  }
+
+  // 3. Mejor día de semana (DoW) por compras
+  const dowSum = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]};
+  const dowNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  withData.slice(-30).forEach(k => {
+    const [m, d] = k.split(' ');
+    const date = new Date(2026, MONTHS[m], parseInt(d, 10));
+    dowSum[date.getDay()].push(APP_DATA.days[k].purchases || 0);
+  });
+  let bestDow = -1, bestAvg = 0, worstDow = -1, worstAvg = Infinity;
+  for (let d = 0; d < 7; d++) {
+    if (dowSum[d].length < 2) continue;
+    const avg = dowSum[d].reduce((a,b)=>a+b,0)/dowSum[d].length;
+    if (avg > bestAvg) { bestAvg = avg; bestDow = d; }
+    if (avg < worstAvg) { worstAvg = avg; worstDow = d; }
+  }
+  if (bestDow >= 0 && worstDow >= 0 && bestAvg > worstAvg * 1.2) {
+    insights.push({
+      type:'info', icon:'◆',
+      title:'Día más rentable de la semana',
+      detail:`<strong>${dowNames[bestDow]}</strong>: <span class="num">${bestAvg.toFixed(1)}</span> compras/día prom (vs ${worstAvg.toFixed(1)} en ${dowNames[worstDow]})`
+    });
+  }
+
+  // 4. Racha actual de días con datos
+  let streak = 0;
+  for (let i = withData.length - 1; i >= 0; i--) {
+    const day = APP_DATA.days[withData[i]];
+    if ((day.purchases || 0) > 0) streak++;
+    else break;
+  }
+  if (streak >= 5) {
+    insights.push({
+      type:'good', icon:'🔥',
+      title:`Racha de ${streak} días con ventas`,
+      detail:`Vendiendo todos los días desde <strong>${withData[withData.length - streak]}</strong>`
+    });
+  }
+
+  // 5. Días sin Bump 2
+  let noBump2Streak = 0;
+  for (let i = withData.length - 1; i >= 0; i--) {
+    if ((APP_DATA.days[withData[i]].bump2 || 0) === 0) noBump2Streak++;
+    else break;
+  }
+  if (noBump2Streak >= 5) {
+    insights.push({
+      type:'warn', icon:'!',
+      title:`${noBump2Streak} días sin Bump 2`,
+      detail:`Último Bump 2 vendido hace <span class="num warn">${noBump2Streak} días</span>. Revisar oferta.`
+    });
+  }
+
+  // 6. Día anómalo (outlier) en el período filtrado
+  if (filtered.length >= 7) {
+    const purchVals = filtered.map(k => APP_DATA.days[k].purchases || 0);
+    const mean = purchVals.reduce((a,b)=>a+b,0)/purchVals.length;
+    const std = Math.sqrt(purchVals.reduce((s,v)=>s+(v-mean)**2,0)/purchVals.length);
+    let outlierDay = null, outlierZ = 0;
+    purchVals.forEach((v, i) => {
+      const z = std > 0 ? (v - mean)/std : 0;
+      if (z < -2 && Math.abs(z) > Math.abs(outlierZ)) { outlierZ = z; outlierDay = filtered[i]; }
+    });
+    if (outlierDay) {
+      insights.push({
+        type:'warn', icon:'⚠',
+        title:'Día anómalo (bajo)',
+        detail:`<strong>${outlierDay}</strong>: solo <span class="num warn">${APP_DATA.days[outlierDay].purchases}</span> compras (promedio: ${mean.toFixed(1)})`
+      });
+    }
+  }
+
+  // 7. ROAS del periodo + interpretación
+  const rev = filteredAgg.revenue || 0;
+  const sp = filteredAgg.spend || 0;
+  if (sp > 0) {
+    const roas = rev/sp;
+    let type = 'info', icon='≈', title='ROAS en break-even';
+    if (roas >= 1.5) { type='good'; icon='✓'; title='ROAS rentable'; }
+    else if (roas < 0.9) { type='warn'; icon='✗'; title='ROAS bajo'; }
+    insights.push({
+      type, icon, title,
+      detail:`${roas.toFixed(2)}x ${periodLabel}: por cada $1 invertido, $${roas.toFixed(2)} de revenue`
+    });
+  }
+
+  // 8. Tasa Conv Landing del periodo vs histórico
+  const tcl = filteredAgg.lpv > 0 ? filteredAgg.purchases/filteredAgg.lpv*100 : 0;
+  const histAgg = getAggregated(withData);
+  const tclHist = histAgg.lpv > 0 ? histAgg.purchases/histAgg.lpv*100 : 0;
+  if (tcl > 0 && tclHist > 0 && Math.abs(tcl - tclHist) > 0.15) {
+    const subiendo = tcl > tclHist;
+    insights.push({
+      type: subiendo ? 'good' : 'warn',
+      icon: subiendo ? '↗' : '↘',
+      title:`Conv Landing ${subiendo?'arriba':'abajo'} del promedio`,
+      detail:`${periodLabel}: <span class="num ${subiendo?'good':'warn'}">${tcl.toFixed(2)}%</span> vs histórico ${tclHist.toFixed(2)}%`
+    });
+  }
+
+  // Render
+  const html = insights.length === 0
+    ? '<div class="insight-empty">No hay insights destacados en este período.</div>'
+    : insights.slice(0, 6).map(i => `
+        <div class="insight-card ${i.type}">
+          <div class="insight-icon">${i.icon}</div>
+          <div class="insight-body">
+            <div class="insight-title">${i.title}</div>
+            <div class="insight-detail">${i.detail}</div>
+          </div>
+        </div>
+      `).join('');
+  document.getElementById('insightsPanel').innerHTML = html;
+}
+
 function renderKPIs() {
   const d = getAggregated();
   const days = getFilteredDays();
