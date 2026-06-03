@@ -1097,10 +1097,14 @@ function fmtMoneyCompact(n) {
 function fmtPct(n) { return (n || 0).toFixed(1) + '%'; }
 function getFilteredDays() {
   const all = getSortedDayKeys();
-  if (currentFilter === 'all') return all;
-  if (currentFilter === 'last7') return all.slice(-7);
-  if (currentFilter === 'last14') return all.slice(-14);
-  if (currentFilter === 'last30') return all.slice(-30);
+  const withData = all.filter(k => {
+    const d = APP_DATA.days[k];
+    return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
+  });
+  if (currentFilter === 'all') return withData;
+  if (currentFilter === 'last7') return withData.slice(-7);
+  if (currentFilter === 'last14') return withData.slice(-14);
+  if (currentFilter === 'last30') return withData.slice(-30);
   return all.filter(k => k.startsWith(currentFilter));
 }
 function getAggregated(days) {
