@@ -2289,10 +2289,10 @@ function renderForecastCharts() {
       data:{
         labels: labels,
         datasets:[
-          { label:'Hist&oacute;rico', data:histData, borderColor:hex, backgroundColor:rgba(0.15), tension:0.25, pointRadius:2, pointHoverRadius:4, fill:false },
-          { label:'Proyecci&oacute;n', data:fcExpected, borderColor:hex, borderDash:[6,4], backgroundColor:rgba(0.05), tension:0.25, pointRadius:1, pointHoverRadius:3, fill:false },
-          { label:'M&aacute;ximo (+1σ)', data:fcHigh, borderColor:rgba(0.4), borderWidth:1, pointRadius:0, fill:'+1', backgroundColor:rgba(0.1) },
-          { label:'M&iacute;nimo (-1σ)', data:fcLow, borderColor:rgba(0.4), borderWidth:1, pointRadius:0, fill:false }
+          { label:'Histórico', data:histData, borderColor:hex, backgroundColor:rgba(0.15), tension:0.25, pointRadius:2, pointHoverRadius:4, fill:false },
+          { label:'Proyección', data:fcExpected, borderColor:hex, borderDash:[6,4], backgroundColor:rgba(0.05), tension:0.25, pointRadius:1, pointHoverRadius:3, fill:false },
+          { label:'Escenario optimista', data:fcHigh, borderColor:rgba(0.4), borderWidth:1, pointRadius:0, fill:'+1', backgroundColor:rgba(0.1) },
+          { label:'Escenario pesimista', data:fcLow, borderColor:rgba(0.4), borderWidth:1, pointRadius:0, fill:false }
         ]
       },
       options: commonChartOptions({
