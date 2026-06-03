@@ -158,13 +158,13 @@
 
   /* ===== KPI STRIP ===== */
   .kpi-strip {
-    display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+    display:grid; grid-template-columns:repeat(7, minmax(0, 1fr));
     gap:3px; border:1px solid var(--petrol-light); margin-top:12px;
   }
   .kpi-cell {
-    background:var(--petrol); padding:16px 18px; border-right:1px solid var(--petrol-light);
+    background:var(--petrol); padding:14px 14px; border-right:1px solid var(--petrol-light);
     position:relative; border-top:3px solid transparent;
-    transition:border-top-color 0.2s;
+    transition:border-top-color 0.2s; min-width:0;
   }
   .kpi-cell:last-child { border-right:none; }
   .kpi-cell:hover { border-top-color:var(--acid); }
@@ -185,7 +185,8 @@
   .kpi-delta.neutral { color:var(--grey); background:rgba(137,138,141,0.12); }
   .kpi-value {
     font-family:'Clash Display',sans-serif; font-weight:900;
-    font-size:30px; line-height:1; letter-spacing:-0.3px; color:var(--white);
+    font-size:clamp(20px, 1.8vw, 28px); line-height:1; letter-spacing:-0.3px; color:var(--white);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .kpi-value.acid { color:var(--acid); }
   .kpi-value.good { color:var(--good); }
@@ -197,10 +198,11 @@
   }
   .kpi-sparkline { margin-top:10px; height:44px; position:relative; }
   .kpi-range-text {
-    display:flex; justify-content:space-between; align-items:center;
+    display:flex; justify-content:space-between; align-items:center; gap:4px;
     font-size:9px; color:var(--grey); font-family:'JetBrains Mono',monospace;
-    margin-top:4px; letter-spacing:0.3px; padding:0 2px;
+    margin-top:4px; letter-spacing:0.3px; padding:0 2px; min-width:0;
   }
+  .kpi-range-text > span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .kpi-range-text .minmax { color:var(--grey-light); font-weight:600; }
 
   /* ===== PANELS ===== */
