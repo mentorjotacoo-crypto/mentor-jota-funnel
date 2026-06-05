@@ -2488,8 +2488,9 @@ function renderRevenueCharts() {
     })
   });
 
-  const b1Rate = keys.map(k => { const d=APP_DATA.days[k]; return d.purchases>0 ? d.bump1/d.purchases*100 : 0; });
-  const b2Rate = keys.map(k => { const d=APP_DATA.days[k]; return d.purchases>0 ? d.bump2/d.purchases*100 : 0; });
+  // Cap al 100% para evitar picos por atribucion tardia de bumps a dias con pocas compras
+  const b1Rate = keys.map(k => { const d=APP_DATA.days[k]; return d.purchases>0 ? Math.min(100, d.bump1/d.purchases*100) : 0; });
+  const b2Rate = keys.map(k => { const d=APP_DATA.days[k]; return d.purchases>0 ? Math.min(100, d.bump2/d.purchases*100) : 0; });
   chartInstances.bumps = new Chart(document.getElementById('chartBumps'), {
     type:'line',
     data:{
