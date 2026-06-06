@@ -899,9 +899,9 @@
 <div class="toast" id="toast"></div>
 
 <!-- TOOLTIP POPOVER EXPANDIDO -->
-<div class="tooltip-overlay" id="tooltipOverlay" onclick="closeTooltip(event)">
-  <div class="tooltip-card" onclick="event.stopPropagation()">
-    <button class="tooltip-card-close" onclick="closeTooltip()" aria-label="Cerrar">&times;</button>
+<div class="tooltip-overlay" id="tooltipOverlay" onclick="if(event.target.id==='tooltipOverlay')closeInfoPopover()">
+  <div class="tooltip-card">
+    <button class="tooltip-card-close" onclick="closeInfoPopover()" aria-label="Cerrar">&times;</button>
     <div class="tooltip-card-label" id="tooltipCardLabel">M&eacute;trica</div>
     <div class="tooltip-card-title" id="tooltipCardTitle"></div>
     <div class="tooltip-card-body" id="tooltipCardBody"></div>
@@ -1388,11 +1388,10 @@ function fmtMoneyCompact(n) {
 }
 function fmtPct(n) { return (n || 0).toFixed(1) + '%'; }
 
-// ====== TOOLTIP POPOVER ======
-function showTooltip(el, label) {
+// ====== INFO POPOVER (click-to-expand) ======
+function openInfoPopover(el, label) {
   const tip = el.getAttribute('data-tip');
   if (!tip) return;
-  // Valor actual de la KPI (para mostrarlo en grande tambien)
   const valEl = el.querySelector('.kpi-value');
   const currentVal = valEl ? valEl.textContent.trim() : '';
   document.getElementById('tooltipCardLabel').textContent = label || 'Métrica';
@@ -1400,12 +1399,11 @@ function showTooltip(el, label) {
   document.getElementById('tooltipCardBody').textContent = tip;
   document.getElementById('tooltipOverlay').classList.add('active');
 }
-function closeTooltip(e) {
-  if (e && e.target && e.target.id !== 'tooltipOverlay' && e.type === 'click' && e.target.closest('.tooltip-card')) return;
+function closeInfoPopover() {
   document.getElementById('tooltipOverlay').classList.remove('active');
 }
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeTooltip();
+  if (e.key === 'Escape') closeInfoPopover();
 });
 function getFilteredDays() {
   const all = getSortedDayKeys();
@@ -1731,7 +1729,7 @@ function renderKPIs() {
     const minV = vals.length ? Math.min(...vals) : 0;
     const maxV = vals.length ? Math.max(...vals) : 0;
     return `
-      <div class="kpi-cell" ${k.tip ? `data-tip="${k.tip.replace(/"/g, '&quot;')}" onclick="showTooltip(this, '${k.label}')"` : ''}>
+      <div class="kpi-cell" ${k.tip ? `data-tip="${k.tip.replace(/"/g, '&quot;')}" onclick="openInfoPopover(this, '${k.label}')"` : ''}>
         <div class="kpi-head">
           <span class="kpi-label">${k.label}</span>
           ${deltaHtml(k.cur, k.prev, k.invert)}
