@@ -286,9 +286,33 @@
   .tooltip-overlay.active { display:flex; }
   .tooltip-card {
     background:var(--petrol); border-top:4px solid var(--acid);
-    max-width:440px; width:100%; padding:24px 26px;
+    max-width:640px; width:100%; padding:24px 26px;
     box-shadow:0 20px 60px rgba(0,0,0,0.6);
     position:relative; animation:tooltipIn 0.18s ease-out;
+    max-height:90vh; overflow-y:auto;
+  }
+  .tooltip-card-chart {
+    margin-top:18px; padding-top:18px; border-top:1px solid var(--petrol-light);
+  }
+  .tooltip-card-chart-label {
+    font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--grey-light); font-weight:700; margin-bottom:8px;
+    font-family:'Clash Display',sans-serif;
+  }
+  .tooltip-card-chart-wrap { height:200px; position:relative; }
+  .tooltip-card-stats {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px;
+  }
+  .tooltip-card-stat {
+    background:var(--bg-elev); padding:10px 12px; border-left:2px solid var(--petrol-light);
+  }
+  .tooltip-card-stat-label {
+    font-size:9px; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--grey); font-weight:600; margin-bottom:3px;
+  }
+  .tooltip-card-stat-value {
+    font-family:'Clash Display',sans-serif; font-weight:800;
+    font-size:14px; color:var(--white);
   }
   @keyframes tooltipIn { from { transform:translateY(8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
   .tooltip-card-close {
@@ -905,6 +929,11 @@
     <div class="tooltip-card-label" id="tooltipCardLabel">M&eacute;trica</div>
     <div class="tooltip-card-title" id="tooltipCardTitle"></div>
     <div class="tooltip-card-body" id="tooltipCardBody"></div>
+    <div class="tooltip-card-chart" id="tooltipCardChartSection">
+      <div class="tooltip-card-chart-label">Evoluci&oacute;n d&iacute;a a d&iacute;a</div>
+      <div class="tooltip-card-chart-wrap"><canvas id="tooltipCardChart"></canvas></div>
+      <div class="tooltip-card-stats" id="tooltipCardStats"></div>
+    </div>
   </div>
 </div>
 
@@ -1389,7 +1418,8 @@ function fmtMoneyCompact(n) {
 function fmtPct(n) { return (n || 0).toFixed(1) + '%'; }
 
 // ====== INFO POPOVER (click-to-expand) ======
-function openInfoPopover(el, label) {
+let _popoverChart = null;
+function openInfoPopover(el, label, kpiId) {
   const tip = el.getAttribute('data-tip');
   if (!tip) return;
   const valEl = el.querySelector('.kpi-value');
@@ -1398,9 +1428,70 @@ function openInfoPopover(el, label) {
   document.getElementById('tooltipCardTitle').textContent = currentVal;
   document.getElementById('tooltipCardBody').textContent = tip;
   document.getElementById('tooltipOverlay').classList.add('active');
+  // Render chart de la evolucion del KPI dia a dia
+  if (_popoverChart) { try { _popoverChart.destroy(); } catch(e){} _popoverChart = null; }
+  if (!kpiId) return;
+  const days = getFilteredDays();
+  const values = days.map(k => {
+    const dd = APP_DATA.days[k];
+    if (!dd) return 0;
+    if (kpiId === 'revenue') return dd.revenue || 0;
+    if (kpiId === 'profit') return (dd.revenue || 0) - (dd.spend || 0);
+    if (kpiId === 'roas') return dd.spend > 0 ? (dd.revenue||0)/dd.spend : 0;
+    if (kpiId === 'cpl') return dd.leads > 0 ? dd.spend/dd.leads : 0;
+    if (kpiId === 'cpa') return dd.purchases > 0 ? dd.spend/dd.purchases : 0;
+    if (kpiId === 'aov') return dd.purchases > 0 ? (dd.revenue||0)/dd.purchases : 0;
+    return dd[kpiId] || 0;
+  });
+  const validVals = values.filter(v => isFinite(v) && v !== 0);
+  const minV = validVals.length ? Math.min(...validVals) : 0;
+  const maxV = validVals.length ? Math.max(...validVals) : 0;
+  const avgV = validVals.length ? validVals.reduce((a,b)=>a+b,0)/validVals.length : 0;
+  const isMoney = ['revenue','profit','cpl','cpa','aov','spend'].includes(kpiId);
+  const isRoas = kpiId === 'roas';
+  const fmtV = (v) => isMoney ? fmtMoney(v) : (isRoas ? v.toFixed(2)+'x' : Math.round(v).toLocaleString());
+  document.getElementById('tooltipCardStats').innerHTML = `
+    <div class="tooltip-card-stat"><div class="tooltip-card-stat-label">Mínimo</div><div class="tooltip-card-stat-value">${fmtV(minV)}</div></div>
+    <div class="tooltip-card-stat"><div class="tooltip-card-stat-label">Promedio</div><div class="tooltip-card-stat-value">${fmtV(avgV)}</div></div>
+    <div class="tooltip-card-stat"><div class="tooltip-card-stat-label">Máximo</div><div class="tooltip-card-stat-value">${fmtV(maxV)}</div></div>
+  `;
+  setTimeout(() => {
+    const ctx = document.getElementById('tooltipCardChart');
+    if (!ctx) return;
+    _popoverChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [{
+          label: label,
+          data: values,
+          borderColor: '#E7FF2A',
+          backgroundColor: 'rgba(231,255,42,0.12)',
+          tension: 0.3, fill: true, pointRadius: 2, pointHoverRadius: 5, borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(8,46,56,0.95)',
+            titleColor: '#E7FF2A', bodyColor: '#f5f7f5',
+            padding: 10, titleFont: { size: 13, weight: 'bold' }, bodyFont: { size: 13 },
+            callbacks: { label: (c) => label + ': ' + fmtV(c.raw) }
+          }
+        },
+        scales: {
+          x: { ticks:{color:'#898A8D',font:{size:9},maxTicksLimit:8,autoSkip:true,maxRotation:0}, grid:{color:'rgba(26,96,112,0.2)'} },
+          y: { ticks:{color:'#898A8D',font:{size:10},callback:(v)=>isMoney?fmtMoneyCompact(v):(isRoas?v.toFixed(1)+'x':Math.round(v))}, grid:{color:'rgba(26,96,112,0.2)'} }
+        }
+      }
+    });
+  }, 30);
 }
 function closeInfoPopover() {
   document.getElementById('tooltipOverlay').classList.remove('active');
+  if (_popoverChart) { try { _popoverChart.destroy(); } catch(e){} _popoverChart = null; }
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeInfoPopover();
@@ -1729,7 +1820,7 @@ function renderKPIs() {
     const minV = vals.length ? Math.min(...vals) : 0;
     const maxV = vals.length ? Math.max(...vals) : 0;
     return `
-      <div class="kpi-cell" ${k.tip ? `data-tip="${k.tip.replace(/"/g, '&quot;')}" onclick="openInfoPopover(this, '${k.label}')"` : ''}>
+      <div class="kpi-cell" ${k.tip ? `data-tip="${k.tip.replace(/"/g, '&quot;')}" onclick="openInfoPopover(this, '${k.label}', '${k.id}')"` : ''}>
         <div class="kpi-head">
           <span class="kpi-label">${k.label}</span>
           ${deltaHtml(k.cur, k.prev, k.invert)}
