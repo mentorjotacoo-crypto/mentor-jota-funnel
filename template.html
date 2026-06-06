@@ -267,6 +267,50 @@
     .simulator-grid { grid-template-columns:1fr; gap:14px; }
   }
 
+  /* ===== TOOLTIP POPOVER ===== */
+  .kpi-cell[data-tip] { cursor:help; }
+  .kpi-cell[data-tip]::after {
+    content:'?'; position:absolute; top:8px; right:8px;
+    width:14px; height:14px; border-radius:50%;
+    background:rgba(231,255,42,0.12); color:var(--acid);
+    font-size:10px; font-weight:700; line-height:14px; text-align:center;
+    font-family:'Clash Display',sans-serif;
+    opacity:0; transition:opacity 0.2s;
+  }
+  .kpi-cell[data-tip]:hover::after { opacity:1; }
+  .tooltip-overlay {
+    display:none; position:fixed; inset:0; z-index:9000;
+    background:rgba(8,46,56,0.7); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .tooltip-overlay.active { display:flex; }
+  .tooltip-card {
+    background:var(--petrol); border-top:4px solid var(--acid);
+    max-width:440px; width:100%; padding:24px 26px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+    position:relative; animation:tooltipIn 0.18s ease-out;
+  }
+  @keyframes tooltipIn { from { transform:translateY(8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+  .tooltip-card-close {
+    position:absolute; top:10px; right:14px; background:none; border:none;
+    color:var(--grey-light); font-size:22px; cursor:pointer; line-height:1;
+    padding:4px 8px; font-family:'Clash Display',sans-serif;
+  }
+  .tooltip-card-close:hover { color:var(--acid); }
+  .tooltip-card-label {
+    font-family:'Clash Display',sans-serif; font-weight:700; font-size:11px;
+    letter-spacing:1.8px; text-transform:uppercase;
+    color:var(--grey-light); margin-bottom:6px;
+  }
+  .tooltip-card-title {
+    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-size:24px; color:var(--white); margin-bottom:14px; line-height:1.1;
+  }
+  .tooltip-card-body {
+    font-family:'General Sans',sans-serif; font-size:15px;
+    color:var(--white); line-height:1.5;
+  }
+
   /* ===== INSIGHTS ===== */
   .insights-panel {
     display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
@@ -854,6 +898,16 @@
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast"></div>
 
+<!-- TOOLTIP POPOVER EXPANDIDO -->
+<div class="tooltip-overlay" id="tooltipOverlay" onclick="closeTooltip(event)">
+  <div class="tooltip-card" onclick="event.stopPropagation()">
+    <button class="tooltip-card-close" onclick="closeTooltip()" aria-label="Cerrar">&times;</button>
+    <div class="tooltip-card-label" id="tooltipCardLabel">M&eacute;trica</div>
+    <div class="tooltip-card-title" id="tooltipCardTitle"></div>
+    <div class="tooltip-card-body" id="tooltipCardBody"></div>
+  </div>
+</div>
+
 <!-- MODAL ANOTACION -->
 <div class="modal-backdrop" id="annModal">
   <div class="modal-box">
@@ -1333,6 +1387,26 @@ function fmtMoneyCompact(n) {
   return '$' + Math.round(n).toLocaleString();
 }
 function fmtPct(n) { return (n || 0).toFixed(1) + '%'; }
+
+// ====== TOOLTIP POPOVER ======
+function showTooltip(el, label) {
+  const tip = el.getAttribute('data-tip');
+  if (!tip) return;
+  // Valor actual de la KPI (para mostrarlo en grande tambien)
+  const valEl = el.querySelector('.kpi-value');
+  const currentVal = valEl ? valEl.textContent.trim() : '';
+  document.getElementById('tooltipCardLabel').textContent = label || 'Métrica';
+  document.getElementById('tooltipCardTitle').textContent = currentVal;
+  document.getElementById('tooltipCardBody').textContent = tip;
+  document.getElementById('tooltipOverlay').classList.add('active');
+}
+function closeTooltip(e) {
+  if (e && e.target && e.target.id !== 'tooltipOverlay' && e.type === 'click' && e.target.closest('.tooltip-card')) return;
+  document.getElementById('tooltipOverlay').classList.remove('active');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeTooltip();
+});
 function getFilteredDays() {
   const all = getSortedDayKeys();
   const withData = all.filter(k => {
@@ -1657,7 +1731,7 @@ function renderKPIs() {
     const minV = vals.length ? Math.min(...vals) : 0;
     const maxV = vals.length ? Math.max(...vals) : 0;
     return `
-      <div class="kpi-cell" title="${k.tip || ''}">
+      <div class="kpi-cell" ${k.tip ? `data-tip="${k.tip.replace(/"/g, '&quot;')}" onclick="showTooltip(this, '${k.label}')"` : ''}>
         <div class="kpi-head">
           <span class="kpi-label">${k.label}</span>
           ${deltaHtml(k.cur, k.prev, k.invert)}
