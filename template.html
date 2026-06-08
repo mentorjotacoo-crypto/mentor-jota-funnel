@@ -126,8 +126,17 @@
   .tab-btn:hover { color:var(--white); }
   .tab-btn.active { color:var(--acid); border-bottom-color:var(--acid); font-weight:700; }
   .tab-panel { display:none; }
-  .tab-panel.active { display:block; animation:fadeIn 0.25s ease-out; }
-  @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+  .tab-panel.active { display:block; animation:fadeIn 0.22s ease-out; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  .tab-panel.loading { opacity:0.4; pointer-events:none; transition:opacity 0.15s; }
+  .tab-loader {
+    position:fixed; top:0; left:0; right:0; height:2px; z-index:200;
+    background:linear-gradient(90deg, transparent, var(--acid) 50%, transparent);
+    background-size:200% 100%; animation:tabLoader 0.8s linear infinite;
+    display:none;
+  }
+  .tab-loader.active { display:block; }
+  @keyframes tabLoader { 0% {background-position:200% 0;} 100% {background-position:-200% 0;} }
 
   /* ===== MAIN ===== */
   main { max-width:1400px; margin:0 auto; padding:36px 28px 40px; }
@@ -160,6 +169,16 @@
   .btn.danger { border-color:var(--warn); color:var(--warn); }
   .btn.danger:hover { background:var(--warn); color:var(--white); }
 
+  .period-bar-global {
+    position:sticky; top:74px; z-index:90;
+    background:rgba(15,23,28,0.96); backdrop-filter:blur(8px);
+    border-bottom:1px solid rgba(26,96,112,0.4);
+    padding:12px 32px;
+  }
+  .period-bar-inner {
+    max-width:1400px; margin:0 auto;
+    display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+  }
   .period-bar { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
   .period-bar-label {
     font-family:'Clash Display',sans-serif; font-weight:700; font-size:10px;
@@ -277,6 +296,67 @@
   .sim-out-sub { font-size:10px; color:var(--grey); margin-top:5px; }
   @media (max-width:768px) {
     .simulator-grid { grid-template-columns:1fr; gap:14px; }
+  }
+
+  /* ===== HERO (Resumen) ===== */
+  .hero-grid {
+    display:grid; grid-template-columns:2fr 1fr; gap:18px; margin-top:8px;
+  }
+  .hero-revenue {
+    background:var(--petrol); border:1px solid rgba(26,96,112,0.5); border-radius:4px;
+    padding:36px 40px; position:relative; overflow:hidden;
+  }
+  .hero-revenue::before {
+    content:''; position:absolute; top:0; right:0; width:160px; height:160px;
+    background:radial-gradient(circle at center, rgba(231,255,42,0.06), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-label {
+    font-family:'Clash Display',sans-serif; font-weight:600;
+    font-size:11px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--grey-light); margin-bottom:14px;
+  }
+  .hero-value {
+    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-size:clamp(40px, 5.5vw, 76px); line-height:0.95; letter-spacing:-2px;
+    color:var(--acid); margin-bottom:18px;
+  }
+  .hero-meta {
+    font-family:'General Sans',sans-serif; font-size:14px; color:var(--grey-light);
+  }
+  .hero-meta .accent { color:var(--white); font-weight:600; }
+  .hero-side {
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .hero-mini {
+    background:var(--petrol); border:1px solid rgba(26,96,112,0.5); border-radius:4px;
+    padding:18px 22px; flex:1; display:flex; flex-direction:column; justify-content:center;
+    transition:border-color 0.2s, background 0.2s;
+  }
+  .hero-mini:hover { border-color:rgba(26,96,112,0.9); }
+  .hero-mini-label {
+    font-family:'Clash Display',sans-serif; font-weight:600;
+    font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--grey-light); margin-bottom:8px;
+  }
+  .hero-mini-value {
+    font-family:'Clash Display',sans-serif; font-weight:800;
+    font-size:clamp(20px, 2vw, 28px); line-height:1; color:var(--white);
+  }
+  .hero-mini-value.good { color:var(--good); }
+  .hero-mini-value.warn { color:var(--warn); }
+  .hero-mini-value.acid { color:var(--acid); }
+  .hero-mini-sub {
+    font-size:11px; color:var(--grey); margin-top:4px;
+  }
+  @media (max-width:900px) {
+    .hero-grid { grid-template-columns:1fr; }
+    .hero-side { flex-direction:row; }
+    .hero-mini { flex:1; }
+  }
+  @media (max-width:600px) {
+    .hero-side { flex-direction:column; }
+    .hero-revenue { padding:24px; }
   }
 
   /* ===== TOOLTIP POPOVER ===== */
@@ -937,6 +1017,7 @@
   </div>
 </div>
 
+<div class="tab-loader" id="tabLoader"></div>
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast"></div>
 
@@ -1011,7 +1092,8 @@
 
   <!-- TABS -->
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('embudo', this)">Embudo</button>
+    <button class="tab-btn active" onclick="switchTab('resumen', this)">Resumen</button>
+    <button class="tab-btn" onclick="switchTab('embudo', this)">Embudo</button>
     <button class="tab-btn" onclick="switchTab('journey', this)">Customer Journey</button>
     <button class="tab-btn" onclick="switchTab('trends', this)">Tendencias</button>
     <button class="tab-btn" onclick="switchTab('revenue', this)">Revenue</button>
@@ -1020,21 +1102,63 @@
     <button class="tab-btn" onclick="switchTab('data', this)">Datos</button>
   </div>
 
-  <!-- TAB: EMBUDO -->
-  <div id="tab-embudo" class="tab-panel active">
+  <!-- GLOBAL PERIOD FILTER -->
+  <div class="period-bar-global">
+    <div class="period-bar-inner">
+      <span class="period-bar-label">Per&iacute;odo</span>
+      <button class="btn active" onclick="setFilter('all', this)">Todo</button>
+      <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
+      <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
+      <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
+      <button class="btn" onclick="setFilter('May', this)">May</button>
+      <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
+      <button class="btn" onclick="setFilter('last7', this)">&Uacute;ltimos 7</button>
+      <button class="btn" onclick="setFilter('last14', this)">&Uacute;ltimos 14</button>
+      <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
+    </div>
+  </div>
+
+  <!-- TAB: RESUMEN (hero) -->
+  <div id="tab-resumen" class="tab-panel active">
     <main>
-      <div class="period-bar">
-        <span class="period-bar-label">Per&iacute;odo</span>
-        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
-        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
-        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
-        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
-        <button class="btn" onclick="setFilter('May', this)">May</button>
-        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
-        <button class="btn" onclick="setFilter('last7', this)">&Uacute;ltimos 7</button>
-        <button class="btn" onclick="setFilter('last14', this)">&Uacute;ltimos 14</button>
-        <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
+      <div class="hero-grid">
+        <div class="hero-revenue">
+          <div class="hero-label">Revenue del per&iacute;odo</div>
+          <div class="hero-value" id="heroRevenue">$0</div>
+          <div class="hero-meta" id="heroRevenueMeta"></div>
+        </div>
+        <div class="hero-side">
+          <div class="hero-mini" id="heroProfit">
+            <div class="hero-mini-label">Ganancia neta</div>
+            <div class="hero-mini-value">-</div>
+            <div class="hero-mini-sub">-</div>
+          </div>
+          <div class="hero-mini" id="heroRoas">
+            <div class="hero-mini-label">ROAS</div>
+            <div class="hero-mini-value">-</div>
+            <div class="hero-mini-sub">-</div>
+          </div>
+          <div class="hero-mini" id="heroPurchases">
+            <div class="hero-mini-label">Compras LT</div>
+            <div class="hero-mini-value">-</div>
+            <div class="hero-mini-sub">-</div>
+          </div>
+        </div>
       </div>
+
+      <div class="section-title">Evoluci&oacute;n del per&iacute;odo <span class="sub">revenue diario</span></div>
+      <div class="panel" style="padding:18px 22px">
+        <div class="chart-wrap" style="height:280px"><canvas id="chartResumen"></canvas></div>
+      </div>
+
+      <div class="section-title">Insights destacados</div>
+      <div id="resumenInsights" class="insights-panel"></div>
+    </main>
+  </div>
+
+  <!-- TAB: EMBUDO -->
+  <div id="tab-embudo" class="tab-panel">
+    <main>
       <p class="hint">Todas las m&eacute;tricas se recalculan autom&aacute;ticamente. &Delta; vs per&iacute;odo anterior del mismo tama&ntilde;o.</p>
 
       <div class="section-title">00 &middot; Insights del momento <span class="sub">lo m&aacute;s relevante de la data actual</span></div>
@@ -1069,16 +1193,6 @@
   <!-- TAB: JOURNEY -->
   <div id="tab-journey" class="tab-panel">
     <main>
-      <div class="period-bar">
-        <span class="period-bar-label">Per&iacute;odo</span>
-        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
-        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
-        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
-        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
-        <button class="btn" onclick="setFilter('May', this)">May</button>
-        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
-        <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
-      </div>
 
       <div class="section-title">01 &middot; Viaje del cliente <span class="sub">click en cualquier nodo para agregar observaci&oacute;n</span></div>
       <div class="panel accent">
@@ -1105,16 +1219,6 @@
   <!-- TAB: TENDENCIAS -->
   <div id="tab-trends" class="tab-panel">
     <main>
-      <div class="period-bar">
-        <span class="period-bar-label">Per&iacute;odo</span>
-        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
-        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
-        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
-        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
-        <button class="btn" onclick="setFilter('May', this)">May</button>
-        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
-        <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
-      </div>
 
       <div class="section-title">01 &middot; Costos unitarios <span class="sub">evoluci&oacute;n de CPL y CPA</span></div>
       <div class="charts-grid">
@@ -1179,16 +1283,6 @@
   <!-- TAB: REVENUE -->
   <div id="tab-revenue" class="tab-panel">
     <main>
-      <div class="period-bar">
-        <span class="period-bar-label">Per&iacute;odo</span>
-        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
-        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
-        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
-        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
-        <button class="btn" onclick="setFilter('May', this)">May</button>
-        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
-        <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
-      </div>
 
       <div class="section-title">01 &middot; Breakdown <span class="sub">ingresos por producto y unit economics</span></div>
       <div class="revenue-grid" id="revenueGrid"></div>
@@ -1214,7 +1308,7 @@
     <main>
       <div class="panel" style="margin-top:16px">
         <div class="panel-title">Proyecci&oacute;n a 4 semanas</div>
-        <p class="hint" style="margin-bottom:10px">Basada en los &uacute;ltimos 30 d&iacute;as con regresi&oacute;n lineal + estacionalidad por d&iacute;a de semana. Rango muestra escenario optimista / pesimista.</p>
+        <p class="hint" style="margin-bottom:10px">Basada en los &uacute;ltimos 30 d&iacute;as con regresi&oacute;n lineal + estacionalidad por d&iacute;a de semana. El rango sombreado es el intervalo m&aacute;s probable (~50% de confianza).</p>
         <div id="forecastSummary" class="kpi-strip" style="margin-bottom:16px"></div>
       </div>
 
@@ -1291,16 +1385,6 @@
   <!-- TAB: DATA -->
   <div id="tab-data" class="tab-panel">
     <main>
-      <div class="period-bar">
-        <span class="period-bar-label">Per&iacute;odo</span>
-        <button class="btn active" onclick="setFilter('all', this)">Todo</button>
-        <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
-        <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
-        <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
-        <button class="btn" onclick="setFilter('May', this)">May</button>
-        <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
-        <button class="btn" onclick="setFilter('last14', this)">&Uacute;ltimos 14</button>
-      </div>
       <div class="section-title">Datos detallados <span class="sub">m&eacute;tricas d&iacute;a a d&iacute;a</span></div>
       <div class="data-section">
         <div id="dataGrid"></div>
@@ -1382,7 +1466,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 // ====== STATE ======
 let APP_DATA = null;
 let currentFilter = 'all';
-let currentTab = 'embudo';
+let currentTab = 'resumen';
 let chartInstances = {};
 
 const STAGES = [
@@ -1552,15 +1636,13 @@ function dayMetric(key, metric) {
 // ====== FILTERS ======
 function setFilter(f, btn) {
   currentFilter = f;
-  document.querySelectorAll('.period-bar .btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.period-bar-inner .btn, .period-bar .btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  // sync across tabs
-  document.querySelectorAll('.tab-panel .period-bar').forEach(bar => {
-    bar.querySelectorAll('.btn').forEach(b => {
-      const onclickStr = b.getAttribute('onclick') || '';
-      const match = onclickStr.match(/setFilter\('([^']+)'/);
-      if (match && match[1] === f) b.classList.add('active');
-    });
+  // sync across tabs (period-bar global o legacy en tab-panel)
+  document.querySelectorAll('.period-bar-inner .btn, .tab-panel .period-bar .btn').forEach(b => {
+    const onclickStr = b.getAttribute('onclick') || '';
+    const match = onclickStr.match(/setFilter\('([^']+)'/);
+    if (match && match[1] === f) b.classList.add('active');
   });
   const labelMap = {all:'Acumulado total', Feb:'Febrero 2026', Mar:'Marzo 2026', Abr:'Abril 2026', May:'Mayo 2026', Jun:'Junio 2026', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
   document.getElementById('activePeriodLabel').textContent = labelMap[f] || f;
@@ -1569,13 +1651,23 @@ function setFilter(f, btn) {
 
 // ====== TABS ======
 function switchTab(tab, btn) {
-  currentTab = tab;
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+tab).classList.add('active');
-  if (btn) btn.classList.add('active');
-  destroyCharts();
-  renderAll();
+  const loader = document.getElementById('tabLoader');
+  if (loader) loader.classList.add('active');
+  // Fade out current
+  const currentPanel = document.querySelector('.tab-panel.active');
+  if (currentPanel) currentPanel.classList.add('loading');
+
+  // pequeño defer para que el browser pinte el loader/fade antes de procesar
+  setTimeout(() => {
+    currentTab = tab;
+    document.querySelectorAll('.tab-panel').forEach(p => { p.classList.remove('active'); p.classList.remove('loading'); });
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-'+tab).classList.add('active');
+    if (btn) btn.classList.add('active');
+    destroyCharts();
+    renderAll();
+    if (loader) setTimeout(() => loader.classList.remove('active'), 180);
+  }, 50);
 }
 
 function destroyCharts() {
@@ -1583,11 +1675,116 @@ function destroyCharts() {
   chartInstances = {};
 }
 
+// ====== TODAY MARKER ======
+function getTodayDayKey() {
+  // Encuentra el ultimo dia con data como "hoy" funcional (no real-time)
+  const all = getSortedDayKeys();
+  const withData = all.filter(k => {
+    const dd = APP_DATA.days[k];
+    return dd && (dd.impressions > 0 || dd.spend > 0 || dd.purchases > 0);
+  });
+  return withData[withData.length - 1] || null;
+}
+function todayMarkerAnnotation(labels) {
+  const today = getTodayDayKey();
+  if (!today || !labels.includes(today)) return {};
+  return {
+    todayLine: {
+      type: 'line',
+      xMin: today, xMax: today,
+      borderColor: 'rgba(231,255,42,0.55)', borderWidth: 1.5, borderDash: [4, 4],
+      label: {
+        display: true, content: 'hoy', position: 'start',
+        backgroundColor: 'rgba(231,255,42,0.18)', color: '#E7FF2A',
+        font: { size: 9, family: 'Clash Display', weight: '700' },
+        padding: {x: 5, y: 2}, borderRadius: 2, yAdjust: -8
+      }
+    }
+  };
+}
+
+// ====== RESUMEN (hero) ======
+let _resumenChart = null;
+function renderResumen() {
+  const filtered = getFilteredDays();
+  const d = getAggregated();
+  const revenue = computeRevenue(d);
+  const profit = revenue - (d.spend || 0);
+  const roas = d.spend > 0 ? revenue/d.spend : 0;
+  const periodLabel = document.getElementById('activePeriodLabel').textContent || 'Acumulado';
+
+  document.getElementById('heroRevenue').textContent = fmtMoneyCompact(revenue);
+  document.getElementById('heroRevenueMeta').innerHTML =
+    `<span class="accent">${periodLabel}</span> · ${filtered.length} d&iacute;a${filtered.length===1?'':'s'} · ` +
+    `<span class="accent">${d.purchases.toLocaleString()}</span> compras LT, ` +
+    `<span class="accent">${(d.bump1+d.bump2).toLocaleString()}</span> bumps`;
+
+  const profitCls = profit >= 0 ? 'good' : 'warn';
+  const profitSign = profit >= 0 ? '+' : '';
+  document.querySelector('#heroProfit .hero-mini-value').textContent = profitSign + fmtMoneyCompact(profit);
+  document.querySelector('#heroProfit .hero-mini-value').className = 'hero-mini-value ' + profitCls;
+  document.querySelector('#heroProfit .hero-mini-sub').textContent = `Revenue − Spend (${fmtMoneyCompact(d.spend||0)})`;
+
+  const roasCls = roas >= 1.5 ? 'good' : (roas >= 1 ? 'acid' : 'warn');
+  document.querySelector('#heroRoas .hero-mini-value').textContent = roas.toFixed(2) + 'x';
+  document.querySelector('#heroRoas .hero-mini-value').className = 'hero-mini-value ' + roasCls;
+  document.querySelector('#heroRoas .hero-mini-sub').textContent =
+    roas >= 1.5 ? 'Rentable' : roas >= 1 ? 'Break-even' : 'Perdiendo';
+
+  document.querySelector('#heroPurchases .hero-mini-value').textContent = (d.purchases || 0).toLocaleString();
+  document.querySelector('#heroPurchases .hero-mini-value').className = 'hero-mini-value acid';
+  const cpa = d.purchases > 0 ? d.spend/d.purchases : 0;
+  document.querySelector('#heroPurchases .hero-mini-sub').textContent = `CPA $${cpa.toFixed(1)} promedio`;
+
+  // Chart de revenue diario
+  setTimeout(() => {
+    if (_resumenChart) { try { _resumenChart.destroy(); } catch(e){} }
+    const ctx = document.getElementById('chartResumen');
+    if (!ctx) return;
+    const labels = filtered;
+    const data = filtered.map(k => APP_DATA.days[k].revenue || 0);
+    _resumenChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Revenue diario',
+          data: data,
+          borderColor: '#E7FF2A',
+          backgroundColor: 'rgba(231,255,42,0.12)',
+          tension: 0.35, fill: true, pointRadius: 0, pointHoverRadius: 6, borderWidth: 2.5
+        }]
+      },
+      options: commonChartOptions({
+        plugins: {
+          legend: { display: false },
+          annotation: { annotations: todayMarkerAnnotation(labels) },
+          tooltip: {
+            backgroundColor: 'rgba(8,46,56,0.96)', titleColor: '#E7FF2A', bodyColor: '#f5f7f5',
+            padding: 12, callbacks: { label: (c) => 'Revenue: ' + fmtMoney(c.raw) }
+          }
+        },
+        scales: {
+          x: { ticks:{color:'#898A8D', font:{size:10}, maxTicksLimit:10, autoSkip:true, maxRotation:0}, grid:{color:'rgba(26,96,112,0.12)'} },
+          y: { ticks:{color:'#898A8D', font:{size:10}, callback:(v)=>fmtMoneyCompact(v)}, grid:{color:'rgba(26,96,112,0.12)'} }
+        }
+      })
+    });
+  }, 30);
+
+  // Reutiliza la lista de insights ya generada (renderInsights llena #insightsPanel)
+  // Aquí copiamos su HTML al panel del Resumen
+  const inserted = document.getElementById('insightsPanel');
+  const target = document.getElementById('resumenInsights');
+  if (inserted && target) target.innerHTML = inserted.innerHTML;
+}
+
 // ====== RENDER ALL ======
 function renderAll() {
   destroyCharts();
   renderInsights();
   renderKPIs();
+  if (currentTab === 'resumen'){ renderResumen(); }
   if (currentTab === 'embudo') { renderFunnelVisual(); setTimeout(()=>{ renderFunnelDailyChart(); renderConversionsChart(); }, 30); }
   if (currentTab === 'journey') { renderJourney(); renderAnnotations(); }
   if (currentTab === 'trends')  { setTimeout(()=>{ renderTrendCharts(); renderAccumulatedMonthCharts(); renderHeatmap(); }, 30); }
@@ -2211,6 +2408,8 @@ function annotationsForChart(allKeys) {
       }
     };
   });
+  // Merge today marker
+  Object.assign(annots, todayMarkerAnnotation(allKeys));
   return annots;
 }
 
@@ -2744,6 +2943,8 @@ function buildForecast(metric, daysAhead) {
   const fitted = histValues.map((_, i) => (slope * i + intercept) * dowF[histDates[i].getDay()]);
   const residuals = histValues.map((v, i) => v - fitted[i]);
   const stddev = Math.sqrt(residuals.reduce((s, r) => s + r * r, 0) / residuals.length);
+  // Banda P25-P75 (interquartile range aprox) ~ ±0.6745 stddev → más útil que ±1σ
+  const bandWidth = stddev * 0.6745;
   const lastDate = histDates[histDates.length - 1];
   const forecast = [];
   for (let i = 1; i <= daysAhead; i++) {
@@ -2755,8 +2956,8 @@ function buildForecast(metric, daysAhead) {
       date: futureDate,
       label: dateToDayKey(futureDate),
       expected: Math.max(0, adjusted),
-      low: Math.max(0, adjusted - stddev),
-      high: Math.max(0, adjusted + stddev)
+      low: Math.max(0, adjusted - bandWidth),
+      high: Math.max(0, adjusted + bandWidth)
     });
   }
   return {
@@ -2846,8 +3047,8 @@ function renderForecastCharts() {
         datasets:[
           { label:'Histórico', data:histData, borderColor:hex, backgroundColor:rgba(0.15), tension:0.25, pointRadius:2, pointHoverRadius:4, fill:false },
           { label:'Proyección', data:fcExpected, borderColor:hex, borderDash:[6,4], backgroundColor:rgba(0.05), tension:0.25, pointRadius:1, pointHoverRadius:3, fill:false },
-          { label:'Escenario optimista', data:fcHigh, borderColor:rgba(0.4), borderWidth:1, pointRadius:0, fill:'+1', backgroundColor:rgba(0.1) },
-          { label:'Escenario pesimista', data:fcLow, borderColor:rgba(0.4), borderWidth:1, pointRadius:0, fill:false }
+          { label:'Rango probable (alto)', data:fcHigh, borderColor:rgba(0.4), borderWidth:1, pointRadius:0, fill:'+1', backgroundColor:rgba(0.12) },
+          { label:'Rango probable (bajo)', data:fcLow, borderColor:rgba(0.4), borderWidth:1, pointRadius:0, fill:false }
         ]
       },
       options: commonChartOptions({
