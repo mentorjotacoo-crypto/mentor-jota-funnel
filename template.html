@@ -1686,32 +1686,43 @@ function getTodayDayKey() {
   return withData[withData.length - 1] || null;
 }
 function todayMarkerAnnotation(labels) {
-  const today = getTodayDayKey();
-  if (!today || !labels.includes(today)) return {};
-  return {
-    todayLine: {
-      type: 'line',
-      xMin: today, xMax: today,
-      borderColor: 'rgba(231,255,42,0.55)', borderWidth: 1.5, borderDash: [4, 4],
-      label: {
-        display: true, content: 'hoy', position: 'start',
-        backgroundColor: 'rgba(231,255,42,0.18)', color: '#E7FF2A',
-        font: { size: 9, family: 'Clash Display', weight: '700' },
-        padding: {x: 5, y: 2}, borderRadius: 2, yAdjust: -8
+  try {
+    const today = getTodayDayKey();
+    if (!today || !labels) return {};
+    const idx = labels.indexOf(today);
+    if (idx < 0) return {};
+    return {
+      todayLine: {
+        type: 'line',
+        scaleID: 'x',
+        value: idx,
+        borderColor: 'rgba(231,255,42,0.55)',
+        borderWidth: 1.5,
+        borderDash: [4, 4]
       }
-    }
-  };
+    };
+  } catch(e) {
+    return {};
+  }
 }
 
 // ====== RESUMEN (hero) ======
 let _resumenChart = null;
 function renderResumen() {
+  try { _renderResumenInner(); }
+  catch(e) {
+    console.error('renderResumen error:', e);
+    const el = document.getElementById('heroRevenueMeta');
+    if (el) el.innerHTML = '<span style="color:var(--warn)">Error renderizando resumen: ' + (e.message || e) + '</span>';
+  }
+}
+function _renderResumenInner() {
   const filtered = getFilteredDays();
   const d = getAggregated();
   const revenue = computeRevenue(d);
   const profit = revenue - (d.spend || 0);
   const roas = d.spend > 0 ? revenue/d.spend : 0;
-  const periodLabel = document.getElementById('activePeriodLabel').textContent || 'Acumulado';
+  const periodLabel = (document.getElementById('activePeriodLabel') || {}).textContent || 'Acumulado';
 
   document.getElementById('heroRevenue').textContent = fmtMoneyCompact(revenue);
   document.getElementById('heroRevenueMeta').innerHTML =
