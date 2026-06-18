@@ -1613,7 +1613,8 @@ function getFilteredDays() {
 function getAggregated(days) {
   days = days || getFilteredDays();
   const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend','revenue','revenue_lt','revenue_b1','revenue_b2'];
-  const agg = Object.fromEntries(fields.map(f=>[f,0]));
+  const agg = {};
+  for (let i = 0; i < fields.length; i++) agg[fields[i]] = 0;
   days.forEach(k => {
     const d = APP_DATA.days[k]; if (!d) return;
     fields.forEach(f => agg[f] += (parseFloat(d[f]) || 0));
