@@ -1708,86 +1708,98 @@ function todayMarkerAnnotation(labels) {
 
 // ====== RESUMEN (hero) ======
 let _resumenChart = null;
-function renderResumen() {
-  try { _renderResumenInner(); }
-  catch(e) {
-    console.error('renderResumen error:', e);
-    const el = document.getElementById('heroRevenueMeta');
-    if (el) el.innerHTML = '<span style="color:var(--warn)">Error renderizando resumen: ' + (e.message || e) + '</span>';
-  }
+function _safeSet(selector, prop, value) {
+  try {
+    const el = document.querySelector(selector);
+    if (!el) return false;
+    if (prop === 'class') el.className = value;
+    else if (prop === 'html') el.innerHTML = value;
+    else el.textContent = value;
+    return true;
+  } catch(e) { console.warn('_safeSet failed for ' + selector, e); return false; }
 }
-function _renderResumenInner() {
-  const filtered = getFilteredDays();
-  const d = getAggregated();
-  const revenue = computeRevenue(d);
-  const profit = revenue - (d.spend || 0);
-  const roas = d.spend > 0 ? revenue/d.spend : 0;
-  const periodLabel = (document.getElementById('activePeriodLabel') || {}).textContent || 'Acumulado';
+function renderResumen() {
+  let filtered = [], d = {};
+  try { filtered = getFilteredDays() || []; } catch(e) { console.error('getFilteredDays fail', e); }
+  try { d = getAggregated() || {}; } catch(e) { console.error('getAggregated fail', e); }
 
-  document.getElementById('heroRevenue').textContent = fmtMoneyCompact(revenue);
-  document.getElementById('heroRevenueMeta').innerHTML =
+  const purchases = (d.purchases || 0);
+  const spend = (d.spend || 0);
+  const bump1 = (d.bump1 || 0);
+  const bump2 = (d.bump2 || 0);
+  const revenue = (d.revenue || 0);
+  const profit = revenue - spend;
+  const roas = spend > 0 ? revenue/spend : 0;
+  const cpa = purchases > 0 ? spend/purchases : 0;
+  const periodLabel = ((document.getElementById('activePeriodLabel') || {}).textContent) || 'Acumulado';
+
+  // Hero revenue
+  _safeSet('#heroRevenue', 'text', fmtMoneyCompact(revenue));
+  _safeSet('#heroRevenueMeta', 'html',
     `<span class="accent">${periodLabel}</span> · ${filtered.length} d&iacute;a${filtered.length===1?'':'s'} · ` +
-    `<span class="accent">${d.purchases.toLocaleString()}</span> compras LT, ` +
-    `<span class="accent">${(d.bump1+d.bump2).toLocaleString()}</span> bumps`;
+    `<span class="accent">${purchases.toLocaleString()}</span> compras LT, ` +
+    `<span class="accent">${(bump1+bump2).toLocaleString()}</span> bumps`);
 
+  // Profit mini
   const profitCls = profit >= 0 ? 'good' : 'warn';
   const profitSign = profit >= 0 ? '+' : '';
-  document.querySelector('#heroProfit .hero-mini-value').textContent = profitSign + fmtMoneyCompact(profit);
-  document.querySelector('#heroProfit .hero-mini-value').className = 'hero-mini-value ' + profitCls;
-  document.querySelector('#heroProfit .hero-mini-sub').textContent = `Revenue − Spend (${fmtMoneyCompact(d.spend||0)})`;
+  _safeSet('#heroProfit .hero-mini-value', 'text', profitSign + fmtMoneyCompact(profit));
+  _safeSet('#heroProfit .hero-mini-value', 'class', 'hero-mini-value ' + profitCls);
+  _safeSet('#heroProfit .hero-mini-sub', 'text', `Revenue − Spend (${fmtMoneyCompact(spend)})`);
 
+  // ROAS mini
   const roasCls = roas >= 1.5 ? 'good' : (roas >= 1 ? 'acid' : 'warn');
-  document.querySelector('#heroRoas .hero-mini-value').textContent = roas.toFixed(2) + 'x';
-  document.querySelector('#heroRoas .hero-mini-value').className = 'hero-mini-value ' + roasCls;
-  document.querySelector('#heroRoas .hero-mini-sub').textContent =
-    roas >= 1.5 ? 'Rentable' : roas >= 1 ? 'Break-even' : 'Perdiendo';
+  _safeSet('#heroRoas .hero-mini-value', 'text', roas.toFixed(2) + 'x');
+  _safeSet('#heroRoas .hero-mini-value', 'class', 'hero-mini-value ' + roasCls);
+  _safeSet('#heroRoas .hero-mini-sub', 'text', roas >= 1.5 ? 'Rentable' : roas >= 1 ? 'Break-even' : 'Perdiendo');
 
-  document.querySelector('#heroPurchases .hero-mini-value').textContent = (d.purchases || 0).toLocaleString();
-  document.querySelector('#heroPurchases .hero-mini-value').className = 'hero-mini-value acid';
-  const cpa = d.purchases > 0 ? d.spend/d.purchases : 0;
-  document.querySelector('#heroPurchases .hero-mini-sub').textContent = `CPA $${cpa.toFixed(1)} promedio`;
+  // Purchases mini
+  _safeSet('#heroPurchases .hero-mini-value', 'text', purchases.toLocaleString());
+  _safeSet('#heroPurchases .hero-mini-value', 'class', 'hero-mini-value acid');
+  _safeSet('#heroPurchases .hero-mini-sub', 'text', `CPA $${cpa.toFixed(1)} promedio`);
 
-  // Chart de revenue diario
+  // Chart de revenue diario (en try/catch propio - no debe afectar las cifras)
   setTimeout(() => {
-    if (_resumenChart) { try { _resumenChart.destroy(); } catch(e){} }
-    const ctx = document.getElementById('chartResumen');
-    if (!ctx) return;
-    const labels = filtered;
-    const data = filtered.map(k => APP_DATA.days[k].revenue || 0);
-    _resumenChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Revenue diario',
-          data: data,
-          borderColor: '#E7FF2A',
-          backgroundColor: 'rgba(231,255,42,0.12)',
-          tension: 0.35, fill: true, pointRadius: 0, pointHoverRadius: 6, borderWidth: 2.5
-        }]
-      },
-      options: commonChartOptions({
-        plugins: {
-          legend: { display: false },
-          annotation: { annotations: todayMarkerAnnotation(labels) },
-          tooltip: {
-            backgroundColor: 'rgba(8,46,56,0.96)', titleColor: '#E7FF2A', bodyColor: '#f5f7f5',
-            padding: 12, callbacks: { label: (c) => 'Revenue: ' + fmtMoney(c.raw) }
-          }
+    try {
+      if (_resumenChart) { try { _resumenChart.destroy(); } catch(e){} }
+      const ctx = document.getElementById('chartResumen');
+      if (!ctx) return;
+      const labels = filtered;
+      const data = filtered.map(k => (APP_DATA.days[k] && APP_DATA.days[k].revenue) || 0);
+      _resumenChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Revenue diario', data: data,
+            borderColor: '#E7FF2A', backgroundColor: 'rgba(231,255,42,0.12)',
+            tension: 0.35, fill: true, pointRadius: 0, pointHoverRadius: 6, borderWidth: 2.5
+          }]
         },
-        scales: {
-          x: { ticks:{color:'#898A8D', font:{size:10}, maxTicksLimit:10, autoSkip:true, maxRotation:0}, grid:{color:'rgba(26,96,112,0.12)'} },
-          y: { ticks:{color:'#898A8D', font:{size:10}, callback:(v)=>fmtMoneyCompact(v)}, grid:{color:'rgba(26,96,112,0.12)'} }
-        }
-      })
-    });
+        options: commonChartOptions({
+          plugins: {
+            legend: { display: false },
+            annotation: { annotations: todayMarkerAnnotation(labels) },
+            tooltip: {
+              backgroundColor: 'rgba(8,46,56,0.96)', titleColor: '#E7FF2A', bodyColor: '#f5f7f5',
+              padding: 12, callbacks: { label: (c) => 'Revenue: ' + fmtMoney(c.raw) }
+            }
+          },
+          scales: {
+            x: { ticks:{color:'#898A8D', font:{size:10}, maxTicksLimit:10, autoSkip:true, maxRotation:0}, grid:{color:'rgba(26,96,112,0.12)'} },
+            y: { ticks:{color:'#898A8D', font:{size:10}, callback:(v)=>fmtMoneyCompact(v)}, grid:{color:'rgba(26,96,112,0.12)'} }
+          }
+        })
+      });
+    } catch(e) { console.error('resumen chart fail', e); }
   }, 30);
 
-  // Reutiliza la lista de insights ya generada (renderInsights llena #insightsPanel)
-  // Aquí copiamos su HTML al panel del Resumen
-  const inserted = document.getElementById('insightsPanel');
-  const target = document.getElementById('resumenInsights');
-  if (inserted && target) target.innerHTML = inserted.innerHTML;
+  // Insights (en try/catch - no debe afectar las cifras)
+  try {
+    const inserted = document.getElementById('insightsPanel');
+    const target = document.getElementById('resumenInsights');
+    if (inserted && target) target.innerHTML = inserted.innerHTML;
+  } catch(e) { console.error('resumen insights copy fail', e); }
 }
 
 // ====== RENDER ALL ======
