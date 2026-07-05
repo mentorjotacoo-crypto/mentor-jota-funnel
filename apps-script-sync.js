@@ -201,9 +201,14 @@ function buildDataJson_() {
       if (!currentDates || !METRIC_MAP[label]) continue;
 
       const metric = METRIC_MAP[label];
+      const hoyStr = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd');
       for (let c = 2; c < row.length && (c - 2) < currentDates.length; c++) {
         const dateObj = currentDates[c - 2];
         if (!dateObj) continue;
+        // Saltar días futuros: evita columnas vacías del mes y el "día fantasma"
+        // donde una fórmula de totales queda pegada en una fecha futura (ej. Jul 29).
+        const dStr = Utilities.formatDate(dateObj, 'America/Bogota', 'yyyy-MM-dd');
+        if (dStr > hoyStr) continue;
         const dayKey = formatDayKey_(dateObj);
         if (!days[dayKey]) {
           days[dayKey] = { impressions:0, reach:0, clicks:0, lpv:0, leads:0, checkouts:0, purchases:0, bump1:0, bump2:0, spend:0, revenue:0, revenue_lt:0, revenue_b1:0, revenue_b2:0 };
@@ -211,6 +216,14 @@ function buildDataJson_() {
         const num = parseNumeric_(row[c]);
         if (num !== null) days[dayKey][metric] = num;
       }
+    }
+  });
+
+  // Limpiar días sin actividad real (columnas del mes aún no pobladas).
+  Object.keys(days).forEach(k => {
+    const d = days[k];
+    if (!d.impressions && !d.spend && !d.purchases && !d.leads && !d.lpv && !d.clicks) {
+      delete days[k];
     }
   });
 
