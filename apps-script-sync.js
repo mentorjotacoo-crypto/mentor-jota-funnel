@@ -175,7 +175,14 @@ function buildDataJson_() {
 
   // Sheets de metricas (no la de anotaciones)
   ss.getSheets().forEach(sheet => {
-    if (sheet.getName() === 'Anotaciones') return;
+    const name = sheet.getName();
+    if (name === 'Anotaciones') return;
+    // Excluir pestañas que NO son el tracker de Meta para no colisionar
+    // etiquetas (ej. "Impresiones" de Google sobreescribiría la de Meta).
+    // El dashboard actual solo consume las hojas de Meta ("... Low Ticket Tracker").
+    if (name.indexOf('Google') >= 0) return;   // tabs de Google Ads
+    if (name.indexOf('_Debug') >= 0) return;   // hojas de debug
+    if (name.indexOf('_Diag') >= 0) return;    // hojas de diagnóstico
     const fullData = sheet.getDataRange().getValues();
     let currentDates = null;
 
