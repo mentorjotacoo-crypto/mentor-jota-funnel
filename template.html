@@ -1104,18 +1104,9 @@
 
   <!-- GLOBAL PERIOD FILTER -->
   <div class="period-bar-global">
-    <div class="period-bar-inner">
+    <div class="period-bar-inner" id="periodBarInner">
       <span class="period-bar-label">Per&iacute;odo</span>
-      <button class="btn active" onclick="setFilter('all', this)">Todo</button>
-      <button class="btn" onclick="setFilter('Feb', this)">Feb</button>
-      <button class="btn" onclick="setFilter('Mar', this)">Mar</button>
-      <button class="btn" onclick="setFilter('Abr', this)">Abr</button>
-      <button class="btn" onclick="setFilter('May', this)">May</button>
-      <button class="btn" onclick="setFilter('Jun', this)">Jun</button>
-      <button class="btn" onclick="setFilter('Jul', this)">Jul</button>
-      <button class="btn" onclick="setFilter('last7', this)">&Uacute;ltimos 7</button>
-      <button class="btn" onclick="setFilter('last14', this)">&Uacute;ltimos 14</button>
-      <button class="btn" onclick="setFilter('last30', this)">&Uacute;ltimos 30</button>
+      <!-- Botones generados dinamicamente por renderPeriodButtons() segun los meses con datos -->
     </div>
   </div>
 
@@ -1453,7 +1444,34 @@ function onAuthSuccess(data) {
   const lastDay = withData[withData.length - 1] || '-';
   document.getElementById('lastDataHeader').textContent = 'Última data: ' + lastDay;
   document.getElementById('updatedAtHeader').textContent = 'Sincronizado: ' + (data.updatedAt || '-');
+  renderPeriodButtons();
   renderAll();
+}
+
+// Genera los botones del filtro de período según los meses presentes en los datos.
+// Así no hay que agregar un botón hardcoded cada mes nuevo.
+const MONTH_FULL = {Ene:'Enero',Feb:'Febrero',Mar:'Marzo',Abr:'Abril',May:'Mayo',Jun:'Junio',
+                    Jul:'Julio',Ago:'Agosto',Sep:'Septiembre',Oct:'Octubre',Nov:'Noviembre',Dic:'Diciembre'};
+function renderPeriodButtons() {
+  const bar = document.getElementById('periodBarInner');
+  if (!bar) return;
+  bar.querySelectorAll('.btn').forEach(b => b.remove());
+  const withData = getSortedDayKeys().filter(k => {
+    const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
+  });
+  const months = [...new Set(withData.map(k => k.split(' ')[0]))];
+  const defs = [{id:'all', label:'Todo'}];
+  months.forEach(m => defs.push({id:m, label:m}));
+  defs.push({id:'last7',  label:'Últimos 7'});
+  defs.push({id:'last14', label:'Últimos 14'});
+  defs.push({id:'last30', label:'Últimos 30'});
+  defs.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'btn' + (d.id === currentFilter ? ' active' : '');
+    b.setAttribute('onclick', "setFilter('" + d.id + "', this)");
+    b.textContent = d.label;
+    bar.appendChild(b);
+  });
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -1646,8 +1664,8 @@ function setFilter(f, btn) {
     const match = onclickStr.match(/setFilter\('([^']+)'/);
     if (match && match[1] === f) b.classList.add('active');
   });
-  const labelMap = {all:'Acumulado total', Feb:'Febrero 2026', Mar:'Marzo 2026', Abr:'Abril 2026', May:'Mayo 2026', Jun:'Junio 2026', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
-  document.getElementById('activePeriodLabel').textContent = labelMap[f] || f;
+  const labelMap = {all:'Acumulado total', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
+  document.getElementById('activePeriodLabel').textContent = labelMap[f] || (MONTH_FULL[f] ? MONTH_FULL[f] + ' 2026' : f);
   renderAll();
 }
 

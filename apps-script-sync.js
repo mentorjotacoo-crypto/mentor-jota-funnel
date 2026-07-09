@@ -69,6 +69,109 @@ function actualizarYSync() {
   syncDashboard();
 }
 
+// Jala Meta + GHL de HOY (funciones del tracker) y sincroniza al dashboard.
+// Pensada para triggers intradía: el dashboard deja de ir rezagado medio día.
+function actualizarHoyYSync() {
+  actualizarTrackerHoy();
+  Utilities.sleep(2000);
+  syncDashboard();
+}
+
+// Crea triggers intradía (1 PM y 7 PM Colombia) para actualizarHoyYSync.
+// Correr UNA vez. No toca los triggers de otras funciones (ej. el de la mañana).
+// OJO: si corres crearTriggerDiario() del tracker, ese borra TODOS los triggers
+// y habría que volver a correr esta función.
+function crearTriggersIntradia() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'actualizarHoyYSync') ScriptApp.deleteTrigger(t);
+  });
+  [13, 19].forEach(h => {
+    ScriptApp.newTrigger('actualizarHoyYSync')
+      .timeBased().atHour(h).everyDays(1)
+      .inTimezone('America/Bogota').create();
+  });
+  Logger.log('Triggers intradía creados: 1 PM y 7 PM Colombia.');
+  Logger.log('Triggers actuales del proyecto:');
+  ScriptApp.getProjectTriggers().forEach(t => Logger.log('  - ' + t.getHandlerFunction()));
+}
+
+// ============================================================
+// FIX: columna de totales bajo fecha futura (el "día fantasma")
+// En Julio las fórmulas SUM quedaron bajo la fecha 29/07 en vez
+// de una columna "Total". Esta función:
+//   1. Normaliza headers de fecha en texto (ej. "30/7/2026")
+//   2. Mueve el bloque de totales a una columna "Total" al final
+//      (moveTo = cortar/pegar: las referencias se preservan)
+//   3. Restaura la fecha real donde estaba el fantasma
+//   4. Extiende los rangos SUM para cubrir todas las fechas del mes
+// Correr UNA vez sobre el mes actual. Revisar el Log al terminar.
+// ============================================================
+function arreglarColumnaTotal() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoy = new Date();
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const nombre = meses[hoy.getMonth()] + ' - Low Ticket Tracker';
+  const sheet = ss.getSheetByName(nombre);
+  if (!sheet) { Logger.log('No existe la hoja "' + nombre + '"'); return; }
+
+  const lastRow = sheet.getLastRow();
+  let lastCol = sheet.getLastColumn();
+
+  // 1. Normalizar headers de fecha que quedaron como texto (typos tipo "30/7/2026")
+  let hdr = sheet.getRange(2, 1, 1, lastCol).getValues()[0];
+  for (let c = 2; c < lastCol; c++) {
+    const v = hdr[c];
+    if (v instanceof Date) continue;
+    const m = String(v).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      sheet.getRange(2, c + 1)
+        .setValue(new Date(parseInt(m[3],10), parseInt(m[2],10) - 1, parseInt(m[1],10), 12, 0, 0))
+        .setNumberFormat('dd/MM/yyyy');
+      Logger.log('Header texto → fecha corregido en col ' + (c + 1) + ': "' + v + '"');
+    }
+  }
+
+  // 2. Detectar columna fantasma (fecha futura con fórmulas debajo) y última fecha
+  hdr = sheet.getRange(2, 1, 1, lastCol).getValues()[0];
+  let phantomCol = -1, lastDateCol = -1;
+  for (let c = 2; c < lastCol; c++) {
+    const cell = hdr[c];
+    if (!(cell instanceof Date)) continue;
+    lastDateCol = c + 1;
+    if (cell.getTime() > hoy.getTime() && phantomCol === -1) {
+      const fs = sheet.getRange(3, c + 1, Math.min(lastRow - 2, 40), 1).getFormulas();
+      if (fs.some(r => r[0])) phantomCol = c + 1;
+    }
+  }
+  if (phantomCol === -1) { Logger.log('No hay columna fantasma (fecha futura con fórmulas). Nada que hacer.'); return; }
+
+  const fechaFantasma = hdr[phantomCol - 1];
+  const targetCol = lastDateCol + 1;
+  Logger.log('Fantasma en col ' + phantomCol + ' (fecha ' + fechaFantasma + '). Total irá en col ' + targetCol);
+
+  // 3. Mover el bloque completo (header + datos) a la columna Total
+  sheet.getRange(2, phantomCol, lastRow - 1, 1).moveTo(sheet.getRange(2, targetCol));
+
+  // 4. Headers: "Total" en la nueva columna; restaurar la fecha real en la vieja
+  sheet.getRange(2, targetCol).setValue('Total').setFontWeight('bold');
+  sheet.getRange(2, phantomCol).setValue(new Date(fechaFantasma)).setNumberFormat('dd/MM/yyyy');
+
+  // 5. Extender rangos SUM del Total: C..última fecha
+  const lastDateLetter = columnToLetter_(lastDateCol);
+  const formulas = sheet.getRange(3, targetCol, lastRow - 2, 1).getFormulas();
+  let sumFixed = 0;
+  for (let i = 0; i < formulas.length; i++) {
+    if (/^=SUM\(/i.test(formulas[i][0] || '')) {
+      const fila = i + 3;
+      sheet.getRange(fila, targetCol).setFormula('=SUM(C' + fila + ':' + lastDateLetter + fila + ')');
+      sumFixed++;
+    }
+  }
+  Logger.log('Listo: bloque movido, fecha ' + Utilities.formatDate(new Date(fechaFantasma), 'America/Bogota', 'dd/MM') +
+             ' restaurada, ' + sumFixed + ' fórmulas SUM extendidas hasta ' + lastDateLetter + '.');
+  Logger.log('Revisa la hoja "' + nombre + '" y luego corre syncDashboard().');
+}
+
 // ============================================================
 // FIX: corrige "% Tasa de Conversion Landing" en todos los meses
 // Antes: compras / Clics Unicos en enlace (mal)
