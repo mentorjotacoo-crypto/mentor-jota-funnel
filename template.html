@@ -1303,6 +1303,14 @@
         No hay datos de ascensos en este build. Corre <code>sync_ascensos.py</code> y regenera.
       </div>
       <div id="ascensosContent">
+        <div class="period-bar" style="margin:14px 0 4px;">
+          <span class="period-bar-label">Modalidad</span>
+          <button class="btn active" data-seg="all" onclick="setAscSegment('all', this)">Todas</button>
+          <button class="btn" data-seg="main" onclick="setAscSegment('main', this)">Mentor&iacute;a</button>
+          <button class="btn" data-seg="curso" onclick="setAscSegment('curso', this)">STM Curso</button>
+          <button class="btn" data-seg="lite" onclick="setAscSegment('lite', this)">STM Lite</button>
+        </div>
+
         <div class="section-title">00 &middot; Mes en curso <span class="sub">ventas high ticket &middot; independiente del filtro de per&iacute;odo</span></div>
         <div class="kpi-strip" id="ascKpiStrip" style="grid-template-columns:repeat(6, minmax(0,1fr));"></div>
 
@@ -3346,18 +3354,39 @@ function renderCompare() {
 // Independiente del filtro global de período (usa todo el histórico 2025+).
 const ASC_MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+// Segmento activo: 'all' | 'main' (Mentoría) | 'curso' (STM Curso) | 'lite' (STM Lite)
+let ascSegment = 'all';
+const ASC_SEG_LABEL = { all:'Todas las modalidades', main:'Mentoría', curso:'STM Curso', lite:'STM Lite' };
+
+function setAscSegment(s, btn) {
+  ascSegment = s;
+  document.querySelectorAll('#tab-ascensos .period-bar .btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAscensos();
+}
+
+// Extrae {ventas, contratado, cobrado} de un registro (día o mes) según segmento
+function ascSeg_(d, seg) {
+  if (seg === 'main')  return { ventas: d.ventas||0, contratado: d.contratado||0, cobrado: d.cobrado||0 };
+  if (seg === 'curso') return { ventas: d.ventas_stm_curso||0, contratado: d.contratado_stm_curso||0, cobrado: d.cobrado_stm_curso||0 };
+  if (seg === 'lite')  return { ventas: d.ventas_stm_lite||0, contratado: d.contratado_stm_lite||0, cobrado: d.cobrado_stm_lite||0 };
+  return {
+    ventas:     (d.ventas||0) + (d.ventas_stm_curso||0) + (d.ventas_stm_lite||0),
+    contratado: (d.contratado||0) + (d.contratado_stm_curso||0) + (d.contratado_stm_lite||0),
+    cobrado:    (d.cobrado||0) + (d.cobrado_stm_curso||0) + (d.cobrado_stm_lite||0)
+  };
+}
+
 function ascMensual_() {
   const days = APP_DATA.ascensos.days;
   const meses = {};
+  const campos = ['ventas','contratado','cobrado','ventas_stm_curso','contratado_stm_curso','cobrado_stm_curso',
+                  'ventas_stm_lite','contratado_stm_lite','cobrado_stm_lite','spend'];
   Object.keys(days).sort().forEach(k => {
     const mk = k.slice(0, 7);   // YYYY-MM
-    if (!meses[mk]) meses[mk] = { ventas:0, contratado:0, cobrado:0, stm:0, spend:0 };
+    if (!meses[mk]) { meses[mk] = {}; campos.forEach(c => meses[mk][c] = 0); }
     const d = days[k];
-    meses[mk].ventas     += d.ventas || 0;
-    meses[mk].contratado += d.contratado || 0;
-    meses[mk].cobrado    += d.cobrado || 0;
-    meses[mk].stm        += (d.ventas_stm_curso || 0) + (d.ventas_stm_lite || 0);
-    meses[mk].spend      += d.spend || 0;
+    campos.forEach(c => meses[mk][c] += d[c] || 0);
   });
   return meses;
 }
@@ -3377,12 +3406,13 @@ function renderAscensos() {
   const mkeys = Object.keys(meses).sort();
   const mesActual = mkeys[mkeys.length - 1];
   const mesPrev = mkeys[mkeys.length - 2];
-  const act = meses[mesActual];
-  const prev = mesPrev ? meses[mesPrev] : null;
+  const seg = ascSegment;
+  const act = ascSeg_(meses[mesActual], seg);
+  const prev = mesPrev ? ascSeg_(meses[mesPrev], seg) : null;
 
-  // --- KPIs del mes en curso ---
+  // --- KPIs del mes en curso (según modalidad seleccionada) ---
   function delta(cur, ant) {
-    if (!ant || !ant) return '';
+    if (ant === null || ant === undefined) return '';
     const pct = ant !== 0 ? ((cur - ant) / Math.abs(ant)) * 100 : 0;
     const cls = pct > 2 ? 'up' : pct < -2 ? 'down' : 'neutral';
     const arrow = pct > 2 ? '▲' : pct < -2 ? '▼' : '·';
@@ -3394,9 +3424,10 @@ function renderAscensos() {
   const diasMes = Object.keys(days).filter(k => k.startsWith(mesActual)).length;
   const diasTotales = new Date(parseInt(mesActual.slice(0,4)), parseInt(mesActual.slice(5,7)), 0).getDate();
   const proyeccion = diasMes > 0 ? (act.ventas / diasMes) * diasTotales : 0;
+  const segSub = seg === 'all' ? 'mes en curso' : ASC_SEG_LABEL[seg];
 
   const kpis = [
-    { label:'Ventas HT', value: Math.round(act.ventas), sub:'mes en curso', d: delta(act.ventas, prev && prev.ventas), cls:'acid' },
+    { label:'Ventas HT', value: Math.round(act.ventas), sub: segSub, d: delta(act.ventas, prev && prev.ventas), cls:'acid' },
     { label:'Contratado', value: fmtMoneyCompact(act.contratado), sub:'valor de ventas', d: delta(act.contratado, prev && prev.contratado), cls:'acid' },
     { label:'Cobrado', value: fmtMoneyCompact(act.cobrado), sub:'cash-in real', d: delta(act.cobrado, prev && prev.cobrado), cls:'good' },
     { label:'AOV', value: fmtMoneyCompact(aov), sub:'ticket promedio', d:'', cls:'' },
@@ -3416,32 +3447,39 @@ function renderAscensos() {
     const gridCol = 'rgba(26,96,112,0.25)';
     const tickStyle = { color:'#898A8D', font:{size:10} };
 
-    // 1. Ventas por mes (bar)
+    // 1. Ventas por mes — stacked por modalidad en "Todas"; serie única si hay segmento
     const c1 = document.getElementById('chartAscVentas');
     if (c1) {
       if (chartInstances.ascVentas) chartInstances.ascVentas.destroy();
+      let ds;
+      if (seg === 'all') {
+        ds = [
+          { label:'Mentoría',  data:mkeys.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
+          { label:'STM Curso', data:mkeys.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(59,160,182,0.75)', borderRadius:2, stack:'v' },
+          { label:'STM Lite',  data:mkeys.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(236,72,153,0.65)', borderRadius:2, stack:'v' }
+        ];
+      } else {
+        ds = [{ label:ASC_SEG_LABEL[seg], data:mkeys.map(m=>ascSeg_(meses[m], seg).ventas),
+                backgroundColor:mkeys.map(m => m === mesActual ? 'rgba(231,255,42,0.75)' : 'rgba(59,160,182,0.6)'), borderRadius:3 }];
+      }
       chartInstances.ascVentas = new Chart(c1, {
         type:'bar',
-        data:{ labels:mLabels, datasets:[{
-          label:'Ventas', data:mkeys.map(m=>meses[m].ventas),
-          backgroundColor:mkeys.map(m => m === mesActual ? 'rgba(231,255,42,0.75)' : 'rgba(59,160,182,0.6)'),
-          borderRadius:3
-        }]},
+        data:{ labels:mLabels, datasets:ds },
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display:false} },
-          scales:{ x:{ticks:tickStyle, grid:{display:false}}, y:{beginAtZero:true, ticks:tickStyle, grid:{color:gridCol}} } }
+          plugins:{ legend:{display: seg === 'all', position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}} },
+          scales:{ x:{stacked:true, ticks:tickStyle, grid:{display:false}}, y:{stacked:true, beginAtZero:true, ticks:tickStyle, grid:{color:gridCol}} } }
       });
     }
 
-    // 2. Contratado vs Cobrado (líneas)
+    // 2. Contratado vs Cobrado (líneas, según segmento)
     const c2 = document.getElementById('chartAscRevenue');
     if (c2) {
       if (chartInstances.ascRevenue) chartInstances.ascRevenue.destroy();
       chartInstances.ascRevenue = new Chart(c2, {
         type:'line',
         data:{ labels:mLabels, datasets:[
-          { label:'Contratado', data:mkeys.map(m=>Math.round(meses[m].contratado)), borderColor:'#3ba0b6', backgroundColor:'rgba(59,160,182,0.12)', fill:true, tension:0.3, pointRadius:2 },
-          { label:'Cobrado', data:mkeys.map(m=>Math.round(meses[m].cobrado)), borderColor:'#E7FF2A', backgroundColor:'rgba(231,255,42,0.10)', fill:true, tension:0.3, pointRadius:2 }
+          { label:'Contratado', data:mkeys.map(m=>Math.round(ascSeg_(meses[m], seg).contratado)), borderColor:'#3ba0b6', backgroundColor:'rgba(59,160,182,0.12)', fill:true, tension:0.3, pointRadius:2 },
+          { label:'Cobrado', data:mkeys.map(m=>Math.round(ascSeg_(meses[m], seg).cobrado)), borderColor:'#E7FF2A', backgroundColor:'rgba(231,255,42,0.10)', fill:true, tension:0.3, pointRadius:2 }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
@@ -3449,16 +3487,16 @@ function renderAscensos() {
       });
     }
 
-    // 3. Detalle diario del mes en curso
+    // 3. Detalle diario del mes en curso (según segmento)
     const c3 = document.getElementById('chartAscDiario');
     if (c3) {
       if (chartInstances.ascDiario) chartInstances.ascDiario.destroy();
       const dkeys = Object.keys(days).filter(k => k.startsWith(mesActual)).sort();
       let acum = 0;
-      const cobradoAcum = dkeys.map(k => { acum += days[k].cobrado || 0; return Math.round(acum); });
+      const cobradoAcum = dkeys.map(k => { acum += ascSeg_(days[k], seg).cobrado; return Math.round(acum); });
       chartInstances.ascDiario = new Chart(c3, {
         data:{ labels: dkeys.map(k => parseInt(k.slice(8,10),10)), datasets:[
-          { type:'bar', label:'Ventas', data:dkeys.map(k=>days[k].ventas||0), backgroundColor:'rgba(231,255,42,0.7)', borderRadius:2, yAxisID:'y' },
+          { type:'bar', label:'Ventas', data:dkeys.map(k=>ascSeg_(days[k], seg).ventas), backgroundColor:'rgba(231,255,42,0.7)', borderRadius:2, yAxisID:'y' },
           { type:'line', label:'Cobrado acum.', data:cobradoAcum, borderColor:'#5cd47e', tension:0.3, pointRadius:0, yAxisID:'y2' }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
@@ -3486,8 +3524,9 @@ function renderAscensos() {
         lt[mk].revenue += d.revenue || 0;
       });
       const ecoKeys = Object.keys(lt).sort().filter(mk => meses[mk]);
+      // Ecosistema SIEMPRE con todas las modalidades (ignora el segmento)
       const spendTotal = ecoKeys.map(mk => Math.round(lt[mk].spend + meses[mk].spend));
-      const revTotal = ecoKeys.map(mk => Math.round(lt[mk].revenue + meses[mk].cobrado));
+      const revTotal = ecoKeys.map(mk => Math.round(lt[mk].revenue + ascSeg_(meses[mk], 'all').cobrado));
       const roasComb = ecoKeys.map((mk,i) => spendTotal[i] > 0 ? +(revTotal[i]/spendTotal[i]).toFixed(2) : 0);
       chartInstances.ascEco = new Chart(c4, {
         data:{ labels: ecoKeys.map(ascMesLabel_), datasets:[
@@ -3507,21 +3546,34 @@ function renderAscensos() {
     }
   }, 30);
 
-  // --- Tabla mensual ---
-  let html = `<div class="data-grid" style="grid-template-columns: 90px repeat(${mkeys.length}, minmax(72px, 1fr));">`;
+  // --- Tabla mensual (segmentada) ---
+  let html = `<div class="data-grid" style="grid-template-columns: 130px repeat(${mkeys.length}, minmax(72px, 1fr));">`;
   html += `<div class="data-cell header">Mes</div>`;
   mkeys.forEach(mk => html += `<div class="data-cell header">${ascMesLabel_(mk)}</div>`);
-  const filas = [
-    { lbl:'Ventas', fn:m => Math.round(m.ventas) },
-    { lbl:'STM', fn:m => Math.round(m.stm) },
-    { lbl:'Contratado', fn:m => '$' + Math.round(m.contratado).toLocaleString() },
-    { lbl:'Cobrado', fn:m => '$' + Math.round(m.cobrado).toLocaleString() },
-    { lbl:'AOV', fn:m => m.ventas > 0 ? '$' + Math.round(m.contratado/m.ventas).toLocaleString() : '-' },
-    { lbl:'% Cobro', fn:m => m.contratado > 0 ? Math.round(m.cobrado/m.contratado*100) + '%' : '-' }
-  ];
+  let filas;
+  if (seg === 'all') {
+    filas = [
+      { lbl:'Ventas Mentoría', fn:m => Math.round(m.ventas) },
+      { lbl:'Ventas STM Curso', fn:m => Math.round(m.ventas_stm_curso) },
+      { lbl:'Ventas STM Lite', fn:m => Math.round(m.ventas_stm_lite) },
+      { lbl:'Ventas TOTAL', fn:m => Math.round(ascSeg_(m,'all').ventas), em:true },
+      { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,'all').contratado).toLocaleString() },
+      { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,'all').cobrado).toLocaleString(), em:true },
+      { lbl:'AOV', fn:m => { const s = ascSeg_(m,'all'); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString() : '-'; } },
+      { lbl:'% Cobro', fn:m => { const s = ascSeg_(m,'all'); return s.contratado > 0 ? Math.round(s.cobrado/s.contratado*100) + '%' : '-'; } }
+    ];
+  } else {
+    filas = [
+      { lbl:'Ventas', fn:m => Math.round(ascSeg_(m,seg).ventas) },
+      { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,seg).contratado).toLocaleString() },
+      { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,seg).cobrado).toLocaleString(), em:true },
+      { lbl:'AOV', fn:m => { const s = ascSeg_(m,seg); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString() : '-'; } },
+      { lbl:'% Cobro', fn:m => { const s = ascSeg_(m,seg); return s.contratado > 0 ? Math.round(s.cobrado/s.contratado*100) + '%' : '-'; } }
+    ];
+  }
   filas.forEach(f => {
-    html += `<div class="data-cell label">${f.lbl}</div>`;
-    mkeys.forEach(mk => html += `<div class="data-cell computed">${f.fn(meses[mk])}</div>`);
+    html += `<div class="data-cell label${f.em ? ' emphasis' : ''}">${f.lbl}</div>`;
+    mkeys.forEach(mk => html += `<div class="data-cell computed${f.em ? ' emphasis' : ''}">${f.fn(meses[mk])}</div>`);
   });
   html += '</div>';
   document.getElementById('ascTable').innerHTML = html;

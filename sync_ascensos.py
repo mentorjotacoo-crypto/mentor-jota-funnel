@@ -26,6 +26,9 @@ MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
          'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 # Columnas (1-based) en las pestañas mensuales — layout idéntico 2025/2026
+# Tres modalidades con precio/pago separados:
+#   Mentoría (principal): ventas/contratado/cobrado
+#   STM Curso y STM Lite: sus propias columnas de venta, precio y pago
 COLS = {
     'spend': 3,
     'impressions': 4,
@@ -33,11 +36,15 @@ COLS = {
     'leads': 10,
     'agendamientos': 13,
     'llamadas': 17,
-    'ventas': 20,
+    'ventas': 20,               # Mentoría
+    'contratado': 26,           # Precio venta Mentoría
+    'cobrado': 27,              # Pago Mentoría
     'ventas_stm_curso': 22,
+    'contratado_stm_curso': 29,
+    'cobrado_stm_curso': 31,
     'ventas_stm_lite': 23,
-    'contratado': 26,   # Precio venta (revenue contratado)
-    'cobrado': 27,      # Pago (cash cobrado)
+    'contratado_stm_lite': 30,
+    'cobrado_stm_lite': 32,
 }
 
 # Mismo formato que build.js: PBKDF2-SHA256 150k iters, salt(16)|iv(12)|tag(16)|ct
