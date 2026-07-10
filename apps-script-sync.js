@@ -287,6 +287,12 @@ function buildDataJson_() {
     if (name.indexOf('_Debug') >= 0) return;   // hojas de debug
     if (name.indexOf('_Diag') >= 0) return;    // hojas de diagnóstico
     const fullData = sheet.getDataRange().getValues();
+    // Display values para la fila Fecha: los objetos Date de getValues() se
+    // interpretan en la zona horaria del archivo y el script los renderiza en
+    // la suya — si difieren, las fechas a medianoche se corren un día atrás
+    // (bug real: todo Feb-Jun quedaba atribuido al día anterior). El texto
+    // visible "dd/MM/yyyy" es inmune a zonas horarias.
+    const fullDisplay = sheet.getDataRange().getDisplayValues();
     let currentDates = null;
 
     for (let r = 0; r < fullData.length; r++) {
@@ -296,8 +302,11 @@ function buildDataJson_() {
       if (label === 'Fecha') {
         currentDates = [];
         for (let c = 2; c < row.length; c++) {
-          const cell = row[c];
-          currentDates.push(cell instanceof Date ? cell : null);
+          const disp = String((fullDisplay[r] || [])[c] || '').trim();
+          const dm = disp.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          currentDates.push(dm
+            ? new Date(parseInt(dm[3],10), parseInt(dm[2],10) - 1, parseInt(dm[1],10), 12, 0, 0)
+            : null);
         }
         continue;
       }
