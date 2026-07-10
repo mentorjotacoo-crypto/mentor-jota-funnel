@@ -20,6 +20,29 @@ const SALT_LEN = 16;
 const IV_LEN = 12;
 
 const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
+
+// Fusionar ascensos.enc si existe (blob encriptado commiteado al repo —
+// mismo formato salt|iv|tag|ct que el payload; lo genera sync_ascensos.py).
+// Así los auto-syncs del tracker LT no pisan los datos de ascensos.
+const ascPath = path.join(__dirname, 'ascensos.enc');
+if (fs.existsSync(ascPath)) {
+  try {
+    const blob = Buffer.from(fs.readFileSync(ascPath, 'ascii'), 'base64');
+    const aSalt = blob.subarray(0, 16);
+    const aIv = blob.subarray(16, 28);
+    const aTag = blob.subarray(28, 44);
+    const aCt = blob.subarray(44);
+    const aKey = crypto.pbkdf2Sync(password, aSalt, ITERATIONS, 32, 'sha256');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', aKey, aIv);
+    decipher.setAuthTag(aTag);
+    const plain = Buffer.concat([decipher.update(aCt), decipher.final()]);
+    data.ascensos = JSON.parse(plain.toString('utf8'));
+    console.log('[OK] ascensos.enc fusionado: ' + Object.keys(data.ascensos.days).length + ' dias');
+  } catch (e) {
+    console.warn('[WARN] No se pudo desencriptar ascensos.enc: ' + e.message);
+  }
+}
+
 const plaintext = Buffer.from(JSON.stringify(data), 'utf8');
 
 const salt = crypto.randomBytes(SALT_LEN);

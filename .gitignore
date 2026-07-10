@@ -6,3 +6,4 @@ node_modules/
 
 # Datos en plano - NUNCA subir. Solo index.html encriptado va a GitHub.
 data.json
+ascensos.json

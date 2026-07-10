@@ -1097,6 +1097,7 @@
     <button class="tab-btn" onclick="switchTab('journey', this)">Customer Journey</button>
     <button class="tab-btn" onclick="switchTab('trends', this)">Tendencias</button>
     <button class="tab-btn" onclick="switchTab('revenue', this)">Revenue</button>
+    <button class="tab-btn" onclick="switchTab('ascensos', this)">Ascensos</button>
     <button class="tab-btn" onclick="switchTab('forecast', this)">Proyecci&oacute;n</button>
     <button class="tab-btn" onclick="switchTab('compare', this)">Comparar</button>
     <button class="tab-btn" onclick="switchTab('data', this)">Datos</button>
@@ -1290,6 +1291,52 @@
           <div class="chart-title">Take rate de bumps</div>
           <div class="chart-subtitle">% que compran cada bump sobre total de compradores</div>
           <div class="chart-wrap"><canvas id="chartBumps"></canvas></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- TAB: ASCENSOS (high ticket MENtoreo) -->
+  <div id="tab-ascensos" class="tab-panel">
+    <main>
+      <div id="ascensosEmpty" style="display:none; padding:40px 0; color:var(--grey); font-size:14px;">
+        No hay datos de ascensos en este build. Corre <code>sync_ascensos.py</code> y regenera.
+      </div>
+      <div id="ascensosContent">
+        <div class="section-title">00 &middot; Mes en curso <span class="sub">ventas high ticket &middot; independiente del filtro de per&iacute;odo</span></div>
+        <div class="kpi-strip" id="ascKpiStrip" style="grid-template-columns:repeat(6, minmax(0,1fr));"></div>
+
+        <div class="section-title">01 &middot; Evoluci&oacute;n mensual <span class="sub">desde enero 2025</span></div>
+        <div class="charts-grid">
+          <div class="chart-card accent-top">
+            <div class="chart-title">Ventas por mes</div>
+            <div class="chart-subtitle">Cierres high ticket mensuales</div>
+            <div class="chart-wrap"><canvas id="chartAscVentas"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Contratado vs Cobrado</div>
+            <div class="chart-subtitle">USD por mes &middot; contratado = valor de venta, cobrado = cash-in</div>
+            <div class="chart-wrap"><canvas id="chartAscRevenue"></canvas></div>
+          </div>
+        </div>
+
+        <div class="section-title">02 &middot; Detalle diario del mes <span class="sub">ventas y cobros d&iacute;a a d&iacute;a</span></div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Ventas diarias (mes en curso)</div>
+            <div class="chart-subtitle">Barras = ventas &middot; l&iacute;nea = cobrado acumulado</div>
+            <div class="chart-wrap"><canvas id="chartAscDiario"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Ecosistema completo 2026</div>
+            <div class="chart-subtitle">ROAS combinado = (revenue LT + cobrado HT) / spend total</div>
+            <div class="chart-wrap"><canvas id="chartAscEco"></canvas></div>
+          </div>
+        </div>
+
+        <div class="section-title">03 &middot; Tabla mensual <span class="sub">todos los meses con data</span></div>
+        <div class="data-section">
+          <div id="ascTable"></div>
         </div>
       </div>
     </main>
@@ -1832,6 +1879,7 @@ function renderAll() {
   if (currentTab === 'journey') { renderJourney(); renderAnnotations(); }
   if (currentTab === 'trends')  { setTimeout(()=>{ renderTrendCharts(); renderAccumulatedMonthCharts(); renderHeatmap(); }, 30); }
   if (currentTab === 'revenue') { renderRevenue(); setTimeout(()=>{ renderRevenueCharts(); }, 30); }
+  if (currentTab === 'ascensos'){ renderAscensos(); }
   if (currentTab === 'forecast'){ renderForecast(); runSimulator(); setTimeout(()=>{ renderForecastCharts(); }, 30); }
   if (currentTab === 'compare') { populateCompareSelectors(); renderCompare(); }
   if (currentTab === 'data')    { renderDataGrid(); }
@@ -3291,6 +3339,192 @@ function renderCompare() {
   html += '</div>';
 
   document.getElementById('compareGrid').innerHTML = html;
+}
+
+// ====== ASCENSOS (high ticket) ======
+// Datos en APP_DATA.ascensos.days = { 'YYYY-MM-DD': {ventas, contratado, cobrado, ...} }
+// Independiente del filtro global de período (usa todo el histórico 2025+).
+const ASC_MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+function ascMensual_() {
+  const days = APP_DATA.ascensos.days;
+  const meses = {};
+  Object.keys(days).sort().forEach(k => {
+    const mk = k.slice(0, 7);   // YYYY-MM
+    if (!meses[mk]) meses[mk] = { ventas:0, contratado:0, cobrado:0, stm:0, spend:0 };
+    const d = days[k];
+    meses[mk].ventas     += d.ventas || 0;
+    meses[mk].contratado += d.contratado || 0;
+    meses[mk].cobrado    += d.cobrado || 0;
+    meses[mk].stm        += (d.ventas_stm_curso || 0) + (d.ventas_stm_lite || 0);
+    meses[mk].spend      += d.spend || 0;
+  });
+  return meses;
+}
+
+function ascMesLabel_(mk) {
+  return ASC_MESES[parseInt(mk.slice(5,7),10)-1] + ' ' + mk.slice(2,4);
+}
+
+function renderAscensos() {
+  const has = APP_DATA.ascensos && APP_DATA.ascensos.days && Object.keys(APP_DATA.ascensos.days).length;
+  document.getElementById('ascensosEmpty').style.display = has ? 'none' : 'block';
+  document.getElementById('ascensosContent').style.display = has ? 'block' : 'none';
+  if (!has) return;
+
+  const days = APP_DATA.ascensos.days;
+  const meses = ascMensual_();
+  const mkeys = Object.keys(meses).sort();
+  const mesActual = mkeys[mkeys.length - 1];
+  const mesPrev = mkeys[mkeys.length - 2];
+  const act = meses[mesActual];
+  const prev = mesPrev ? meses[mesPrev] : null;
+
+  // --- KPIs del mes en curso ---
+  function delta(cur, ant) {
+    if (!ant || !ant) return '';
+    const pct = ant !== 0 ? ((cur - ant) / Math.abs(ant)) * 100 : 0;
+    const cls = pct > 2 ? 'up' : pct < -2 ? 'down' : 'neutral';
+    const arrow = pct > 2 ? '▲' : pct < -2 ? '▼' : '·';
+    return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(pct).toFixed(0)}%</span>`;
+  }
+  const aov = act.ventas > 0 ? act.contratado / act.ventas : 0;
+  const pctCobro = act.contratado > 0 ? (act.cobrado / act.contratado) * 100 : 0;
+  // ritmo: ventas proyectadas a fin de mes según días transcurridos
+  const diasMes = Object.keys(days).filter(k => k.startsWith(mesActual)).length;
+  const diasTotales = new Date(parseInt(mesActual.slice(0,4)), parseInt(mesActual.slice(5,7)), 0).getDate();
+  const proyeccion = diasMes > 0 ? (act.ventas / diasMes) * diasTotales : 0;
+
+  const kpis = [
+    { label:'Ventas HT', value: Math.round(act.ventas), sub:'mes en curso', d: delta(act.ventas, prev && prev.ventas), cls:'acid' },
+    { label:'Contratado', value: fmtMoneyCompact(act.contratado), sub:'valor de ventas', d: delta(act.contratado, prev && prev.contratado), cls:'acid' },
+    { label:'Cobrado', value: fmtMoneyCompact(act.cobrado), sub:'cash-in real', d: delta(act.cobrado, prev && prev.cobrado), cls:'good' },
+    { label:'AOV', value: fmtMoneyCompact(aov), sub:'ticket promedio', d:'', cls:'' },
+    { label:'% Cobro', value: pctCobro.toFixed(0) + '%', sub:'cobrado/contratado', d:'', cls: pctCobro >= 60 ? 'good' : '' },
+    { label:'Ritmo', value: Math.round(proyeccion), sub:'proy. fin de mes', d:'', cls:'' }
+  ];
+  document.getElementById('ascKpiStrip').innerHTML = kpis.map(k => `
+    <div class="kpi-cell">
+      <div class="kpi-head"><span class="kpi-label">${k.label}</span>${k.d || ''}</div>
+      <div class="kpi-value ${k.cls}">${k.value}</div>
+      <div class="kpi-sub"><span>${k.sub}</span></div>
+    </div>`).join('');
+
+  // --- Charts ---
+  setTimeout(() => {
+    const mLabels = mkeys.map(ascMesLabel_);
+    const gridCol = 'rgba(26,96,112,0.25)';
+    const tickStyle = { color:'#898A8D', font:{size:10} };
+
+    // 1. Ventas por mes (bar)
+    const c1 = document.getElementById('chartAscVentas');
+    if (c1) {
+      if (chartInstances.ascVentas) chartInstances.ascVentas.destroy();
+      chartInstances.ascVentas = new Chart(c1, {
+        type:'bar',
+        data:{ labels:mLabels, datasets:[{
+          label:'Ventas', data:mkeys.map(m=>meses[m].ventas),
+          backgroundColor:mkeys.map(m => m === mesActual ? 'rgba(231,255,42,0.75)' : 'rgba(59,160,182,0.6)'),
+          borderRadius:3
+        }]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false} },
+          scales:{ x:{ticks:tickStyle, grid:{display:false}}, y:{beginAtZero:true, ticks:tickStyle, grid:{color:gridCol}} } }
+      });
+    }
+
+    // 2. Contratado vs Cobrado (líneas)
+    const c2 = document.getElementById('chartAscRevenue');
+    if (c2) {
+      if (chartInstances.ascRevenue) chartInstances.ascRevenue.destroy();
+      chartInstances.ascRevenue = new Chart(c2, {
+        type:'line',
+        data:{ labels:mLabels, datasets:[
+          { label:'Contratado', data:mkeys.map(m=>Math.round(meses[m].contratado)), borderColor:'#3ba0b6', backgroundColor:'rgba(59,160,182,0.12)', fill:true, tension:0.3, pointRadius:2 },
+          { label:'Cobrado', data:mkeys.map(m=>Math.round(meses[m].cobrado)), borderColor:'#E7FF2A', backgroundColor:'rgba(231,255,42,0.10)', fill:true, tension:0.3, pointRadius:2 }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
+          scales:{ x:{ticks:tickStyle, grid:{display:false}}, y:{beginAtZero:true, ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}} } }
+      });
+    }
+
+    // 3. Detalle diario del mes en curso
+    const c3 = document.getElementById('chartAscDiario');
+    if (c3) {
+      if (chartInstances.ascDiario) chartInstances.ascDiario.destroy();
+      const dkeys = Object.keys(days).filter(k => k.startsWith(mesActual)).sort();
+      let acum = 0;
+      const cobradoAcum = dkeys.map(k => { acum += days[k].cobrado || 0; return Math.round(acum); });
+      chartInstances.ascDiario = new Chart(c3, {
+        data:{ labels: dkeys.map(k => parseInt(k.slice(8,10),10)), datasets:[
+          { type:'bar', label:'Ventas', data:dkeys.map(k=>days[k].ventas||0), backgroundColor:'rgba(231,255,42,0.7)', borderRadius:2, yAxisID:'y' },
+          { type:'line', label:'Cobrado acum.', data:cobradoAcum, borderColor:'#5cd47e', tension:0.3, pointRadius:0, yAxisID:'y2' }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
+          scales:{
+            x:{ticks:tickStyle, grid:{display:false}},
+            y:{beginAtZero:true, position:'left', ticks:{...tickStyle, stepSize:1}, grid:{color:gridCol}},
+            y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(1)+'k'}, grid:{display:false}}
+          } }
+      });
+    }
+
+    // 4. Ecosistema 2026: spend total vs revenue total (LT + HT) y ROAS combinado
+    const c4 = document.getElementById('chartAscEco');
+    if (c4) {
+      if (chartInstances.ascEco) chartInstances.ascEco.destroy();
+      // LT mensual desde APP_DATA.days (keys 'Jul 09', año 2026 implícito)
+      const lt = {};
+      getSortedDayKeys().forEach(k => {
+        const d = APP_DATA.days[k];
+        const mi = MONTHS[k.split(' ')[0]];
+        const mk = '2026-' + String(mi+1).padStart(2,'0');
+        if (!lt[mk]) lt[mk] = { spend:0, revenue:0 };
+        lt[mk].spend += d.spend || 0;
+        lt[mk].revenue += d.revenue || 0;
+      });
+      const ecoKeys = Object.keys(lt).sort().filter(mk => meses[mk]);
+      const spendTotal = ecoKeys.map(mk => Math.round(lt[mk].spend + meses[mk].spend));
+      const revTotal = ecoKeys.map(mk => Math.round(lt[mk].revenue + meses[mk].cobrado));
+      const roasComb = ecoKeys.map((mk,i) => spendTotal[i] > 0 ? +(revTotal[i]/spendTotal[i]).toFixed(2) : 0);
+      chartInstances.ascEco = new Chart(c4, {
+        data:{ labels: ecoKeys.map(ascMesLabel_), datasets:[
+          { type:'bar', label:'Spend total', data:spendTotal, backgroundColor:'rgba(255,120,73,0.55)', borderRadius:2, yAxisID:'y' },
+          { type:'bar', label:'Revenue total (LT + HT cobrado)', data:revTotal, backgroundColor:'rgba(92,212,126,0.6)', borderRadius:2, yAxisID:'y' },
+          { type:'line', label:'ROAS combinado', data:roasComb, borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y2' }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' ROAS: ' + ctx.parsed.y + 'x' : ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } } },
+          scales:{
+            x:{ticks:tickStyle, grid:{display:false}},
+            y:{beginAtZero:true, position:'left', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}},
+            y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>v+'x'}, grid:{display:false}}
+          } }
+      });
+    }
+  }, 30);
+
+  // --- Tabla mensual ---
+  let html = `<div class="data-grid" style="grid-template-columns: 90px repeat(${mkeys.length}, minmax(72px, 1fr));">`;
+  html += `<div class="data-cell header">Mes</div>`;
+  mkeys.forEach(mk => html += `<div class="data-cell header">${ascMesLabel_(mk)}</div>`);
+  const filas = [
+    { lbl:'Ventas', fn:m => Math.round(m.ventas) },
+    { lbl:'STM', fn:m => Math.round(m.stm) },
+    { lbl:'Contratado', fn:m => '$' + Math.round(m.contratado).toLocaleString() },
+    { lbl:'Cobrado', fn:m => '$' + Math.round(m.cobrado).toLocaleString() },
+    { lbl:'AOV', fn:m => m.ventas > 0 ? '$' + Math.round(m.contratado/m.ventas).toLocaleString() : '-' },
+    { lbl:'% Cobro', fn:m => m.contratado > 0 ? Math.round(m.cobrado/m.contratado*100) + '%' : '-' }
+  ];
+  filas.forEach(f => {
+    html += `<div class="data-cell label">${f.lbl}</div>`;
+    mkeys.forEach(mk => html += `<div class="data-cell computed">${f.fn(meses[mk])}</div>`);
+  });
+  html += '</div>';
+  document.getElementById('ascTable').innerHTML = html;
 }
 
 function renderDataGrid() {
