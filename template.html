@@ -857,9 +857,22 @@
   @media (max-width:1024px) {
     main { padding:24px 18px 40px; }
     header { padding:16px 20px; }
-    .tabs { padding:0 10px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none; }
+    .tabs {
+      padding:0 10px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none;
+      /* "Scroll shadows": borde iluminado en el costado cuando hay más tabs
+         fuera de pantalla (se apaga solo al llegar al final del scroll) */
+      background:
+        linear-gradient(90deg, var(--bg-elev) 35%, transparent) left,
+        linear-gradient(270deg, var(--bg-elev) 35%, transparent) right,
+        linear-gradient(90deg, rgba(231,255,42,0.35), transparent) left,
+        linear-gradient(270deg, rgba(231,255,42,0.35), transparent) right;
+      background-repeat:no-repeat;
+      background-size:50px 100%, 50px 100%, 12px 100%, 12px 100%;
+      background-attachment:local, local, scroll, scroll;
+      background-color:var(--bg-elev);  /* el shorthand background resetea el color base */
+    }
     .tabs::-webkit-scrollbar { display:none; }
-    .tab-btn { white-space:nowrap; flex-shrink:0; padding:14px 18px; }
+    .tab-btn { white-space:nowrap; flex-shrink:0; padding:14px 14px; }
     .charts-grid { grid-template-columns:1fr; }
     .kpi-strip { grid-template-columns:repeat(3, 1fr); }
     .kpi-value { font-size:26px; }
@@ -1787,6 +1800,8 @@ function setFilter(f, btn) {
 
 // ====== TABS ======
 function switchTab(tab, btn) {
+  // En móvil la barra de tabs scrollea: asegurar que el tab elegido quede visible
+  if (btn && btn.scrollIntoView) btn.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
   const loader = document.getElementById('tabLoader');
   if (loader) loader.classList.add('active');
   // Fade out current
