@@ -40,6 +40,8 @@ COLS = {
     'ventas': 20,               # Mentoría
     'contratado': 26,           # Precio venta Mentoría
     'cobrado': 27,              # Pago Mentoría
+    'cobrado_cuotas': 28,       # Pago Cuotas (financiaciones cobradas en el mes;
+                                # el Excel del usuario las suma al cash HT del ROAS)
     'ventas_stm_curso': 22,
     'contratado_stm_curso': 29,
     'cobrado_stm_curso': 31,

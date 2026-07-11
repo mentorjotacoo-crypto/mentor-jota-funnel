@@ -3426,22 +3426,24 @@ function setAscSegment(s, btn) {
   renderAscensos();
 }
 
-// Extrae {ventas, contratado, cobrado} de un registro (día o mes) según segmento
+// Extrae {ventas, contratado, cobrado} de un registro (día o mes) según segmento.
+// El cobrado de Mentoría INCLUYE "Pago Cuotas" (financiaciones cobradas en el mes):
+// así el ROAS combinado replica la metodología del Excel de seguimiento (S43 = AA+AB).
 function ascSeg_(d, seg) {
-  if (seg === 'main')  return { ventas: d.ventas||0, contratado: d.contratado||0, cobrado: d.cobrado||0 };
+  if (seg === 'main')  return { ventas: d.ventas||0, contratado: d.contratado||0, cobrado: (d.cobrado||0) + (d.cobrado_cuotas||0) };
   if (seg === 'curso') return { ventas: d.ventas_stm_curso||0, contratado: d.contratado_stm_curso||0, cobrado: d.cobrado_stm_curso||0 };
   if (seg === 'lite')  return { ventas: d.ventas_stm_lite||0, contratado: d.contratado_stm_lite||0, cobrado: d.cobrado_stm_lite||0 };
   return {
     ventas:     (d.ventas||0) + (d.ventas_stm_curso||0) + (d.ventas_stm_lite||0),
     contratado: (d.contratado||0) + (d.contratado_stm_curso||0) + (d.contratado_stm_lite||0),
-    cobrado:    (d.cobrado||0) + (d.cobrado_stm_curso||0) + (d.cobrado_stm_lite||0)
+    cobrado:    (d.cobrado||0) + (d.cobrado_cuotas||0) + (d.cobrado_stm_curso||0) + (d.cobrado_stm_lite||0)
   };
 }
 
 function ascMensual_() {
   const days = APP_DATA.ascensos.days;
   const meses = {};
-  const campos = ['ventas','contratado','cobrado','ventas_stm_curso','contratado_stm_curso','cobrado_stm_curso',
+  const campos = ['ventas','contratado','cobrado','cobrado_cuotas','ventas_stm_curso','contratado_stm_curso','cobrado_stm_curso',
                   'ventas_stm_lite','contratado_stm_lite','cobrado_stm_lite','spend'];
   Object.keys(days).sort().forEach(k => {
     const mk = k.slice(0, 7);   // YYYY-MM
