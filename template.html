@@ -1332,7 +1332,7 @@
           <button class="btn" data-seg="lite" onclick="setAscSegment('lite', this)">STM Lite</button>
         </div>
 
-        <div class="section-title">00 &middot; Mes en curso <span class="sub">ventas high ticket &middot; independiente del filtro de per&iacute;odo</span></div>
+        <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; responde al filtro de per&iacute;odo</span></div>
         <div class="kpi-strip" id="ascKpiStrip" style="grid-template-columns:repeat(6, minmax(0,1fr));"></div>
 
         <div class="section-title">01 &middot; Evoluci&oacute;n mensual <span class="sub">desde enero 2025</span></div>
@@ -1352,7 +1352,7 @@
         <div class="section-title">02 &middot; Detalle diario del mes <span class="sub">ventas y cobros d&iacute;a a d&iacute;a</span></div>
         <div class="charts-grid">
           <div class="chart-card">
-            <div class="chart-title">Ventas diarias (mes en curso)</div>
+            <div class="chart-title" id="ascDiarioTitle">Ventas diarias (mes en curso)</div>
             <div class="chart-subtitle">Barras = ventas &middot; l&iacute;nea = cobrado acumulado</div>
             <div class="chart-wrap"><canvas id="chartAscDiario"></canvas></div>
           </div>
@@ -3458,6 +3458,28 @@ function ascMesLabel_(mk) {
   return ASC_MESES[parseInt(mk.slice(5,7),10)-1] + ' ' + mk.slice(2,4);
 }
 
+// Mapea el filtro global de período (Todo / Feb..Dic / last7/14/30) a días de
+// ascensos (keys ISO YYYY-MM-DD). Los filtros de mes refieren al año 2026,
+// igual que en el resto del dashboard.
+function ascPeriodo_() {
+  const all = Object.keys(APP_DATA.ascensos.days).sort();
+  const f = currentFilter;
+  if (f === 'last7' || f === 'last14' || f === 'last30') {
+    const n = parseInt(f.slice(4), 10);
+    return { dias: all.slice(-n), prev: all.slice(-2*n, -n), label: 'Últimos ' + n + ' días', mesSel: null };
+  }
+  if (MONTHS[f] !== undefined) {
+    const mk = '2026-' + String(MONTHS[f] + 1).padStart(2, '0');
+    const dias = all.filter(k => k.startsWith(mk));
+    const mkeys = [...new Set(all.map(k => k.slice(0, 7)))];
+    const idx = mkeys.indexOf(mk);
+    const prevMk = idx > 0 ? mkeys[idx - 1] : null;
+    return { dias, prev: prevMk ? all.filter(k => k.startsWith(prevMk)) : [],
+             label: (MONTH_FULL[f] || f) + ' 2026', mesSel: mk };
+  }
+  return { dias: all, prev: [], label: 'Todo el histórico', mesSel: null };
+}
+
 function renderAscensos() {
   const has = APP_DATA.ascensos && APP_DATA.ascensos.days && Object.keys(APP_DATA.ascensos.days).length;
   document.getElementById('ascensosEmpty').style.display = has ? 'none' : 'block';
@@ -3468,12 +3490,20 @@ function renderAscensos() {
   const meses = ascMensual_();
   const mkeys = Object.keys(meses).sort();
   const mesActual = mkeys[mkeys.length - 1];
-  const mesPrev = mkeys[mkeys.length - 2];
   const seg = ascSegment;
-  const act = ascSeg_(meses[mesActual], seg);
-  const prev = mesPrev ? ascSeg_(meses[mesPrev], seg) : null;
 
-  // --- KPIs del mes en curso (según modalidad seleccionada) ---
+  // --- Período según el filtro global + modalidad seleccionada ---
+  const per = ascPeriodo_();
+  const tEl = document.getElementById('ascPeriodTitle');
+  if (tEl) tEl.textContent = per.label;
+  function aggDias(ks) {
+    const o = {};
+    ks.forEach(k => { const d = days[k]; for (const f2 in d) o[f2] = (o[f2] || 0) + (d[f2] || 0); });
+    return o;
+  }
+  const act = ascSeg_(aggDias(per.dias), seg);
+  const prev = per.prev.length ? ascSeg_(aggDias(per.prev), seg) : null;
+
   function delta(cur, ant) {
     if (ant === null || ant === undefined) return '';
     const pct = ant !== 0 ? ((cur - ant) / Math.abs(ant)) * 100 : 0;
@@ -3483,11 +3513,19 @@ function renderAscensos() {
   }
   const aov = act.ventas > 0 ? act.contratado / act.ventas : 0;
   const pctCobro = act.contratado > 0 ? (act.cobrado / act.contratado) * 100 : 0;
-  // ritmo: ventas proyectadas a fin de mes según días transcurridos
-  const diasMes = Object.keys(days).filter(k => k.startsWith(mesActual)).length;
-  const diasTotales = new Date(parseInt(mesActual.slice(0,4)), parseInt(mesActual.slice(5,7)), 0).getDate();
-  const proyeccion = diasMes > 0 ? (act.ventas / diasMes) * diasTotales : 0;
-  const segSub = seg === 'all' ? 'mes en curso' : ASC_SEG_LABEL[seg];
+  // Ritmo: si el período es el mes en curso → proyección a fin de mes;
+  // en cualquier otro período → promedio de ventas por día.
+  const esMesEnCurso = per.mesSel === mesActual;
+  let ritmoVal, ritmoSub;
+  if (esMesEnCurso) {
+    const diasTotales = new Date(parseInt(mesActual.slice(0,4)), parseInt(mesActual.slice(5,7)), 0).getDate();
+    ritmoVal = per.dias.length > 0 ? Math.round((act.ventas / per.dias.length) * diasTotales) : 0;
+    ritmoSub = 'proy. fin de mes';
+  } else {
+    ritmoVal = per.dias.length > 0 ? (act.ventas / per.dias.length).toFixed(1) : 0;
+    ritmoSub = 'ventas por día';
+  }
+  const segSub = seg === 'all' ? per.label.toLowerCase() : ASC_SEG_LABEL[seg];
 
   const kpis = [
     { label:'Ventas HT', value: Math.round(act.ventas), sub: segSub, d: delta(act.ventas, prev && prev.ventas), cls:'acid' },
@@ -3495,7 +3533,7 @@ function renderAscensos() {
     { label:'Cobrado', value: fmtMoneyCompact(act.cobrado), sub:'cash-in real', d: delta(act.cobrado, prev && prev.cobrado), cls:'good' },
     { label:'AOV', value: fmtMoneyCompact(aov), sub:'ticket promedio', d:'', cls:'' },
     { label:'% Cobro', value: pctCobro.toFixed(0) + '%', sub:'cobrado/contratado', d:'', cls: pctCobro >= 60 ? 'good' : '' },
-    { label:'Ritmo', value: Math.round(proyeccion), sub:'proy. fin de mes', d:'', cls:'' }
+    { label:'Ritmo', value: ritmoVal, sub: ritmoSub, d:'', cls:'' }
   ];
   document.getElementById('ascKpiStrip').innerHTML = kpis.map(k => `
     <div class="kpi-cell">
@@ -3523,7 +3561,7 @@ function renderAscensos() {
         ];
       } else {
         ds = [{ label:ASC_SEG_LABEL[seg], data:mkeys.map(m=>ascSeg_(meses[m], seg).ventas),
-                backgroundColor:mkeys.map(m => m === mesActual ? 'rgba(231,255,42,0.75)' : 'rgba(59,160,182,0.6)'), borderRadius:3 }];
+                backgroundColor:mkeys.map(m => m === (per.mesSel || mesActual) ? 'rgba(231,255,42,0.75)' : 'rgba(59,160,182,0.6)'), borderRadius:3 }];
       }
       chartInstances.ascVentas = new Chart(c1, {
         type:'bar',
@@ -3550,15 +3588,21 @@ function renderAscensos() {
       });
     }
 
-    // 3. Detalle diario del mes en curso (según segmento)
+    // 3. Detalle diario del período (según filtro global y segmento).
+    // Con "Todo" seleccionado, mostrar el mes en curso (556 barras no se leen).
     const c3 = document.getElementById('chartAscDiario');
     if (c3) {
       if (chartInstances.ascDiario) chartInstances.ascDiario.destroy();
-      const dkeys = Object.keys(days).filter(k => k.startsWith(mesActual)).sort();
+      const esTodo = currentFilter === 'all';
+      const dkeys = esTodo ? Object.keys(days).filter(k => k.startsWith(mesActual)).sort() : per.dias;
+      const dTitle = document.getElementById('ascDiarioTitle');
+      if (dTitle) dTitle.textContent = 'Ventas diarias (' + (esTodo ? 'mes en curso' : per.label.toLowerCase()) + ')';
+      // Si el período cruza meses, etiquetar dd/mm; si no, solo el día
+      const multiMes = new Set(dkeys.map(k => k.slice(0, 7))).size > 1;
       let acum = 0;
       const cobradoAcum = dkeys.map(k => { acum += ascSeg_(days[k], seg).cobrado; return Math.round(acum); });
       chartInstances.ascDiario = new Chart(c3, {
-        data:{ labels: dkeys.map(k => parseInt(k.slice(8,10),10)), datasets:[
+        data:{ labels: dkeys.map(k => multiMes ? parseInt(k.slice(8,10),10) + '/' + parseInt(k.slice(5,7),10) : parseInt(k.slice(8,10),10)), datasets:[
           { type:'bar', label:'Ventas', data:dkeys.map(k=>ascSeg_(days[k], seg).ventas), backgroundColor:'rgba(231,255,42,0.7)', borderRadius:2, yAxisID:'y' },
           { type:'line', label:'Cobrado acum.', data:cobradoAcum, borderColor:'#5cd47e', tension:0.3, pointRadius:0, yAxisID:'y2' }
         ]},
