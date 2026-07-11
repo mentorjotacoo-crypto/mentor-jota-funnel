@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 
 const password = process.argv[2];
 if (!password || password.length < 8) {
@@ -35,7 +36,11 @@ if (fs.existsSync(ascPath)) {
     const aKey = crypto.pbkdf2Sync(password, aSalt, ITERATIONS, 32, 'sha256');
     const decipher = crypto.createDecipheriv('aes-256-gcm', aKey, aIv);
     decipher.setAuthTag(aTag);
-    const plain = Buffer.concat([decipher.update(aCt), decipher.final()]);
+    let plain = Buffer.concat([decipher.update(aCt), decipher.final()]);
+    // Soporta blob comprimido (gzip magic 1f 8b) o legacy sin comprimir
+    if (plain.length > 2 && plain[0] === 0x1f && plain[1] === 0x8b) {
+      plain = zlib.gunzipSync(plain);
+    }
     data.ascensos = JSON.parse(plain.toString('utf8'));
     console.log('[OK] ascensos.enc fusionado: ' + Object.keys(data.ascensos.days).length + ' dias');
   } catch (e) {
@@ -43,7 +48,11 @@ if (fs.existsSync(ascPath)) {
   }
 }
 
-const plaintext = Buffer.from(JSON.stringify(data), 'utf8');
+// Comprimir ANTES de cifrar: el JSON comprime ~90%; lo cifrado no comprime.
+// El navegador detecta el magic gzip tras descifrar y usa DecompressionStream.
+const rawJson = Buffer.from(JSON.stringify(data), 'utf8');
+const plaintext = zlib.gzipSync(rawJson, { level: 9 });
+console.log('[OK] JSON ' + Math.round(rawJson.length/1024) + ' KB -> gzip ' + Math.round(plaintext.length/1024) + ' KB');
 
 const salt = crypto.randomBytes(SALT_LEN);
 const iv = crypto.randomBytes(IV_LEN);

@@ -5,10 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MENtoreo — Funnel Dashboard</title>
 <meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link href="https://api.fontshare.com/v2/css?f[]=clash-display@700,600,500,400&f[]=general-sans@700,600,500,400,300&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   :root {
@@ -1463,7 +1466,15 @@ async function decrypt(password, payloadB64) {
     keyMat, { name:'AES-GCM', length:256 }, false, ['decrypt']
   );
   const plaintext = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ctWithTag);
-  return JSON.parse(new TextDecoder().decode(plaintext));
+  let bytes = new Uint8Array(plaintext);
+  // El build comprime el JSON con gzip ANTES de cifrar (el cifrado no comprime).
+  // Detectar magic bytes gzip (1f 8b) y descomprimir; si no, es payload legacy sin comprimir.
+  if (bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    const ds = new DecompressionStream('gzip');
+    const stream = new Blob([bytes]).stream().pipeThrough(ds);
+    bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
 }
 
 async function doLogin(e) {
@@ -1487,7 +1498,11 @@ async function doLogin(e) {
 
 function doLogout() { sessionStorage.removeItem('funnel_pw'); location.reload(); }
 
-function onAuthSuccess(data) {
+async function onAuthSuccess(data) {
+  // Chart.js carga con defer; si el login fue más rápido que el CDN, esperar
+  for (let i = 0; typeof Chart === 'undefined' && i < 60; i++) {
+    await new Promise(r => setTimeout(r, 50));
+  }
   APP_DATA = data;
   APP_DATA.annotations = APP_DATA.annotations || [];
   document.getElementById('loginOverlay').style.display = 'none';

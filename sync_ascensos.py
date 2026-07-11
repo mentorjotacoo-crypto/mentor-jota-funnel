@@ -11,6 +11,7 @@ Uso:  python sync_ascensos.py "clave"
 import sys
 import json
 import base64
+import gzip
 import os
 from datetime import datetime, date
 
@@ -123,7 +124,8 @@ def main():
     print(f'[OK] {json_path}')
 
     # Encriptar → ascensos.enc (mismo formato que el payload del dashboard)
-    plaintext = json.dumps(ascensos, ensure_ascii=False).encode('utf-8')
+    # Comprimir antes de cifrar: build.js detecta el magic gzip y descomprime.
+    plaintext = gzip.compress(json.dumps(ascensos, ensure_ascii=False).encode('utf-8'), 9)
     salt = os.urandom(16)
     iv = os.urandom(12)
     kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=ITERATIONS)
