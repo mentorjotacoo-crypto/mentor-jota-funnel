@@ -1376,7 +1376,22 @@
           </div>
         </div>
 
-        <div class="section-title">03 &middot; Tasa de ascenso LT &rarr; HT <span class="sub">la tesis del negocio: &iquest;el desaf&iacute;o alimenta la mentor&iacute;a?</span></div>
+        <div class="section-title">03 &middot; An&aacute;lisis diario <span class="sub">patrones d&iacute;a a d&iacute;a &middot; responde al filtro de per&iacute;odo y modalidad</span></div>
+        <div class="kpi-strip" id="ascDiarioStats" style="grid-template-columns:repeat(3, minmax(0,1fr)); margin-bottom:14px;"></div>
+        <div class="charts-grid">
+          <div class="chart-card accent-top">
+            <div class="chart-title">Patr&oacute;n por d&iacute;a de semana</div>
+            <div class="chart-subtitle">promedio de ventas y cobrado por d&iacute;a &middot; &iquest;cu&aacute;ndo cerramos m&aacute;s?</div>
+            <div class="chart-wrap"><canvas id="chartAscDow"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Serie diaria + tendencia</div>
+            <div class="chart-subtitle">ventas por d&iacute;a con media m&oacute;vil de 7 d&iacute;as</div>
+            <div class="chart-wrap"><canvas id="chartAscSerie"></canvas></div>
+          </div>
+        </div>
+
+        <div class="section-title">04 &middot; Tasa de ascenso LT &rarr; HT <span class="sub">la tesis del negocio: &iquest;el desaf&iacute;o alimenta la mentor&iacute;a?</span></div>
         <div class="charts-grid" style="grid-template-columns:1fr">
           <div class="chart-card accent-top">
             <div class="chart-title">Tasa de ascenso mensual</div>
@@ -1385,7 +1400,7 @@
           </div>
         </div>
 
-        <div class="section-title">04 &middot; Tabla mensual <span class="sub">todos los meses con data</span></div>
+        <div class="section-title">05 &middot; Tabla mensual <span class="sub">todos los meses con data</span></div>
         <div class="data-section">
           <div id="ascTable"></div>
         </div>
@@ -3566,6 +3581,30 @@ function renderAscensos() {
       <div class="kpi-sub"><span>${k.sub}</span></div>
     </div>`).join('');
 
+  // --- Consistencia de cierre (día a día del período + modalidad) ---
+  const statsEl = document.getElementById('ascDiarioStats');
+  if (statsEl) {
+    const serieV = per.dias.map(k => ascSeg_(days[k], seg).ventas);
+    const conVenta = serieV.filter(v => v > 0).length;
+    const pctDias = per.dias.length ? Math.round(conVenta / per.dias.length * 100) : 0;
+    let racha = 0;
+    for (let i = serieV.length - 1; i >= 0 && serieV[i] === 0; i--) racha++;
+    let best = { v: 0, k: null };
+    per.dias.forEach((k, i) => { if (serieV[i] > best.v) best = { v: serieV[i], k }; });
+    const fmtD = k => k ? parseInt(k.slice(8,10),10) + '/' + parseInt(k.slice(5,7),10) + '/' + k.slice(2,4) : '-';
+    const stats = [
+      { label:'Días con venta', value: pctDias + '%', sub: conVenta + ' de ' + per.dias.length + ' días', cls: pctDias >= 50 ? 'good' : (pctDias >= 30 ? '' : 'warn') },
+      { label:'Racha sin venta', value: racha, sub: racha === 0 ? 'el último día hubo venta' : 'días al cierre del período', cls: racha >= 4 ? 'warn' : (racha === 0 ? 'good' : '') },
+      { label:'Mejor día', value: best.v, sub: best.k ? 'ventas el ' + fmtD(best.k) : 'sin ventas en el período', cls:'acid' }
+    ];
+    statsEl.innerHTML = stats.map(k => `
+      <div class="kpi-cell">
+        <div class="kpi-head"><span class="kpi-label">${k.label}</span></div>
+        <div class="kpi-value ${k.cls}">${k.value}</div>
+        <div class="kpi-sub"><span>${k.sub}</span></div>
+      </div>`).join('');
+  }
+
   // --- Charts ---
   setTimeout(() => {
     const mLabels = mkeys.map(ascMesLabel_);
@@ -3683,6 +3722,63 @@ function renderAscensos() {
             x:{ticks:tickStyle, grid:{display:false}},
             y:{beginAtZero:true, position:'left', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}},
             y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>v+'x'}, grid:{display:false}}
+          } }
+      });
+    }
+
+    // 4b. Patrón por día de semana (período + segmento): promedio de ventas
+    //     y de cobrado por día — para decidir agenda de closers y seguimientos.
+    const cDow = document.getElementById('chartAscDow');
+    if (cDow) {
+      if (chartInstances.ascDow) chartInstances.ascDow.destroy();
+      const DOW = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+      const sumV = [0,0,0,0,0,0,0], sumC = [0,0,0,0,0,0,0], cnt = [0,0,0,0,0,0,0];
+      per.dias.forEach(k => {
+        const dw = (new Date(k + 'T12:00:00').getDay() + 6) % 7;   // 0 = Lunes
+        const s = ascSeg_(days[k], seg);
+        sumV[dw] += s.ventas; sumC[dw] += s.cobrado; cnt[dw]++;
+      });
+      const avgV = sumV.map((v,i) => cnt[i] ? +(v/cnt[i]).toFixed(2) : 0);
+      const avgC = sumC.map((v,i) => cnt[i] ? Math.round(v/cnt[i]) : 0);
+      chartInstances.ascDow = new Chart(cDow, {
+        data:{ labels: DOW, datasets:[
+          { type:'bar', label:'Ventas prom./día', data:avgV, backgroundColor:'rgba(231,255,42,0.7)', borderRadius:3, yAxisID:'y' },
+          { type:'line', label:'Cobrado prom./día', data:avgC, borderColor:'#5cd47e', borderWidth:2, tension:0.3, pointRadius:3, yAxisID:'y2' }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' Cobrado prom.: $' + ctx.parsed.y.toLocaleString() : ' Ventas prom.: ' + ctx.parsed.y } } },
+          scales:{
+            x:{ticks:tickStyle, grid:{display:false}},
+            y:{beginAtZero:true, position:'left', ticks:tickStyle, grid:{color:gridCol}},
+            y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(1)+'k'}, grid:{display:false}}
+          } }
+      });
+    }
+
+    // 4c. Serie diaria completa + media móvil 7d (período + segmento):
+    //     la tendencia real sin el ruido de días en cero.
+    const cSer = document.getElementById('chartAscSerie');
+    if (cSer) {
+      if (chartInstances.ascSerie) chartInstances.ascSerie.destroy();
+      const serie = per.dias.map(k => ascSeg_(days[k], seg).ventas);
+      const ma7 = serie.map((_, i) => {
+        const win = serie.slice(Math.max(0, i - 6), i + 1);
+        return +(win.reduce((a,b) => a+b, 0) / win.length).toFixed(2);
+      });
+      const sLabels = per.dias.map(k => parseInt(k.slice(8,10),10) + '/' + parseInt(k.slice(5,7),10) +
+                                        (per.dias.length > 366 ? '/' + k.slice(2,4) : ''));
+      chartInstances.ascSerie = new Chart(cSer, {
+        data:{ labels: sLabels, datasets:[
+          { type:'bar', label:'Ventas del día', data:serie, backgroundColor:'rgba(59,160,182,0.35)', borderRadius:1, yAxisID:'y' },
+          { type:'line', label:'Media móvil 7d', data:ma7, borderColor:'#E7FF2A', borderWidth:2.5, tension:0.35, pointRadius:0, yAxisID:'y' }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          interaction:{mode:'index', intersect:false},
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}} },
+          scales:{
+            x:{ticks:{...tickStyle, maxTicksLimit:14, autoSkip:true, maxRotation:0}, grid:{display:false}},
+            y:{beginAtZero:true, ticks:tickStyle, grid:{color:gridCol}}
           } }
       });
     }
