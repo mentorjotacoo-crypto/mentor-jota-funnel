@@ -1371,12 +1371,21 @@
           </div>
           <div class="chart-card">
             <div class="chart-title">Ecosistema completo 2026</div>
-            <div class="chart-subtitle">ROAS combinado = (revenue LT + cobrado HT) / spend total</div>
+            <div class="chart-subtitle">ROAS real = (revenue LT + cobrado HT) / spend Meta + Google + HT</div>
             <div class="chart-wrap"><canvas id="chartAscEco"></canvas></div>
           </div>
         </div>
 
-        <div class="section-title">03 &middot; Tabla mensual <span class="sub">todos los meses con data</span></div>
+        <div class="section-title">03 &middot; Tasa de ascenso LT &rarr; HT <span class="sub">la tesis del negocio: &iquest;el desaf&iacute;o alimenta la mentor&iacute;a?</span></div>
+        <div class="charts-grid" style="grid-template-columns:1fr">
+          <div class="chart-card accent-top">
+            <div class="chart-title">Tasa de ascenso mensual</div>
+            <div class="chart-subtitle" id="ascTasaSub">ventas HT &divide; compras LT del mismo mes</div>
+            <div class="chart-wrap"><canvas id="chartAscTasa"></canvas></div>
+          </div>
+        </div>
+
+        <div class="section-title">04 &middot; Tabla mensual <span class="sub">todos los meses con data</span></div>
         <div class="data-section">
           <div id="ascTable"></div>
         </div>
@@ -3631,7 +3640,9 @@ function renderAscensos() {
       });
     }
 
-    // 4. Ecosistema 2026: spend total vs revenue total (LT + HT) y ROAS combinado
+    // 4. Ecosistema 2026: spend REAL (Meta + Google + HT) vs revenue total (LT + HT)
+    //    con dos ROAS: el real (incluye Google) y el "solo Meta" (cuadra con el
+    //    Excel de seguimiento, que no incluye Google).
     const c4 = document.getElementById('chartAscEco');
     if (c4) {
       if (chartInstances.ascEco) chartInstances.ascEco.destroy();
@@ -3641,28 +3652,71 @@ function renderAscensos() {
         const d = APP_DATA.days[k];
         const mi = MONTHS[k.split(' ')[0]];
         const mk = '2026-' + String(mi+1).padStart(2,'0');
-        if (!lt[mk]) lt[mk] = { spend:0, revenue:0 };
+        if (!lt[mk]) lt[mk] = { spend:0, revenue:0, spendG:0 };
         lt[mk].spend += d.spend || 0;
         lt[mk].revenue += d.revenue || 0;
+        lt[mk].spendG += d.spend_google || 0;
       });
       const ecoKeys = Object.keys(lt).sort().filter(mk => meses[mk]);
       // Ecosistema SIEMPRE con todas las modalidades (ignora el segmento)
-      const spendTotal = ecoKeys.map(mk => Math.round(lt[mk].spend + meses[mk].spend));
+      const spendMeta = ecoKeys.map(mk => Math.round(lt[mk].spend + meses[mk].spend));
+      const spendReal = ecoKeys.map((mk,i) => Math.round(spendMeta[i] + lt[mk].spendG));
       const revTotal = ecoKeys.map(mk => Math.round(lt[mk].revenue + ascSeg_(meses[mk], 'all').cobrado));
-      const roasComb = ecoKeys.map((mk,i) => spendTotal[i] > 0 ? +(revTotal[i]/spendTotal[i]).toFixed(2) : 0);
+      const roasReal = ecoKeys.map((mk,i) => spendReal[i] > 0 ? +(revTotal[i]/spendReal[i]).toFixed(2) : 0);
+      const roasMeta = ecoKeys.map((mk,i) => spendMeta[i] > 0 ? +(revTotal[i]/spendMeta[i]).toFixed(2) : 0);
+      const hayGoogle = ecoKeys.some((mk,i) => lt[mk].spendG > 0);
+      const dsEco = [
+        { type:'bar', label:'Spend total (Meta+Google+HT)', data:spendReal, backgroundColor:'rgba(255,120,73,0.55)', borderRadius:2, yAxisID:'y' },
+        { type:'bar', label:'Revenue total (LT + HT cobrado)', data:revTotal, backgroundColor:'rgba(92,212,126,0.6)', borderRadius:2, yAxisID:'y' },
+        { type:'line', label:'ROAS real', data:roasReal, borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y2' }
+      ];
+      // La línea "solo Meta" únicamente si difiere (hay spend de Google)
+      if (hayGoogle) {
+        dsEco.push({ type:'line', label:'ROAS solo Meta (Excel)', data:roasMeta, borderColor:'#898A8D', borderWidth:2, borderDash:[6,4], tension:0.3, pointRadius:0, yAxisID:'y2' });
+      }
       chartInstances.ascEco = new Chart(c4, {
-        data:{ labels: ecoKeys.map(ascMesLabel_), datasets:[
-          { type:'bar', label:'Spend total', data:spendTotal, backgroundColor:'rgba(255,120,73,0.55)', borderRadius:2, yAxisID:'y' },
-          { type:'bar', label:'Revenue total (LT + HT cobrado)', data:revTotal, backgroundColor:'rgba(92,212,126,0.6)', borderRadius:2, yAxisID:'y' },
-          { type:'line', label:'ROAS combinado', data:roasComb, borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y2' }
-        ]},
+        data:{ labels: ecoKeys.map(ascMesLabel_), datasets: dsEco },
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
-            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' ROAS: ' + ctx.parsed.y + 'x' : ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } } },
+            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + 'x' : ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
             y:{beginAtZero:true, position:'left', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}},
             y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>v+'x'}, grid:{display:false}}
+          } }
+      });
+    }
+
+    // 5. Tasa de ascenso LT → HT: qué % de compradores del desafío asciende.
+    //    Proxy mensual (sin atribución individual): ventas HT ÷ compras LT del mes.
+    const c5 = document.getElementById('chartAscTasa');
+    if (c5) {
+      if (chartInstances.ascTasa) chartInstances.ascTasa.destroy();
+      const ltCompras = {};
+      getSortedDayKeys().forEach(k => {
+        const mi = MONTHS[k.split(' ')[0]];
+        const mk = '2026-' + String(mi+1).padStart(2,'0');
+        ltCompras[mk] = (ltCompras[mk] || 0) + (APP_DATA.days[k].purchases || 0);
+      });
+      const tKeys = Object.keys(ltCompras).sort().filter(mk => meses[mk] && ltCompras[mk] > 0);
+      const tasaTotal = tKeys.map(mk => +((ascSeg_(meses[mk], 'all').ventas / ltCompras[mk]) * 100).toFixed(2));
+      const tasaMent = tKeys.map(mk => +(((meses[mk].ventas || 0) / ltCompras[mk]) * 100).toFixed(2));
+      const prom = tasaTotal.length ? tasaTotal.reduce((a,b) => a+b, 0) / tasaTotal.length : 0;
+      const subEl = document.getElementById('ascTasaSub');
+      if (subEl) subEl.textContent = 'promedio ' + prom.toFixed(1) + '% · ventas HT ÷ compras LT del mismo mes (proxy, sin atribución individual)';
+      chartInstances.ascTasa = new Chart(c5, {
+        data:{ labels: tKeys.map(ascMesLabel_), datasets:[
+          { type:'bar', label:'Compras LT', data:tKeys.map(mk => ltCompras[mk]), backgroundColor:'rgba(59,160,182,0.25)', borderRadius:2, yAxisID:'y2' },
+          { type:'line', label:'Tasa ascenso total %', data:tasaTotal, borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y' },
+          { type:'line', label:'Solo Mentoría %', data:tasaMent, borderColor:'#ec4899', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y' }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' ' + ctx.dataset.label.replace(' %','') + ': ' + ctx.parsed.y + '%' : ' Compras LT: ' + ctx.parsed.y } } },
+          scales:{
+            x:{ticks:tickStyle, grid:{display:false}},
+            y:{beginAtZero:true, position:'left', ticks:{...tickStyle, callback:v=>v+'%'}, grid:{color:gridCol}},
+            y2:{beginAtZero:true, position:'right', ticks:tickStyle, grid:{display:false}}
           } }
       });
     }

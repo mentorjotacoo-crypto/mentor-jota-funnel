@@ -331,10 +331,42 @@ function buildDataJson_() {
     }
   });
 
+  // Spend de Google Ads: pestañas "<Mes> - Google Tracker" (layout igual a Meta).
+  // Solo se lee la fila de spend — las demás etiquetas ("Impresiones" etc.)
+  // colisionarían con las de Meta. Se agrega como days[key].spend_google.
+  ss.getSheets().forEach(sheet => {
+    if (sheet.getName().indexOf('Google Tracker') < 0) return;
+    const vals = sheet.getDataRange().getValues();
+    const disp = sheet.getDataRange().getDisplayValues();
+    const hoyStr = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd');
+    let dates = null;
+    for (let r = 0; r < vals.length; r++) {
+      const label = String(vals[r][1] || '').trim();
+      if (label === 'Fecha') {
+        dates = [];
+        for (let c = 2; c < vals[r].length; c++) {
+          const dm = String((disp[r] || [])[c] || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          dates.push(dm ? new Date(parseInt(dm[3],10), parseInt(dm[2],10)-1, parseInt(dm[1],10), 12, 0, 0) : null);
+        }
+        continue;
+      }
+      if (!dates || label.indexOf('Total Ad Spend') !== 0) continue;
+      for (let c = 2; c < vals[r].length && (c - 2) < dates.length; c++) {
+        const dObj = dates[c - 2];
+        if (!dObj) continue;
+        if (Utilities.formatDate(dObj, 'America/Bogota', 'yyyy-MM-dd') > hoyStr) continue;
+        const key = formatDayKey_(dObj);
+        if (!days[key]) continue;   // solo días que ya existen por Meta
+        const num = parseNumeric_(vals[r][c]);
+        if (num !== null) days[key].spend_google = num;
+      }
+    }
+  });
+
   // Limpiar días sin actividad real (columnas del mes aún no pobladas).
   Object.keys(days).forEach(k => {
     const d = days[k];
-    if (!d.impressions && !d.spend && !d.purchases && !d.leads && !d.lpv && !d.clicks) {
+    if (!d.impressions && !d.spend && !d.purchases && !d.leads && !d.lpv && !d.clicks && !d.spend_google) {
       delete days[k];
     }
   });
