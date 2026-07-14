@@ -1341,8 +1341,8 @@
           <span class="period-bar-label">Modalidad</span>
           <button class="btn active" data-seg="all" onclick="setAscSegment('all', this)">Todas</button>
           <button class="btn" data-seg="main" onclick="setAscSegment('main', this)">Guiado</button>
-          <button class="btn" data-seg="curso" onclick="setAscSegment('curso', this)">Asistido Curso</button>
-          <button class="btn" data-seg="lite" onclick="setAscSegment('lite', this)">Asistido Lite</button>
+          <button class="btn" data-seg="curso" onclick="setAscSegment('curso', this)">Asistido</button>
+          <button class="btn" data-seg="lite" onclick="setAscSegment('lite', this)">Aut&oacute;nomo</button>
         </div>
 
         <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; responde al filtro de per&iacute;odo</span></div>
@@ -3454,9 +3454,9 @@ function renderCompare() {
 // Independiente del filtro global de período (usa todo el histórico 2025+).
 const ASC_MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-// Segmento activo: 'all' | 'main' = Guiado (Mentorías) | 'curso' = Asistido (STM Curso) | 'lite' = Asistido (STM Lite)
+// Segmento activo: 'all' | 'main' = Guiado (Mentorías) | 'curso' = Asistido (STM Curso) | 'lite' = Autónomo (STM Lite)
 let ascSegment = 'all';
-const ASC_SEG_LABEL = { all:'Todas las modalidades', main:'Guiado', curso:'Asistido Curso', lite:'Asistido Lite' };
+const ASC_SEG_LABEL = { all:'Todas las modalidades', main:'Guiado', curso:'Asistido', lite:'Autónomo' };
 
 function setAscSegment(s, btn) {
   ascSegment = s;
@@ -3618,9 +3618,9 @@ function renderAscensos() {
       let ds;
       if (seg === 'all') {
         ds = [
-          { label:'Guiado',         data:mkeys.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
-          { label:'Asistido Curso', data:mkeys.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(59,160,182,0.75)', borderRadius:2, stack:'v' },
-          { label:'Asistido Lite',  data:mkeys.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(236,72,153,0.65)', borderRadius:2, stack:'v' }
+          { label:'Guiado',   data:mkeys.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
+          { label:'Asistido', data:mkeys.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(59,160,182,0.75)', borderRadius:2, stack:'v' },
+          { label:'Autónomo', data:mkeys.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(236,72,153,0.65)', borderRadius:2, stack:'v' }
         ];
       } else {
         ds = [{ label:ASC_SEG_LABEL[seg], data:mkeys.map(m=>ascSeg_(meses[m], seg).ventas),
@@ -3826,8 +3826,8 @@ function renderAscensos() {
   if (seg === 'all') {
     filas = [
       { lbl:'Ventas Guiado', fn:m => Math.round(m.ventas) },
-      { lbl:'Ventas Asistido Curso', fn:m => Math.round(m.ventas_stm_curso) },
-      { lbl:'Ventas Asistido Lite', fn:m => Math.round(m.ventas_stm_lite) },
+      { lbl:'Ventas Asistido', fn:m => Math.round(m.ventas_stm_curso) },
+      { lbl:'Ventas Autónomo', fn:m => Math.round(m.ventas_stm_lite) },
       { lbl:'Ventas TOTAL', fn:m => Math.round(ascSeg_(m,'all').ventas), em:true },
       { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,'all').contratado).toLocaleString() },
       { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,'all').cobrado).toLocaleString(), em:true },
