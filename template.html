@@ -474,6 +474,10 @@
     gap:1px; border:1px solid rgba(26,96,112,0.5); margin-top:12px;
     background:rgba(26,96,112,0.5); border-radius:4px; overflow:hidden;
   }
+  /* Variantes por número de columnas (usar clases, NUNCA style inline:
+     el inline anula las media queries responsive de abajo) */
+  .kpi-strip.cols-6 { grid-template-columns:repeat(6, minmax(0, 1fr)); }
+  .kpi-strip.cols-3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
   .kpi-cell {
     background:var(--petrol); padding:18px 16px;
     position:relative; transition:background 0.2s; min-width:0;
@@ -874,7 +878,7 @@
     .tabs::-webkit-scrollbar { display:none; }
     .tab-btn { white-space:nowrap; flex-shrink:0; padding:14px 14px; }
     .charts-grid { grid-template-columns:1fr; }
-    .kpi-strip { grid-template-columns:repeat(3, 1fr); }
+    .kpi-strip, .kpi-strip.cols-6 { grid-template-columns:repeat(3, 1fr); }
     .kpi-value { font-size:26px; }
     .chart-wrap { height:220px; }
     .revenue-grid { grid-template-columns:repeat(2, 1fr); }
@@ -904,7 +908,8 @@
     .btn { padding:8px 12px; font-size:11px; letter-spacing:1px; min-height:34px; }
     .hint { font-size:10px; margin-top:4px; }
 
-    .kpi-strip { grid-template-columns:repeat(2, 1fr); gap:2px; }
+    .kpi-strip, .kpi-strip.cols-6 { grid-template-columns:repeat(2, 1fr); gap:2px; }
+    .kpi-strip.cols-3 { grid-template-columns:repeat(3, 1fr); gap:2px; }
     .kpi-cell { padding:14px 12px; }
     .kpi-value { font-size:22px; }
     .kpi-label { font-size:9px; letter-spacing:1.5px; }
@@ -1002,7 +1007,7 @@
 
   /* Mobile small (<=400px) */
   @media (max-width:400px) {
-    .kpi-strip { grid-template-columns:1fr; }
+    .kpi-strip, .kpi-strip.cols-6, .kpi-strip.cols-3 { grid-template-columns:1fr; }
     .kpi-value { font-size:26px; }
     .journey-node { width:60px; height:60px; }
     .journey-node-value { font-size:14px; }
@@ -1346,7 +1351,7 @@
         </div>
 
         <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; responde al filtro de per&iacute;odo</span></div>
-        <div class="kpi-strip" id="ascKpiStrip" style="grid-template-columns:repeat(6, minmax(0,1fr));"></div>
+        <div class="kpi-strip cols-6" id="ascKpiStrip"></div>
 
         <div class="section-title">01 &middot; Evoluci&oacute;n mensual <span class="sub">desde enero 2025</span></div>
         <div class="charts-grid">
@@ -1377,7 +1382,7 @@
         </div>
 
         <div class="section-title">03 &middot; An&aacute;lisis diario <span class="sub">patrones d&iacute;a a d&iacute;a &middot; responde al filtro de per&iacute;odo y modalidad</span></div>
-        <div class="kpi-strip" id="ascDiarioStats" style="grid-template-columns:repeat(3, minmax(0,1fr)); margin-bottom:14px;"></div>
+        <div class="kpi-strip cols-3" id="ascDiarioStats" style="margin-bottom:14px;"></div>
         <div class="charts-grid">
           <div class="chart-card accent-top">
             <div class="chart-title">Patr&oacute;n por d&iacute;a de semana</div>
