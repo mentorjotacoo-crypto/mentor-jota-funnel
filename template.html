@@ -1340,9 +1340,9 @@
         <div class="period-bar" style="margin:14px 0 4px;">
           <span class="period-bar-label">Modalidad</span>
           <button class="btn active" data-seg="all" onclick="setAscSegment('all', this)">Todas</button>
-          <button class="btn" data-seg="main" onclick="setAscSegment('main', this)">Mentor&iacute;a</button>
-          <button class="btn" data-seg="curso" onclick="setAscSegment('curso', this)">STM Curso</button>
-          <button class="btn" data-seg="lite" onclick="setAscSegment('lite', this)">STM Lite</button>
+          <button class="btn" data-seg="main" onclick="setAscSegment('main', this)">Guiado</button>
+          <button class="btn" data-seg="curso" onclick="setAscSegment('curso', this)">Asistido Curso</button>
+          <button class="btn" data-seg="lite" onclick="setAscSegment('lite', this)">Asistido Lite</button>
         </div>
 
         <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; responde al filtro de per&iacute;odo</span></div>
@@ -1391,7 +1391,7 @@
           </div>
         </div>
 
-        <div class="section-title">04 &middot; Tasa de ascenso LT &rarr; HT <span class="sub">la tesis del negocio: &iquest;el desaf&iacute;o alimenta la mentor&iacute;a?</span></div>
+        <div class="section-title">04 &middot; Tasa de ascenso LT &rarr; HT <span class="sub">la tesis del negocio: &iquest;el desaf&iacute;o alimenta los programas?</span></div>
         <div class="charts-grid" style="grid-template-columns:1fr">
           <div class="chart-card accent-top">
             <div class="chart-title">Tasa de ascenso mensual</div>
@@ -3454,9 +3454,9 @@ function renderCompare() {
 // Independiente del filtro global de período (usa todo el histórico 2025+).
 const ASC_MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-// Segmento activo: 'all' | 'main' (Mentoría) | 'curso' (STM Curso) | 'lite' (STM Lite)
+// Segmento activo: 'all' | 'main' = Guiado (Mentorías) | 'curso' = Asistido (STM Curso) | 'lite' = Asistido (STM Lite)
 let ascSegment = 'all';
-const ASC_SEG_LABEL = { all:'Todas las modalidades', main:'Mentoría', curso:'STM Curso', lite:'STM Lite' };
+const ASC_SEG_LABEL = { all:'Todas las modalidades', main:'Guiado (Mentorías)', curso:'Asistido (STM Curso)', lite:'Asistido (STM Lite)' };
 
 function setAscSegment(s, btn) {
   ascSegment = s;
@@ -3618,9 +3618,9 @@ function renderAscensos() {
       let ds;
       if (seg === 'all') {
         ds = [
-          { label:'Mentoría',  data:mkeys.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
-          { label:'STM Curso', data:mkeys.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(59,160,182,0.75)', borderRadius:2, stack:'v' },
-          { label:'STM Lite',  data:mkeys.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(236,72,153,0.65)', borderRadius:2, stack:'v' }
+          { label:'Guiado',         data:mkeys.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
+          { label:'Asistido Curso', data:mkeys.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(59,160,182,0.75)', borderRadius:2, stack:'v' },
+          { label:'Asistido Lite',  data:mkeys.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(236,72,153,0.65)', borderRadius:2, stack:'v' }
         ];
       } else {
         ds = [{ label:ASC_SEG_LABEL[seg], data:mkeys.map(m=>ascSeg_(meses[m], seg).ventas),
@@ -3804,7 +3804,7 @@ function renderAscensos() {
         data:{ labels: tKeys.map(ascMesLabel_), datasets:[
           { type:'bar', label:'Compras LT', data:tKeys.map(mk => ltCompras[mk]), backgroundColor:'rgba(59,160,182,0.25)', borderRadius:2, yAxisID:'y2' },
           { type:'line', label:'Tasa ascenso total %', data:tasaTotal, borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y' },
-          { type:'line', label:'Solo Mentoría %', data:tasaMent, borderColor:'#ec4899', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y' }
+          { type:'line', label:'Solo Guiado %', data:tasaMent, borderColor:'#ec4899', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y' }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
@@ -3825,9 +3825,9 @@ function renderAscensos() {
   let filas;
   if (seg === 'all') {
     filas = [
-      { lbl:'Ventas Mentoría', fn:m => Math.round(m.ventas) },
-      { lbl:'Ventas STM Curso', fn:m => Math.round(m.ventas_stm_curso) },
-      { lbl:'Ventas STM Lite', fn:m => Math.round(m.ventas_stm_lite) },
+      { lbl:'Ventas Guiado', fn:m => Math.round(m.ventas) },
+      { lbl:'Ventas Asistido Curso', fn:m => Math.round(m.ventas_stm_curso) },
+      { lbl:'Ventas Asistido Lite', fn:m => Math.round(m.ventas_stm_lite) },
       { lbl:'Ventas TOTAL', fn:m => Math.round(ascSeg_(m,'all').ventas), em:true },
       { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,'all').contratado).toLocaleString() },
       { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,'all').cobrado).toLocaleString(), em:true },
