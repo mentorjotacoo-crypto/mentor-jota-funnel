@@ -3567,6 +3567,22 @@ function renderAscensos() {
   const act = ascSeg_(aggDias(per.dias), seg);
   const prev = per.prev.length ? ascSeg_(aggDias(per.prev), seg) : null;
 
+  // Meses VISIBLES en las gráficas mensuales según el filtro global:
+  // 'all' → todo el histórico; mes/ventana → los meses del período
+  // (si el período cae en un solo mes, se incluye el anterior como referencia).
+  const perMeses = [...new Set(per.dias.map(k => k.slice(0, 7)))];
+  let mkeysView;
+  if (currentFilter === 'all') {
+    mkeysView = mkeys;
+  } else {
+    mkeysView = mkeys.filter(mk => perMeses.includes(mk));
+    if (mkeysView.length === 1) {
+      const iPrev = mkeys.indexOf(mkeysView[0]) - 1;
+      if (iPrev >= 0) mkeysView = [mkeys[iPrev], mkeysView[0]];
+    }
+    if (!mkeysView.length) mkeysView = mkeys;
+  }
+
   function delta(cur, ant) {
     if (ant === null || ant === undefined) return '';
     const pct = ant !== 0 ? ((cur - ant) / Math.abs(ant)) * 100 : 0;
@@ -3631,7 +3647,7 @@ function renderAscensos() {
 
   // --- Charts ---
   setTimeout(() => {
-    const mLabels = mkeys.map(ascMesLabel_);
+    const mLabels = mkeysView.map(ascMesLabel_);
     const gridCol = 'rgba(26,96,112,0.25)';
     const tickStyle = { color:'#898A8D', font:{size:10} };
 
@@ -3642,13 +3658,13 @@ function renderAscensos() {
       let ds;
       if (seg === 'all') {
         ds = [
-          { label:'Guiado',   data:mkeys.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
-          { label:'Asistido', data:mkeys.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(59,160,182,0.75)', borderRadius:2, stack:'v' },
-          { label:'Autónomo', data:mkeys.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(236,72,153,0.65)', borderRadius:2, stack:'v' }
+          { label:'Guiado',   data:mkeysView.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
+          { label:'Asistido', data:mkeysView.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(59,160,182,0.75)', borderRadius:2, stack:'v' },
+          { label:'Autónomo', data:mkeysView.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(236,72,153,0.65)', borderRadius:2, stack:'v' }
         ];
       } else {
-        ds = [{ label:ASC_SEG_LABEL[seg], data:mkeys.map(m=>ascSeg_(meses[m], seg).ventas),
-                backgroundColor:mkeys.map(m => m === (per.mesSel || mesActual) ? 'rgba(231,255,42,0.75)' : 'rgba(59,160,182,0.6)'), borderRadius:3 }];
+        ds = [{ label:ASC_SEG_LABEL[seg], data:mkeysView.map(m=>ascSeg_(meses[m], seg).ventas),
+                backgroundColor:mkeysView.map(m => m === (per.mesSel || mesActual) ? 'rgba(231,255,42,0.75)' : 'rgba(59,160,182,0.6)'), borderRadius:3 }];
       }
       chartInstances.ascVentas = new Chart(c1, {
         type:'bar',
@@ -3666,8 +3682,8 @@ function renderAscensos() {
       chartInstances.ascRevenue = new Chart(c2, {
         type:'line',
         data:{ labels:mLabels, datasets:[
-          { label:'Contratado', data:mkeys.map(m=>Math.round(ascSeg_(meses[m], seg).contratado)), borderColor:'#3ba0b6', backgroundColor:'rgba(59,160,182,0.12)', fill:true, tension:0.3, pointRadius:2 },
-          { label:'Cobrado', data:mkeys.map(m=>Math.round(ascSeg_(meses[m], seg).cobrado)), borderColor:'#E7FF2A', backgroundColor:'rgba(231,255,42,0.10)', fill:true, tension:0.3, pointRadius:2 }
+          { label:'Contratado', data:mkeysView.map(m=>Math.round(ascSeg_(meses[m], seg).contratado)), borderColor:'#3ba0b6', backgroundColor:'rgba(59,160,182,0.12)', fill:true, tension:0.3, pointRadius:2 },
+          { label:'Cobrado', data:mkeysView.map(m=>Math.round(ascSeg_(meses[m], seg).cobrado)), borderColor:'#E7FF2A', backgroundColor:'rgba(231,255,42,0.10)', fill:true, tension:0.3, pointRadius:2 }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
@@ -3720,7 +3736,7 @@ function renderAscensos() {
         lt[mk].revenue += d.revenue || 0;
         lt[mk].spendG += d.spend_google || 0;
       });
-      const ecoKeys = Object.keys(lt).sort().filter(mk => meses[mk]);
+      const ecoKeys = Object.keys(lt).sort().filter(mk => meses[mk] && mkeysView.includes(mk));
       // Ecosistema SIEMPRE con todas las modalidades (ignora el segmento)
       const spendMeta = ecoKeys.map(mk => Math.round(lt[mk].spend + meses[mk].spend));
       const spendReal = ecoKeys.map((mk,i) => Math.round(spendMeta[i] + lt[mk].spendG));
@@ -3776,14 +3792,28 @@ function renderAscensos() {
         sem[w].cash += ascSeg_(days[k], 'all').cobrado;
         sem[w].spend += days[k].spend || 0;      // spend HT (0 en 2026)
       });
-      const wKeys = Object.keys(sem).sort().slice(-12);
+      // Semanas visibles según el filtro global: 'all' → toda la era 2026;
+      // mes/ventana → semanas que se cruzan con el período seleccionado.
+      let wKeys = Object.keys(sem).sort();
+      const ultimaSemana = wKeys[wKeys.length - 1];
+      if (currentFilter !== 'all' && per.dias.length) {
+        const ini = per.dias[0], fin = per.dias[per.dias.length - 1];
+        wKeys = wKeys.filter(w => {
+          const wEnd = new Date(w + 'T12:00:00');
+          wEnd.setDate(wEnd.getDate() + 6);
+          return w <= fin && wEnd.toISOString().slice(0, 10) >= ini;
+        });
+        if (!wKeys.length) wKeys = Object.keys(sem).sort().slice(-12);
+      }
       const neto = wKeys.map(w => Math.round(sem[w].cash - sem[w].spend));
-      const esActual = wKeys.map((w, i) => i === wKeys.length - 1);
+      const esActual = wKeys.map(w => w === ultimaSemana);
       const subC = document.getElementById('ascCajaSub');
       if (subC && wKeys.length) {
         const u = neto[neto.length - 1];
-        subC.textContent = 'cash total (LT + HT cobrado) − spend total, por semana Lun-Dom · semana actual: ' +
-                           (u >= 0 ? '+' : '−') + '$' + Math.abs(u).toLocaleString() + ' (parcial)';
+        const esParcial = esActual[esActual.length - 1];
+        subC.textContent = 'cash total (LT + HT cobrado) − spend total, por semana Lun-Dom · ' +
+                           (esParcial ? 'semana actual: ' : 'última semana del período: ') +
+                           (u >= 0 ? '+' : '−') + '$' + Math.abs(u).toLocaleString() + (esParcial ? ' (parcial)' : '');
       }
       chartInstances.ascCaja = new Chart(cCaja, {
         type: 'bar',
@@ -3881,7 +3911,7 @@ function renderAscensos() {
         const mk = '2026-' + String(mi+1).padStart(2,'0');
         ltCompras[mk] = (ltCompras[mk] || 0) + (APP_DATA.days[k].purchases || 0);
       });
-      const tKeys = Object.keys(ltCompras).sort().filter(mk => meses[mk] && ltCompras[mk] > 0);
+      const tKeys = Object.keys(ltCompras).sort().filter(mk => meses[mk] && ltCompras[mk] > 0 && mkeysView.includes(mk));
       const tasaTotal = tKeys.map(mk => +((ascSeg_(meses[mk], 'all').ventas / ltCompras[mk]) * 100).toFixed(2));
       const tasaMent = tKeys.map(mk => +(((meses[mk].ventas || 0) / ltCompras[mk]) * 100).toFixed(2));
       const prom = tasaTotal.length ? tasaTotal.reduce((a,b) => a+b, 0) / tasaTotal.length : 0;
@@ -3906,9 +3936,9 @@ function renderAscensos() {
   }, 30);
 
   // --- Tabla mensual (segmentada) ---
-  let html = `<div class="data-grid" style="grid-template-columns: 130px repeat(${mkeys.length}, minmax(72px, 1fr));">`;
+  let html = `<div class="data-grid" style="grid-template-columns: 130px repeat(${mkeysView.length}, minmax(72px, 1fr));">`;
   html += `<div class="data-cell header">Mes</div>`;
-  mkeys.forEach(mk => html += `<div class="data-cell header">${ascMesLabel_(mk)}</div>`);
+  mkeysView.forEach(mk => html += `<div class="data-cell header">${ascMesLabel_(mk)}</div>`);
   let filas;
   if (seg === 'all') {
     filas = [
@@ -3932,7 +3962,7 @@ function renderAscensos() {
   }
   filas.forEach(f => {
     html += `<div class="data-cell label${f.em ? ' emphasis' : ''}">${f.lbl}</div>`;
-    mkeys.forEach(mk => html += `<div class="data-cell computed${f.em ? ' emphasis' : ''}">${f.fn(meses[mk])}</div>`);
+    mkeysView.forEach(mk => html += `<div class="data-cell computed${f.em ? ' emphasis' : ''}">${f.fn(meses[mk])}</div>`);
   });
   html += '</div>';
   document.getElementById('ascTable').innerHTML = html;
