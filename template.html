@@ -1380,6 +1380,13 @@
             <div class="chart-wrap"><canvas id="chartAscEco"></canvas></div>
           </div>
         </div>
+        <div class="charts-grid" style="grid-template-columns:1fr">
+          <div class="chart-card">
+            <div class="chart-title">Caja semanal neta</div>
+            <div class="chart-subtitle" id="ascCajaSub">cash total (LT + HT cobrado) &minus; spend total, por semana Lun-Dom &middot; &uacute;ltimas 12 semanas</div>
+            <div class="chart-wrap"><canvas id="chartAscCaja"></canvas></div>
+          </div>
+        </div>
 
         <div class="section-title">03 &middot; An&aacute;lisis diario <span class="sub">patrones d&iacute;a a d&iacute;a &middot; responde al filtro de per&iacute;odo y modalidad</span></div>
         <div class="kpi-strip cols-3" id="ascDiarioStats" style="margin-bottom:14px;"></div>
@@ -2164,6 +2171,18 @@ function renderInsights() {
   document.getElementById('insightsPanel').innerHTML = html;
 }
 
+// Umbrales de decisión para el semáforo de KPIs (ajustables a los targets del negocio):
+// verde = sano · ámbar (mid) = vigilar · rojo (warn) = actuar.
+// Basados en el histórico Feb-Jul 2026: CPA LT ~$44-55, CPL ~$20-27.
+const KPI_UMBRAL = {
+  cpa: { good: 50, warn: 62 },   // Cost/Compra LT: <$50 verde · $50-62 ámbar · >$62 rojo
+  cpl: { good: 25, warn: 35 }    // Cost/Lead:      <$25 verde · $25-35 ámbar · >$35 rojo
+};
+function umbralCls_(valor, u) {
+  if (!valor || !isFinite(valor)) return '';
+  return valor < u.good ? 'good' : (valor <= u.warn ? 'mid' : 'warn');
+}
+
 function renderKPIs() {
   const d = getAggregated();
   const days = getFilteredDays();
@@ -2203,8 +2222,8 @@ function renderKPIs() {
     { id:'revenue',  label:'Revenue',       value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false, fmt:'money', tip:'Revenue total reportado por Meta (LT + Bump 1 + Bump 2).' },
     { id:'profit',   label:'Ganancia',      value:(profit>=0?'+':'')+fmtMoneyCompact(profit).replace('$','$'), valCls: profit>=0?'good':'warn', sub:'Rev - Spend', cur:profit, prev:prevProfit, invert:false, fmt:'money', tip:'Revenue - Spend. Solo considera ad spend, NO incluye costo de producto, fees, etc.' },
     { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo', cur:roas, prev:prevRoas, invert:false, fmt:'roas', tip:'Revenue / Spend. Cuánto generas por cada $1 invertido en ads.' },
-    { id:'cpl',      label:'Cost / Lead',   value:fmtMoney(cpl),                 valCls:'', sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true, fmt:'money', tip:'Spend / Leads. Costo de adquirir un opt-in.' },
-    { id:'cpa',      label:'Cost / Compra', value:fmtMoney(cpa),                 valCls:'acid', sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true, fmt:'money', tip:'Spend / Compras LT. Costo de adquirir un cliente.' },
+    { id:'cpl',      label:'Cost / Lead',   value:fmtMoney(cpl),                 valCls:umbralCls_(cpl, KPI_UMBRAL.cpl), sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true, fmt:'money', tip:'Spend / Leads. Costo de adquirir un opt-in. Verde <$'+KPI_UMBRAL.cpl.good+' · rojo >$'+KPI_UMBRAL.cpl.warn+'.' },
+    { id:'cpa',      label:'Cost / Compra', value:fmtMoney(cpa),                 valCls:umbralCls_(cpa, KPI_UMBRAL.cpa), sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true, fmt:'money', tip:'Spend / Compras LT. Costo de adquirir un cliente. Verde <$'+KPI_UMBRAL.cpa.good+' · rojo >$'+KPI_UMBRAL.cpa.warn+'.' },
     { id:'aov',      label:'AOV',           value:fmtMoney(aov),                 valCls:'acid', sub:'Valor orden', cur:aov, prev:prevAov, invert:false, fmt:'money', tip:'Revenue / Compras LT. Valor promedio de cada orden (incluye bumps).' }
   ];
 
@@ -3727,6 +3746,69 @@ function renderAscensos() {
             x:{ticks:tickStyle, grid:{display:false}},
             y:{beginAtZero:true, position:'left', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}},
             y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>v+'x'}, grid:{display:false}}
+          } }
+      });
+    }
+
+    // 4a-bis. Caja semanal neta (ecosistema, últimas 12 semanas, ignora filtros):
+    //         ¿esta semana el negocio puso o sacó plata? Verde = cash > spend.
+    const cCaja = document.getElementById('chartAscCaja');
+    if (cCaja) {
+      if (chartInstances.ascCaja) chartInstances.ascCaja.destroy();
+      const lunesDe = iso => {
+        const dt = new Date(iso + 'T12:00:00');
+        dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+        return dt.toISOString().slice(0, 10);
+      };
+      const sem = {};   // lunes ISO -> {spend, cash}
+      getSortedDayKeys().forEach(k => {
+        const d = APP_DATA.days[k];
+        const iso = '2026-' + String(MONTHS[k.split(' ')[0]] + 1).padStart(2, '0') + '-' + k.split(' ')[1];
+        const w = lunesDe(iso);
+        if (!sem[w]) sem[w] = { spend: 0, cash: 0 };
+        sem[w].spend += (d.spend || 0) + (d.spend_google || 0);
+        sem[w].cash += d.revenue || 0;
+      });
+      Object.keys(days).forEach(k => {
+        if (k < '2026-01-01') return;           // solo la era del ecosistema actual
+        const w = lunesDe(k);
+        if (!sem[w]) return;                     // semanas sin spend LT no aplican
+        sem[w].cash += ascSeg_(days[k], 'all').cobrado;
+        sem[w].spend += days[k].spend || 0;      // spend HT (0 en 2026)
+      });
+      const wKeys = Object.keys(sem).sort().slice(-12);
+      const neto = wKeys.map(w => Math.round(sem[w].cash - sem[w].spend));
+      const esActual = wKeys.map((w, i) => i === wKeys.length - 1);
+      const subC = document.getElementById('ascCajaSub');
+      if (subC && wKeys.length) {
+        const u = neto[neto.length - 1];
+        subC.textContent = 'cash total (LT + HT cobrado) − spend total, por semana Lun-Dom · semana actual: ' +
+                           (u >= 0 ? '+' : '−') + '$' + Math.abs(u).toLocaleString() + ' (parcial)';
+      }
+      chartInstances.ascCaja = new Chart(cCaja, {
+        type: 'bar',
+        data:{ labels: wKeys.map((w,i) => parseInt(w.slice(8,10),10) + '/' + parseInt(w.slice(5,7),10) + (esActual[i] ? '*' : '')),
+          datasets:[{
+            label:'Neto semanal',
+            data: neto,
+            backgroundColor: neto.map((v,i) => v >= 0
+              ? (esActual[i] ? 'rgba(92,212,126,0.35)' : 'rgba(92,212,126,0.7)')
+              : (esActual[i] ? 'rgba(255,120,73,0.35)' : 'rgba(255,120,73,0.7)')),
+            borderRadius: 3
+          }]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false},
+            tooltip:{ callbacks:{
+              title: items => 'Semana del ' + wKeys[items[0].dataIndex].slice(8,10) + '/' + wKeys[items[0].dataIndex].slice(5,7) + (esActual[items[0].dataIndex] ? ' (en curso)' : ''),
+              label: ctx => {
+                const w = wKeys[ctx.dataIndex];
+                return [' Neto: ' + (ctx.parsed.y >= 0 ? '+' : '−') + '$' + Math.abs(ctx.parsed.y).toLocaleString(),
+                        ' Cash: $' + Math.round(sem[w].cash).toLocaleString(),
+                        ' Spend: $' + Math.round(sem[w].spend).toLocaleString()];
+              } } } },
+          scales:{
+            x:{ticks:tickStyle, grid:{display:false}},
+            y:{ticks:{...tickStyle, callback:v=>(v<0?'−':'')+'$'+Math.abs(v/1000).toFixed(1)+'k'}, grid:{color:gridCol}}
           } }
       });
     }
