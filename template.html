@@ -1351,7 +1351,7 @@
         </div>
 
         <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; responde al filtro de per&iacute;odo</span></div>
-        <div class="kpi-strip cols-6" id="ascKpiStrip"></div>
+        <div class="kpi-strip" id="ascKpiStrip"></div>
 
         <div class="section-title">01 &middot; Evoluci&oacute;n mensual <span class="sub">desde enero 2025</span></div>
         <div class="charts-grid">
@@ -3590,6 +3590,24 @@ function renderAscensos() {
     const arrow = pct > 2 ? '▲' : pct < -2 ? '▼' : '·';
     return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(pct).toFixed(0)}%</span>`;
   }
+  // Tasa de ascenso del período: ventas HT (del segmento) ÷ compras LT,
+  // contando SOLO los días donde existe data LT (era 2026) para que el
+  // ratio compare manzanas con manzanas. Proxy mensual, sin atribución 1:1.
+  function tasaAscensoDe(ks) {
+    let ltC = 0, htV = 0;
+    ks.forEach(k => {
+      if (k < '2026-01-01') return;
+      const ltKey = ASC_MESES[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(8, 10);
+      const dLT = APP_DATA.days[ltKey];
+      if (!dLT) return;
+      ltC += dLT.purchases || 0;
+      htV += ascSeg_(days[k], seg).ventas;
+    });
+    return { lt: ltC, ht: htV, pct: ltC > 0 ? (htV / ltC) * 100 : null };
+  }
+  const ta = tasaAscensoDe(per.dias);
+  const taPrev = tasaAscensoDe(per.prev);
+
   const aov = act.ventas > 0 ? act.contratado / act.ventas : 0;
   const pctCobro = act.contratado > 0 ? (act.cobrado / act.contratado) * 100 : 0;
   // Ritmo: si el período es el mes en curso → proyección a fin de mes;
@@ -3612,7 +3630,11 @@ function renderAscensos() {
     { label:'Cobrado', value: fmtMoneyCompact(act.cobrado), sub:'cash-in real', d: delta(act.cobrado, prev && prev.cobrado), cls:'good' },
     { label:'AOV', value: fmtMoneyCompact(aov), sub:'ticket promedio', d:'', cls:'' },
     { label:'% Cobro', value: pctCobro.toFixed(0) + '%', sub:'cobrado/contratado', d:'', cls: pctCobro >= 60 ? 'good' : '' },
-    { label:'Ritmo', value: ritmoVal, sub: ritmoSub, d:'', cls:'' }
+    { label:'Ritmo', value: ritmoVal, sub: ritmoSub, d:'', cls:'' },
+    { label:'Tasa ascenso', value: ta.pct !== null ? ta.pct.toFixed(1) + '%' : '—',
+      sub: ta.pct !== null ? Math.round(ta.ht) + ' HT / ' + Math.round(ta.lt) + ' LT' : 'sin data LT en el período',
+      d: (ta.pct !== null && taPrev.pct !== null) ? delta(ta.pct, taPrev.pct) : '',
+      cls: ta.pct === null ? '' : (ta.pct >= 9 ? 'good' : (ta.pct >= 6 ? '' : 'warn')) }
   ];
   document.getElementById('ascKpiStrip').innerHTML = kpis.map(k => `
     <div class="kpi-cell">
