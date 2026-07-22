@@ -1365,6 +1365,16 @@
             <div class="chart-subtitle">USD por mes &middot; contratado = valor de venta, cobrado = cash-in</div>
             <div class="chart-wrap"><canvas id="chartAscRevenue"></canvas></div>
           </div>
+          <div class="chart-card">
+            <div class="chart-title">Comparativo interanual</div>
+            <div class="chart-subtitle">mismo mes, 2025 vs 2026 &middot; click en la leyenda para ver cobrado &middot; ignora el filtro de per&iacute;odo</div>
+            <div class="chart-wrap"><canvas id="chartAscYoY"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Mix de cash mensual</div>
+            <div class="chart-subtitle">cobro de ventas del mes vs cuotas de financiaciones previas</div>
+            <div class="chart-wrap"><canvas id="chartAscMix"></canvas></div>
+          </div>
         </div>
 
         <div class="section-title">02 &middot; Detalle diario del mes <span class="sub">ventas y cobros d&iacute;a a d&iacute;a</span></div>
@@ -3713,6 +3723,71 @@ function renderAscensos() {
       });
     }
 
+    // 2b. Comparativo interanual: mismo mes 2025 vs 2026 (estacionalidad).
+    //     Frame fijo Ene-Dic — ignora el filtro de período a propósito.
+    //     Ventas visibles por defecto; cobrado se activa desde la leyenda.
+    const cYoY = document.getElementById('chartAscYoY');
+    if (cYoY) {
+      if (chartInstances.ascYoY) chartInstances.ascYoY.destroy();
+      const serieAnio = (anio, campo) => ASC_MESES.map((_, i) => {
+        const mk = anio + '-' + String(i + 1).padStart(2, '0');
+        return meses[mk] ? Math.round(ascSeg_(meses[mk], seg)[campo]) : null;
+      });
+      chartInstances.ascYoY = new Chart(cYoY, {
+        type:'line',
+        data:{ labels: ASC_MESES, datasets:[
+          { label:'Ventas 2026', data:serieAnio('2026','ventas'), borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y' },
+          { label:'Ventas 2025', data:serieAnio('2025','ventas'), borderColor:'#898A8D', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y' },
+          { label:'Cobrado 2026', data:serieAnio('2026','cobrado'), borderColor:'#5cd47e', borderDash:[6,4], borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y2', hidden:true },
+          { label:'Cobrado 2025', data:serieAnio('2025','cobrado'), borderColor:'#3ba0b6', borderDash:[6,4], borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y2', hidden:true }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false, spanGaps:false,
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+            tooltip:{ callbacks:{ label: ctx => ' ' + ctx.dataset.label + ': ' + (ctx.dataset.yAxisID === 'y2' ? '$' + ctx.parsed.y.toLocaleString() : ctx.parsed.y) } } },
+          scales:{
+            x:{ticks:tickStyle, grid:{display:false}},
+            y:{beginAtZero:true, position:'left', ticks:tickStyle, grid:{color:gridCol}},
+            y2:{beginAtZero:true, position:'right', display:'auto', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{display:false}}
+          } }
+      });
+    }
+
+    // 2c. Mix de cash mensual: cobro de ventas del mes vs cuotas de
+    //     financiaciones previas — la calidad temporal del cash-in.
+    //     (Las cuotas solo aplican a Guiado; en Asistido/Autónomo el mix es 100% inicial.)
+    const cMix = document.getElementById('chartAscMix');
+    if (cMix) {
+      if (chartInstances.ascMix) chartInstances.ascMix.destroy();
+      const inicial = mkeysView.map(m => {
+        const d = meses[m];
+        if (seg === 'main')  return Math.round(d.cobrado || 0);
+        if (seg === 'curso') return Math.round(d.cobrado_stm_curso || 0);
+        if (seg === 'lite')  return Math.round(d.cobrado_stm_lite || 0);
+        return Math.round((d.cobrado || 0) + (d.cobrado_stm_curso || 0) + (d.cobrado_stm_lite || 0));
+      });
+      const cuotas = mkeysView.map(m => (seg === 'all' || seg === 'main') ? Math.round(meses[m].cobrado_cuotas || 0) : 0);
+      chartInstances.ascMix = new Chart(cMix, {
+        type:'bar',
+        data:{ labels: mkeysView.map(ascMesLabel_), datasets:[
+          { label:'Cobro de ventas del mes', data:inicial, backgroundColor:'rgba(92,212,126,0.65)', borderRadius:2, stack:'c' },
+          { label:'Cuotas de meses previos', data:cuotas, backgroundColor:'rgba(59,160,182,0.6)', borderRadius:2, stack:'c' }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+            tooltip:{ callbacks:{
+              label: ctx => ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(),
+              footer: items => {
+                const i = items[0].dataIndex;
+                const tot = inicial[i] + cuotas[i];
+                return tot > 0 ? 'Total: $' + tot.toLocaleString() + ' · cuotas = ' + Math.round(cuotas[i] / tot * 100) + '%' : '';
+              } } } },
+          scales:{
+            x:{stacked:true, ticks:tickStyle, grid:{display:false}},
+            y:{stacked:true, beginAtZero:true, ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}}
+          } }
+      });
+    }
+
     // 3. Detalle diario del período (según filtro global y segmento).
     // Con "Todo" seleccionado, mostrar el mes en curso (556 barras no se leen).
     const c3 = document.getElementById('chartAscDiario');
@@ -3936,14 +4011,27 @@ function renderAscensos() {
       const tKeys = Object.keys(ltCompras).sort().filter(mk => meses[mk] && ltCompras[mk] > 0 && mkeysView.includes(mk));
       const tasaTotal = tKeys.map(mk => +((ascSeg_(meses[mk], 'all').ventas / ltCompras[mk]) * 100).toFixed(2));
       const tasaMent = tKeys.map(mk => +(((meses[mk].ventas || 0) / ltCompras[mk]) * 100).toFixed(2));
+      // Tasa REZAGADA: ventas HT del mes ÷ compras LT del MES ANTERIOR.
+      // Un comprador de desafío asciende semanas después — esta línea lee la
+      // cohorte con su tiempo de maduración y es la más justa para el mes en curso.
+      const prevMesKey = mk => {
+        let y = +mk.slice(0, 4), m = +mk.slice(5, 7) - 1;
+        if (m === 0) { y--; m = 12; }
+        return y + '-' + String(m).padStart(2, '0');
+      };
+      const tasaRez = tKeys.map(mk => {
+        const ltPrev = ltCompras[prevMesKey(mk)];
+        return ltPrev > 0 ? +((ascSeg_(meses[mk], 'all').ventas / ltPrev) * 100).toFixed(2) : null;
+      });
       const prom = tasaTotal.length ? tasaTotal.reduce((a,b) => a+b, 0) / tasaTotal.length : 0;
       const subEl = document.getElementById('ascTasaSub');
-      if (subEl) subEl.textContent = 'promedio ' + prom.toFixed(1) + '% · ventas HT ÷ compras LT del mismo mes (proxy, sin atribución individual)';
+      if (subEl) subEl.textContent = 'promedio ' + prom.toFixed(1) + '% · la línea punteada usa las compras LT del mes ANTERIOR (cohorte madurada) — la más justa para el mes en curso';
       chartInstances.ascTasa = new Chart(c5, {
         data:{ labels: tKeys.map(ascMesLabel_), datasets:[
           { type:'bar', label:'Compras LT', data:tKeys.map(mk => ltCompras[mk]), backgroundColor:'rgba(59,160,182,0.25)', borderRadius:2, yAxisID:'y2' },
           { type:'line', label:'Tasa ascenso total %', data:tasaTotal, borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y' },
-          { type:'line', label:'Solo Guiado %', data:tasaMent, borderColor:'#ec4899', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y' }
+          { type:'line', label:'Tasa rezagada (cohorte) %', data:tasaRez, borderColor:'#5cd47e', borderDash:[6,4], borderWidth:2.5, tension:0.3, pointRadius:2, yAxisID:'y', spanGaps:true },
+          { type:'line', label:'Solo Guiado %', data:tasaMent, borderColor:'#ec4899', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y', hidden:true }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
