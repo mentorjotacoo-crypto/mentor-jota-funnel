@@ -3636,6 +3636,15 @@ function renderAscensos() {
     const arrow = pct > 2 ? '▲' : pct < -2 ? '▼' : '·';
     return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(pct).toFixed(0)}%</span>`;
   }
+  // Delta en PUNTOS PORCENTUALES — para KPIs que ya son tasas (%): "▲ 0.4 pp"
+  // es inequívoco; un delta relativo sobre un % confunde ("¿2% de qué?").
+  function deltaPp(cur, ant) {
+    if (cur === null || ant === null || ant === undefined || !isFinite(cur) || !isFinite(ant)) return '';
+    const diff = cur - ant;
+    const cls = diff > 0.2 ? 'up' : diff < -0.2 ? 'down' : 'neutral';
+    const arrow = diff > 0.2 ? '▲' : diff < -0.2 ? '▼' : '·';
+    return `<span class="kpi-delta ${cls}" title="vs período previo: ${ant.toFixed(1)}% → ${cur.toFixed(1)}%">${arrow} ${Math.abs(diff).toFixed(1)} pp</span>`;
+  }
   // Tasa de ascenso del período: ventas HT (del segmento) ÷ compras LT,
   // contando SOLO los días donde existe data LT (era 2026) para que el
   // ratio compare manzanas con manzanas. Proxy mensual, sin atribución 1:1.
@@ -3656,6 +3665,7 @@ function renderAscensos() {
 
   const aov = act.ventas > 0 ? act.contratado / act.ventas : 0;
   const pctCobro = act.contratado > 0 ? (act.cobrado / act.contratado) * 100 : 0;
+  const pctCobroPrev = (prev && prev.contratado > 0) ? (prev.cobrado / prev.contratado) * 100 : null;
   // Ritmo: si el período es el mes en curso → proyección a fin de mes;
   // en cualquier otro período → promedio de ventas por día.
   const esMesEnCurso = per.mesSel === mesActual;
@@ -3675,11 +3685,11 @@ function renderAscensos() {
     { label:'Contratado', value: fmtMoneyCompact(act.contratado), sub:'valor de ventas', d: delta(act.contratado, prev && prev.contratado), cls:'acid' },
     { label:'Cobrado', value: fmtMoneyCompact(act.cobrado), sub:'cash-in real', d: delta(act.cobrado, prev && prev.cobrado), cls:'good' },
     { label:'AOV', value: fmtMoneyCompact(aov), sub:'ticket promedio', d:'', cls:'' },
-    { label:'% Cobro', value: pctCobro.toFixed(0) + '%', sub:'cobrado/contratado', d:'', cls: pctCobro >= 60 ? 'good' : '' },
+    { label:'% Cobro', value: pctCobro.toFixed(0) + '%', sub:'cobrado/contratado', d: deltaPp(pctCobro, pctCobroPrev), cls: pctCobro >= 60 ? 'good' : '' },
     { label:'Ritmo', value: ritmoVal, sub: ritmoSub, d:'', cls:'' },
     { label:'Tasa ascenso', value: ta.pct !== null ? ta.pct.toFixed(1) + '%' : '—',
       sub: ta.pct !== null ? Math.round(ta.ht) + ' HT / ' + Math.round(ta.lt) + ' LT' : 'sin data LT en el período',
-      d: (ta.pct !== null && taPrev.pct !== null) ? delta(ta.pct, taPrev.pct) : '',
+      d: deltaPp(ta.pct, taPrev.pct),
       cls: ta.pct === null ? '' : (ta.pct >= 9 ? 'good' : (ta.pct >= 6 ? '' : 'warn')) }
   ];
   document.getElementById('ascKpiStrip').innerHTML = kpis.map(k => `
