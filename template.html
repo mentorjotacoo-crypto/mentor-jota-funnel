@@ -8,36 +8,42 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link href="https://api.fontshare.com/v2/css?f[]=clash-display@700,600,500,400&f[]=general-sans@700,600,500,400,300&display=swap" rel="stylesheet">
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   :root {
-    /* Background slate oscuro */
-    --bg:#0A1014;
-    --bg-elev:#0F171C;
-    /* Brand petrol */
+    /* ── Superficies (neutras con subtono petrol; el color vive en los DATOS) ── */
+    --bg:#0A0F14;
+    --bg-elev:#0D141B;
+    --panel:#101A21;
+    --panel-hover:#152430;
+    --hairline:rgba(151,178,193,0.13);
+    /* Brand petrol (acentos estructurales, ya no fondos de cards) */
     --petrol:#0C4650; --petrol-dark:#082E38; --petrol-mid:#134f5c; --petrol-light:#1a6070;
-    /* Ácido brand - reservado para acentos críticos. Para texto/datos secundarios usar acid-soft */
+    /* Ácido brand — SOLO acento/héroe (tab activo, hero, líneas destacadas) */
     --acid:#E7FF2A;
     --acid-soft:#c9dd24;
     --acid-dim:rgba(231,255,42,0.7);
-    /* Grises con jerarquía */
-    --grey:#898A8D; --grey-light:#c4c5c7; --grey-faint:#5a6266;
-    --white:#f5f7f5;
-    /* Semánticos suavizados (menos saturados que warn/good originales) */
-    --warn:#ff7849; --good:#5cd47e; --mid:#f7c948;
-    --purple:#9d7bf0; --blue:#5a92ee;
+    /* Tinta con jerarquía */
+    --grey:#7E8C96; --grey-light:#ADBCC7; --grey-faint:#5A6870;
+    --white:#F7F9FA;
+    /* Semánticos (validados sobre superficie oscura) */
+    --warn:#E66767; --good:#26A97C; --mid:#E0A82E;
+    --purple:#8B7BE8; --blue:#3987E5;
+    /* Series categóricas (validadas CVD — orden fijo) */
+    --s-blue:#3987E5; --s-magenta:#D55181; --s-amber:#C98500; --s-green:#26A97C;
     /* Espaciado consistente (8px grid) */
     --space-xs:6px; --space-sm:10px; --space-md:18px; --space-lg:28px; --space-xl:40px;
   }
   body {
     background:var(--bg); color:var(--white);
-    font-family:'General Sans',sans-serif;
+    font-family:'Inter','General Sans',sans-serif;
     min-height:100vh; padding:0 0 80px;
     font-feature-settings:'ss01','cv11';
+    -webkit-font-smoothing:antialiased;
   }
   button, input, select, textarea { font-family:inherit; }
   .mono { font-family:'JetBrains Mono',monospace; }
@@ -77,7 +83,7 @@
   .login-btn:hover:not(:disabled) { background:var(--white); }
   .login-btn:disabled { opacity:0.5; cursor:wait; }
   .login-error {
-    margin-top:12px; padding:10px 14px; background:rgba(255,107,53,0.1);
+    margin-top:12px; padding:10px 14px; background:rgba(230,103,103,0.1);
     border-left:3px solid var(--warn); color:var(--warn);
     font-size:12px; font-weight:500; text-align:center; display:none;
   }
@@ -117,7 +123,7 @@
 
   /* ===== TABS ===== */
   .tabs {
-    display:flex; gap:0; border-bottom:1px solid rgba(26,96,112,0.4);
+    display:flex; gap:0; border-bottom:1px solid rgba(151,178,193,0.12);
     background:var(--bg-elev); padding:0 32px;
   }
   .tab-btn {
@@ -161,12 +167,12 @@
 
   /* ===== BUTTONS / FILTERS ===== */
   .btn {
-    background:transparent; border:1px solid rgba(26,96,112,0.6); color:var(--grey-light);
+    background:transparent; border:1px solid rgba(151,178,193,0.16); color:var(--grey-light);
     font-family:'Clash Display',sans-serif; font-weight:600;
     font-size:11px; letter-spacing:1.2px; text-transform:uppercase;
-    padding:8px 14px; cursor:pointer; transition:all 0.18s; border-radius:3px;
+    padding:8px 14px; cursor:pointer; transition:all 0.18s; border-radius:7px;
   }
-  .btn:hover { background:rgba(26,96,112,0.4); color:var(--white); border-color:rgba(26,96,112,1); }
+  .btn:hover { background:rgba(151,178,193,0.12); color:var(--white); border-color:rgba(151,178,193,0.3); }
   .btn.active, .btn.primary { background:var(--acid); color:var(--petrol-dark); border-color:var(--acid); font-weight:700; }
   .btn.primary:hover { background:var(--white); border-color:var(--white); }
   .btn.danger { border-color:var(--warn); color:var(--warn); }
@@ -175,7 +181,7 @@
   .period-bar-global {
     position:sticky; top:74px; z-index:90;
     background:rgba(15,23,28,0.96); backdrop-filter:blur(8px);
-    border-bottom:1px solid rgba(26,96,112,0.4);
+    border-bottom:1px solid rgba(151,178,193,0.12);
     padding:12px 32px;
   }
   .period-bar-inner {
@@ -235,9 +241,9 @@
     font-size:11px; padding:2px 6px; border-radius:2px;
     font-family:'JetBrains Mono',monospace;
   }
-  .cmp-delta.up   { color:var(--good); background:rgba(78,203,113,0.12); }
-  .cmp-delta.down { color:var(--warn); background:rgba(255,107,53,0.12); }
-  .cmp-delta.neutral { color:var(--grey); background:rgba(137,138,141,0.12); }
+  .cmp-delta.up   { color:var(--good); background:rgba(38,169,124,0.12); }
+  .cmp-delta.down { color:var(--warn); background:rgba(230,103,103,0.12); }
+  .cmp-delta.neutral { color:var(--grey); background:rgba(126,140,150,0.12); }
   @media (max-width:768px) {
     .compare-controls { grid-template-columns:1fr; gap:10px; }
     .compare-vs { justify-self:center; padding:0; }
@@ -306,7 +312,7 @@
     display:grid; grid-template-columns:2fr 1fr; gap:18px; margin-top:8px;
   }
   .hero-revenue {
-    background:var(--petrol); border:1px solid rgba(26,96,112,0.5); border-radius:4px;
+    background:var(--petrol); border:1px solid rgba(151,178,193,0.13); border-radius:4px;
     padding:36px 40px; position:relative; overflow:hidden;
   }
   .hero-revenue::before {
@@ -332,11 +338,11 @@
     display:flex; flex-direction:column; gap:10px;
   }
   .hero-mini {
-    background:var(--petrol); border:1px solid rgba(26,96,112,0.5); border-radius:4px;
+    background:var(--petrol); border:1px solid rgba(151,178,193,0.13); border-radius:4px;
     padding:18px 22px; flex:1; display:flex; flex-direction:column; justify-content:center;
     transition:border-color 0.2s, background 0.2s;
   }
-  .hero-mini:hover { border-color:rgba(26,96,112,0.9); }
+  .hero-mini:hover { border-color:rgba(151,178,193,0.25); }
   .hero-mini-label {
     font-family:'Clash Display',sans-serif; font-weight:600;
     font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
@@ -471,18 +477,18 @@
   /* ===== KPI STRIP ===== */
   .kpi-strip {
     display:grid; grid-template-columns:repeat(7, minmax(0, 1fr));
-    gap:1px; border:1px solid rgba(26,96,112,0.5); margin-top:12px;
-    background:rgba(26,96,112,0.5); border-radius:4px; overflow:hidden;
+    gap:1px; border:1px solid var(--hairline); margin-top:12px;
+    background:var(--hairline); border-radius:10px; overflow:hidden;
   }
   /* Variantes por número de columnas (usar clases, NUNCA style inline:
      el inline anula las media queries responsive de abajo) */
   .kpi-strip.cols-6 { grid-template-columns:repeat(6, minmax(0, 1fr)); }
   .kpi-strip.cols-3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
   .kpi-cell {
-    background:var(--petrol); padding:18px 16px;
+    background:var(--panel); padding:18px 16px;
     position:relative; transition:background 0.2s; min-width:0;
   }
-  .kpi-cell:hover { background:#0e5260; }
+  .kpi-cell:hover { background:var(--panel-hover); }
   .kpi-head {
     display:flex; align-items:center; justify-content:space-between;
     margin-bottom:10px;
@@ -495,12 +501,13 @@
     font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600;
     padding:2px 6px; border-radius:3px; display:inline-flex; align-items:center; gap:3px;
   }
-  .kpi-delta.up { color:var(--good); background:rgba(92,212,126,0.10); }
-  .kpi-delta.down { color:var(--warn); background:rgba(255,120,73,0.10); }
-  .kpi-delta.neutral { color:var(--grey); background:rgba(137,138,141,0.08); }
+  .kpi-delta.up { color:var(--good); background:rgba(38,169,124,0.10); }
+  .kpi-delta.down { color:var(--warn); background:rgba(230,103,103,0.10); }
+  .kpi-delta.neutral { color:var(--grey); background:rgba(126,140,150,0.08); }
   .kpi-value {
-    font-family:'Clash Display',sans-serif; font-weight:800;
-    font-size:clamp(22px, 1.9vw, 30px); line-height:1; letter-spacing:-0.5px; color:var(--white);
+    font-family:'Inter',sans-serif; font-weight:600;
+    font-variant-numeric:tabular-nums;
+    font-size:clamp(21px, 1.8vw, 28px); line-height:1.05; letter-spacing:-0.02em; color:var(--white);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .kpi-value.acid { color:var(--acid); }
@@ -522,11 +529,11 @@
 
   /* ===== PANELS ===== */
   .panel {
-    background:var(--petrol); border:1px solid rgba(26,96,112,0.5);
+    background:var(--petrol); border:1px solid rgba(151,178,193,0.13);
     padding:24px 26px; margin-bottom:22px; border-radius:4px;
     transition:border-color 0.2s;
   }
-  .panel:hover { border-color:rgba(26,96,112,0.8); }
+  .panel:hover { border-color:rgba(151,178,193,0.22); }
   .panel.accent { border-top:2px solid var(--acid-soft); }
   .panel-header {
     display:flex; justify-content:space-between; align-items:center;
@@ -671,9 +678,9 @@
     font-family:'Clash Display',sans-serif; font-weight:900;
     font-size:13px; padding:1px 6px; border-radius:2px;
   }
-  .imp-val .delta.up { color:var(--good); background:rgba(78,203,113,0.15); }
-  .imp-val .delta.down { color:var(--warn); background:rgba(255,107,53,0.15); }
-  .imp-val .delta.neutral { color:var(--grey); background:rgba(137,138,141,0.15); }
+  .imp-val .delta.up { color:var(--good); background:rgba(38,169,124,0.15); }
+  .imp-val .delta.down { color:var(--warn); background:rgba(230,103,103,0.15); }
+  .imp-val .delta.neutral { color:var(--grey); background:rgba(126,140,150,0.15); }
 
   .empty-state {
     text-align:center; padding:36px 20px; color:var(--grey);
@@ -758,15 +765,16 @@
     gap:16px; margin-bottom:16px;
   }
   .chart-card {
-    background:var(--petrol); border:1px solid rgba(26,96,112,0.5);
-    padding:24px 26px; border-radius:4px;
+    background:var(--panel); border:1px solid var(--hairline);
+    padding:24px 26px; border-radius:12px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.25);
     transition:border-color 0.2s;
   }
-  .chart-card:hover { border-color:rgba(26,96,112,0.8); }
+  .chart-card:hover { border-color:rgba(151,178,193,0.22); }
   .chart-card.accent-top { border-top:2px solid var(--acid-soft); }
   .chart-title {
-    font-family:'Clash Display',sans-serif; font-weight:700;
-    font-size:13px; letter-spacing:1.8px; text-transform:uppercase; color:var(--white);
+    font-family:'Clash Display',sans-serif; font-weight:600;
+    font-size:13px; letter-spacing:1.2px; text-transform:uppercase; color:var(--grey-light);
     margin-bottom:4px;
   }
   .chart-subtitle { font-size:11px; color:var(--grey); font-style:normal; margin-bottom:18px; }
@@ -774,7 +782,7 @@
   .chart-summary {
     display:flex; flex-wrap:wrap; gap:14px; margin-bottom:14px;
     padding:12px 14px; background:var(--bg-elev); border-left:3px solid var(--acid);
-    border-radius:0 3px 3px 0;
+    border-radius:0 8px 8px 0;
   }
   .chart-stat-group {
     display:flex; flex-direction:column; gap:4px; flex:1; min-width:180px;
@@ -1667,13 +1675,13 @@ const STAGES = [
   { id:'impressions', name:'Impresiones',        icon:'\u{1F441}', color:'#1a6070', desc:'Impresiones totales en Meta Ads' },
   { id:'reach',       name:'Alcance',            icon:'\u{1F30E}', color:'#206b7c', desc:'Personas unicas alcanzadas', compareTo:'impressions' },
   { id:'clicks',      name:'Link Clicks',        icon:'\u{1F449}', color:'#2d8295', desc:'Clicks en CTA del anuncio', compareTo:'reach' },
-  { id:'lpv',         name:'Landing Page Views', icon:'\u{1F4C4}', color:'#3ba0b6', desc:'Visitas a la landing', compareTo:'clicks' },
-  { id:'leads',       name:'Opt-ins',            icon:'\u{1F4E7}', color:'#f7c948', desc:'Leads capturados', compareTo:'lpv' },
+  { id:'lpv',         name:'Landing Page Views', icon:'\u{1F4C4}', color:'#3987E5', desc:'Visitas a la landing', compareTo:'clicks' },
+  { id:'leads',       name:'Opt-ins',            icon:'\u{1F4E7}', color:'#E0A82E', desc:'Leads capturados', compareTo:'lpv' },
   { id:'checkouts',   name:'Checkouts',          icon:'\u{1F6D2}', color:'#ff9f43', desc:'Checkouts iniciados', compareTo:'leads' },
   { id:'purchases',   name:'Compra Low Ticket',  icon:'\u{1F4B0}', color:'#E7FF2A', desc:'Compras del Low Ticket ($37)', compareTo:'checkouts' },
   // Bumps son upsells PARALELOS al checkout, se miden contra Low Ticket (no entre si)
-  { id:'bump1',       name:'Bump 1 (take rate)', icon:'\u{1F31F}', color:'#4ecb71', desc:'Upsell Sesion Estrategica ($42) - % de compradores LT que tomaron', compareTo:'purchases' },
-  { id:'bump2',       name:'Bump 2 (take rate)', icon:'\u{1F48E}', color:'#10b981', desc:'Upsell Bump 2 ($48) - % de compradores LT que tomaron', compareTo:'purchases' }
+  { id:'bump1',       name:'Bump 1 (take rate)', icon:'\u{1F31F}', color:'#26A97C', desc:'Upsell Sesion Estrategica ($42) - % de compradores LT que tomaron', compareTo:'purchases' },
+  { id:'bump2',       name:'Bump 2 (take rate)', icon:'\u{1F48E}', color:'#26A97C', desc:'Upsell Bump 2 ($48) - % de compradores LT que tomaron', compareTo:'purchases' }
 ];
 
 const STAGE_NAMES = {
@@ -1778,8 +1786,8 @@ function openInfoPopover(el, label, kpiId) {
           }
         },
         scales: {
-          x: { ticks:{color:'#898A8D',font:{size:9},maxTicksLimit:8,autoSkip:true,maxRotation:0}, grid:{color:'rgba(26,96,112,0.2)'} },
-          y: { ticks:{color:'#898A8D',font:{size:10},callback:(v)=>isMoney?fmtMoneyCompact(v):(isRoas?v.toFixed(1)+'x':Math.round(v))}, grid:{color:'rgba(26,96,112,0.2)'} }
+          x: { ticks:{color:'#7E8C96',font:{size:9},maxTicksLimit:8,autoSkip:true,maxRotation:0}, grid:{color:'rgba(151,178,193,0.08)'} },
+          y: { ticks:{color:'#7E8C96',font:{size:10},callback:(v)=>isMoney?fmtMoneyCompact(v):(isRoas?v.toFixed(1)+'x':Math.round(v))}, grid:{color:'rgba(151,178,193,0.08)'} }
         }
       }
     });
@@ -1983,8 +1991,8 @@ function renderResumen() {
             }
           },
           scales: {
-            x: { ticks:{color:'#898A8D', font:{size:10}, maxTicksLimit:10, autoSkip:true, maxRotation:0}, grid:{color:'rgba(26,96,112,0.12)'} },
-            y: { ticks:{color:'#898A8D', font:{size:10}, callback:(v)=>fmtMoneyCompact(v)}, grid:{color:'rgba(26,96,112,0.12)'} }
+            x: { ticks:{color:'#7E8C96', font:{size:10}, maxTicksLimit:10, autoSkip:true, maxRotation:0}, grid:{color:'rgba(151,178,193,0.06)'} },
+            y: { ticks:{color:'#7E8C96', font:{size:10}, callback:(v)=>fmtMoneyCompact(v)}, grid:{color:'rgba(151,178,193,0.06)'} }
           }
         })
       });
@@ -2000,7 +2008,32 @@ function renderResumen() {
 }
 
 // ====== RENDER ALL ======
+// Defaults globales de Chart.js — tipografía, tinta y tooltips uniformes
+// en todos los charts (los options por-chart solo sobreescriben lo puntual).
+function setupChartDefaults_() {
+  if (typeof Chart === 'undefined' || setupChartDefaults_.done) return;
+  setupChartDefaults_.done = true;
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = '#7E8C96';
+  Chart.defaults.borderColor = 'rgba(151,178,193,0.07)';
+  const tt = Chart.defaults.plugins.tooltip;
+  tt.backgroundColor = '#0B1216';
+  tt.titleColor = '#F7F9FA';
+  tt.bodyColor = '#ADBCC7';
+  tt.borderColor = 'rgba(151,178,193,0.2)';
+  tt.borderWidth = 1;
+  tt.padding = 12;
+  tt.cornerRadius = 8;
+  tt.titleFont = { family: "'Inter', sans-serif", size: 12, weight: '600' };
+  tt.bodyFont = { family: "'Inter', sans-serif", size: 11 };
+  tt.boxPadding = 4;
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  Chart.defaults.plugins.legend.labels.boxWidth = 8;
+}
+
 function renderAll() {
+  setupChartDefaults_();
   destroyCharts();
   renderInsights();
   renderKPIs();
@@ -2287,9 +2320,9 @@ function renderKPIs() {
 
   kpis.forEach(k => {
     const color = k.valCls === 'acid' ? '#E7FF2A' :
-                  k.valCls === 'good' ? '#4ecb71' :
+                  k.valCls === 'good' ? '#26A97C' :
                   k.valCls === 'warn' ? '#ff6b35' :
-                  k.valCls === 'mid'  ? '#f7c948' : '#1a6070';
+                  k.valCls === 'mid'  ? '#E0A82E' : '#1a6070';
     drawSparkline('spark_' + k.id, kpiValues[k.id], color, days, k.fmt);
   });
 }
@@ -2309,7 +2342,7 @@ function drawSparkline(canvasId, values, color, labels, fmt) {
     type: 'line',
     data: {
       labels: labels || values.map((_,i)=>i),
-      datasets: [{ data: values, borderColor: color, borderWidth: 1.8, fill: true, backgroundColor: color+'26', pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: color, pointHoverBorderColor:'#071e22', pointHoverBorderWidth:2, tension: 0.35 }]
+      datasets: [{ data: values, borderColor: color, borderWidth: 1.8, fill: true, backgroundColor: color+'26', pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: color, pointHoverBorderColor:'#0B1216', pointHoverBorderWidth:2, tension: 0.35 }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -2317,7 +2350,7 @@ function drawSparkline(canvasId, values, color, labels, fmt) {
       plugins: {
         legend:{display:false},
         tooltip:{
-          enabled:true, backgroundColor:'#071e22', titleColor:'#E7FF2A',
+          enabled:true, backgroundColor:'#0B1216', titleColor:'#E7FF2A',
           bodyColor:'#f5f7f5', borderColor:color, borderWidth:1,
           padding:8, cornerRadius:2, displayColors:false,
           titleFont:{family:'Clash Display', size:11, weight:'700'},
@@ -2345,7 +2378,7 @@ function renderFunnelVisual() {
     if (p >= 60) return 'good'; if (p >= 20) return 'mid'; return 'warn';
   }
   function hexColor(cls) {
-    return cls === 'good' ? '#4ecb71' : cls === 'mid' ? '#f7c948' : cls === 'warn' ? '#ff6b35' : '#1a6070';
+    return cls === 'good' ? '#26A97C' : cls === 'mid' ? '#E0A82E' : cls === 'warn' ? '#ff6b35' : '#1a6070';
   }
   // Log-scale: rango 2.7M a 15 es demasiado para linear. Log mantiene forma + stages chicos visibles.
   function funnelWidthPct(val, mx) {
@@ -2390,12 +2423,12 @@ function renderJourney() {
   const steps = [
     { label:'Ad View',      sub:'Meta Ads',     val:formatNum(d.impressions), color:'#1a6070', key:'impressions' },
     { label:'Ad Click',     sub:'CTA',          val:formatNum(d.clicks),      color:'#2d8295', key:'clicks' },
-    { label:'Landing',      sub:'Desafio',      val:formatNum(d.lpv),         color:'#3ba0b6', key:'lpv' },
-    { label:'Opt-in',       sub:'Datos',        val:formatNum(d.leads),       color:'#f7c948', key:'leads' },
+    { label:'Landing',      sub:'Desafio',      val:formatNum(d.lpv),         color:'#3987E5', key:'lpv' },
+    { label:'Opt-in',       sub:'Datos',        val:formatNum(d.leads),       color:'#E0A82E', key:'leads' },
     { label:'Checkout',     sub:'Pago',         val:formatNum(d.checkouts),   color:'#ff9f43', key:'checkouts' },
     { label:'Compra',       sub:'LT $37',       val:formatNum(d.purchases),   color:'#E7FF2A', key:'purchases' },
-    { label:'Bump 1',       sub:'take rate',    val:formatNum(d.bump1),       color:'#4ecb71', key:'bump1', compareTo:'purchases' },
-    { label:'Bump 2',       sub:'take rate',    val:formatNum(d.bump2),       color:'#10b981', key:'bump2', compareTo:'purchases' }
+    { label:'Bump 1',       sub:'take rate',    val:formatNum(d.bump1),       color:'#26A97C', key:'bump1', compareTo:'purchases' },
+    { label:'Bump 2',       sub:'take rate',    val:formatNum(d.bump2),       color:'#26A97C', key:'bump2', compareTo:'purchases' }
   ];
 
   const annsByStage = {};
@@ -2595,8 +2628,8 @@ function showToast(msg, type) {
 
 // ====== CHARTS ======
 const CHART_PALETTE = {
-  acid:'#E7FF2A', good:'#5cd47e', warn:'#ff7849', mid:'#f7c948',
-  purple:'#9d7bf0', blue:'#5a92ee', teal:'#14b8a6', pink:'#ec4899',
+  acid:'#E7FF2A', good:'#26A97C', warn:'#ff7849', mid:'#E0A82E',
+  purple:'#8B7BE8', blue:'#3987E5', teal:'#14b8a6', pink:'#D55181',
   petrolLight:'#1a6070'
 };
 
@@ -2605,18 +2638,18 @@ function commonChartOptions(extra) {
     responsive:true, maintainAspectRatio:false,
     interaction:{mode:'index', intersect:false},
     plugins:{
-      legend:{ labels:{color:'#c4c5c7', font:{family:'General Sans', size:11, weight:'500'}, padding:14, boxWidth:8, boxHeight:8, usePointStyle:true} },
+      legend:{ labels:{color:'#ADBCC7', font:{family:'General Sans', size:11, weight:'500'}, padding:14, boxWidth:8, boxHeight:8, usePointStyle:true} },
       tooltip:{
         backgroundColor:'rgba(8,46,56,0.96)', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
-        borderColor:'rgba(26,96,112,0.5)', borderWidth:1, padding:14, cornerRadius:4,
+        borderColor:'rgba(151,178,193,0.13)', borderWidth:1, padding:14, cornerRadius:4,
         displayColors:true, boxPadding:6,
         titleFont:{family:'Clash Display', size:12, weight:'700'},
         bodyFont:{family:'General Sans', size:12, weight:'500'}
       }
     },
     scales:{
-      x:{ ticks:{color:'#898A8D', font:{family:'General Sans', size:10}, padding:6}, grid:{color:'rgba(26,96,112,0.12)', drawBorder:false}, border:{display:false} },
-      y:{ ticks:{color:'#898A8D', font:{family:'General Sans', size:10}, padding:6}, grid:{color:'rgba(26,96,112,0.12)', drawBorder:false}, border:{display:false} }
+      x:{ ticks:{color:'#7E8C96', font:{family:'General Sans', size:10}, padding:6}, grid:{color:'rgba(151,178,193,0.06)', drawBorder:false}, border:{display:false} },
+      y:{ ticks:{color:'#7E8C96', font:{family:'General Sans', size:10}, padding:6}, grid:{color:'rgba(151,178,193,0.06)', drawBorder:false}, border:{display:false} }
     }
   }, extra || {});
 }
@@ -2634,7 +2667,7 @@ function annotationsForChart(allKeys) {
       label:{
         content: ann.text.length > 22 ? ann.text.slice(0,20)+'…' : ann.text,
         display:true, position:'start',
-        backgroundColor:'#E7FF2A', color:'#071e22',
+        backgroundColor:'#E7FF2A', color:'#0B1216',
         font:{family:'Clash Display', size:10, weight:'700'},
         padding:{top:3,bottom:3,left:7,right:7},
         yAdjust: (i%3)*18, borderRadius:2
@@ -2666,12 +2699,12 @@ const lastPointLabelPlugin = {
       const x = Math.min(last.x + 8, chart.chartArea.right - w);
       const y = last.y - h/2;
       ctx.fillStyle = ds.borderColor;
-      ctx.strokeStyle = '#071e22';
+      ctx.strokeStyle = '#0B1216';
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(x, y, w, h, 3);
       else ctx.rect(x, y, w, h);
       ctx.fill();
-      ctx.fillStyle = '#071e22';
+      ctx.fillStyle = '#0B1216';
       ctx.textBaseline = 'middle';
       ctx.fillText(txt, x + 5, y + h/2 + 0.5);
       ctx.restore();
@@ -2734,7 +2767,7 @@ function renderFunnelDailyChart() {
   if (leadsStats.avg > 0) anns.avgLeads = {
     type:'line', yMin: leadsStats.avg, yMax: leadsStats.avg,
     borderColor: CHART_PALETTE.mid, borderWidth: 1, borderDash:[2,4],
-    label: { display:true, content:`prom ${Math.round(leadsStats.avg)}`, position:'end', backgroundColor:'rgba(247,201,72,0.2)', color: CHART_PALETTE.mid, font:{size:9, family:'JetBrains Mono'}, padding:{top:2,bottom:2,left:5,right:5}, borderRadius:2 }
+    label: { display:true, content:`prom ${Math.round(leadsStats.avg)}`, position:'end', backgroundColor:'rgba(224,168,46,0.2)', color: CHART_PALETTE.mid, font:{size:9, family:'JetBrains Mono'}, padding:{top:2,bottom:2,left:5,right:5}, borderRadius:2 }
   };
   if (purStats.avg > 0) anns.avgPur = {
     type:'line', yMin: purStats.avg, yMax: purStats.avg,
@@ -2747,17 +2780,17 @@ function renderFunnelDailyChart() {
     data:{
       labels: keys,
       datasets:[
-        { label:'Leads',   data:leads,     borderColor:CHART_PALETTE.mid,  backgroundColor:'rgba(247,201,72,0.14)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:5, borderWidth:2, _fmt:(v)=>Math.round(v) },
+        { label:'Leads',   data:leads,     borderColor:CHART_PALETTE.mid,  backgroundColor:'rgba(224,168,46,0.14)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:5, borderWidth:2, _fmt:(v)=>Math.round(v) },
         { label:'Compras', data:purchases, borderColor:CHART_PALETTE.acid, backgroundColor:'rgba(231,255,42,0.18)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:5, borderWidth:2, _fmt:(v)=>Math.round(v) }
       ]
     },
     options: commonChartOptions({
       plugins: {
-        legend: { position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}} },
+        legend: { position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}} },
         annotation: { annotations: anns },
         tooltip: {
-          backgroundColor:'#071e22', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
-          borderColor:'#1a6070', borderWidth:1, padding:12, cornerRadius:3,
+          backgroundColor:'#0B1216', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
+          borderColor:'rgba(151,178,193,0.2)', borderWidth:1, padding:12, cornerRadius:3,
           titleFont:{family:'Clash Display', size:13, weight:'700'},
           bodyFont:{family:'JetBrains Mono', size:11},
           callbacks: {
@@ -2773,8 +2806,8 @@ function renderFunnelDailyChart() {
         }
       },
       scales: {
-        x:{ ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'} },
-        y:{ beginAtZero:true, ticks:{color:'#898A8D', font:{size:10}, callback:v=>Math.round(v)}, grid:{color:'rgba(26,96,112,0.25)'}, title:{display:true, text:'Cantidad por d\u00EDa', color:'#898A8D', font:{size:10, family:'Clash Display', weight:'600'}} }
+        x:{ ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'} },
+        y:{ beginAtZero:true, ticks:{color:'#7E8C96', font:{size:10}, callback:v=>Math.round(v)}, grid:{color:'rgba(151,178,193,0.07)'}, title:{display:true, text:'Cantidad por d\u00EDa', color:'#7E8C96', font:{size:10, family:'Clash Display', weight:'600'}} }
       }
     }),
     plugins: [lastPointLabelPlugin]
@@ -2819,11 +2852,11 @@ function renderConversionsChart() {
     },
     options: commonChartOptions({
       plugins: {
-        legend: { position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}} },
+        legend: { position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}} },
         annotation: { annotations: annotationsForChart(keys) },
         tooltip: {
-          backgroundColor:'#071e22', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
-          borderColor:'#1a6070', borderWidth:1, padding:12, cornerRadius:3,
+          backgroundColor:'#0B1216', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
+          borderColor:'rgba(151,178,193,0.2)', borderWidth:1, padding:12, cornerRadius:3,
           titleFont:{family:'Clash Display', size:13, weight:'700'},
           bodyFont:{family:'JetBrains Mono', size:11},
           callbacks: {
@@ -2833,8 +2866,8 @@ function renderConversionsChart() {
         }
       },
       scales: {
-        x:{ ticks:{color:'#898A8D', font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0}, grid:{color:'rgba(26,96,112,0.25)'} },
-        y:{ beginAtZero:true, ticks:{color:'#898A8D', font:{size:10}, callback:v=>v.toFixed(0)+'%'}, grid:{color:'rgba(26,96,112,0.25)'}, title:{display:true, text:'% conversi\u00F3n', color:'#898A8D', font:{size:10, family:'Clash Display', weight:'600'}} }
+        x:{ ticks:{color:'#7E8C96', font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0}, grid:{color:'rgba(151,178,193,0.07)'} },
+        y:{ beginAtZero:true, ticks:{color:'#7E8C96', font:{size:10}, callback:v=>v.toFixed(0)+'%'}, grid:{color:'rgba(151,178,193,0.07)'}, title:{display:true, text:'% conversi\u00F3n', color:'#7E8C96', font:{size:10, family:'Clash Display', weight:'600'}} }
       }
     }),
     plugins: [lastPointLabelPlugin]
@@ -2880,8 +2913,8 @@ function renderAccumulatedMonthCharts() {
   if (months.length === 0) return;
 
   // Colores por mes: mas viejo -> mas reciente
-  const monthColors = ['#3b82f6', '#ec4899', '#E7FF2A']; // azul, rosa, acid
-  const monthBgs    = ['rgba(59,130,246,0.10)', 'rgba(236,72,153,0.10)', 'rgba(231,255,42,0.15)'];
+  const monthColors = ['#3b82f6', '#D55181', '#E7FF2A']; // azul, rosa, acid
+  const monthBgs    = ['rgba(59,130,246,0.10)', 'rgba(213,81,129,0.10)', 'rgba(231,255,42,0.15)'];
 
   const labels = Array.from({length: 31}, (_, i) => String(i + 1));
 
@@ -2908,10 +2941,10 @@ function renderAccumulatedMonthCharts() {
       responsive: true, maintainAspectRatio: false,
       interaction: {mode: 'index', intersect: false},
       plugins: {
-        legend: { position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}} },
+        legend: { position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}} },
         tooltip: {
-          backgroundColor:'#071e22', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
-          borderColor:'#1a6070', borderWidth:1, padding:12, cornerRadius:3,
+          backgroundColor:'#0B1216', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
+          borderColor:'rgba(151,178,193,0.2)', borderWidth:1, padding:12, cornerRadius:3,
           titleFont:{family:'Clash Display', size:13, weight:'700'},
           bodyFont:{family:'JetBrains Mono', size:11},
           callbacks: {
@@ -2922,15 +2955,15 @@ function renderAccumulatedMonthCharts() {
       },
       scales: {
         x: {
-          ticks: {color:'#898A8D', font:{size:10}, maxTicksLimit:16, autoSkip:true, maxRotation:0},
-          grid: {color:'rgba(26,96,112,0.25)'},
-          title: {display:true, text:'Día del mes', color:'#898A8D', font:{size:10, family:'Clash Display', weight:'600'}}
+          ticks: {color:'#7E8C96', font:{size:10}, maxTicksLimit:16, autoSkip:true, maxRotation:0},
+          grid: {color:'rgba(151,178,193,0.07)'},
+          title: {display:true, text:'Día del mes', color:'#7E8C96', font:{size:10, family:'Clash Display', weight:'600'}}
         },
         y: {
           beginAtZero: true,
-          ticks: {color:'#898A8D', font:{size:10}, callback:v=>Math.round(v).toLocaleString()},
-          grid: {color:'rgba(26,96,112,0.25)'},
-          title: {display:true, text:'Acumulado', color:'#898A8D', font:{size:10, family:'Clash Display', weight:'600'}}
+          ticks: {color:'#7E8C96', font:{size:10}, callback:v=>Math.round(v).toLocaleString()},
+          grid: {color:'rgba(151,178,193,0.07)'},
+          title: {display:true, text:'Acumulado', color:'#7E8C96', font:{size:10, family:'Clash Display', weight:'600'}}
         }
       }
     };
@@ -2979,26 +3012,26 @@ function renderTrendCharts() {
     data:{ labels:keys, datasets:[{ label:'CPL', data:keys.map(k=>dayMetric(k,'cpl')), borderColor:CHART_PALETTE.purple, backgroundColor:'rgba(168,85,247,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
     options: commonChartOptions({
       plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPL: $'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(151,178,193,0.07)'}} }
     })
   });
 
   chartInstances.cpa = new Chart(document.getElementById('chartCPA'), {
     type:'line',
-    data:{ labels:keys, datasets:[{ label:'CPA', data:keys.map(k=>dayMetric(k,'cpa')), borderColor:CHART_PALETTE.warn, backgroundColor:'rgba(255,107,53,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
+    data:{ labels:keys, datasets:[{ label:'CPA', data:keys.map(k=>dayMetric(k,'cpa')), borderColor:CHART_PALETTE.warn, backgroundColor:'rgba(230,103,103,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
     options: commonChartOptions({
       plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPA: $'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(151,178,193,0.07)'}} }
     })
   });
 
   const profit = keys.map(k=>dayMetric(k,'profit'));
   chartInstances.profit = new Chart(document.getElementById('chartProfit'), {
     type:'bar',
-    data:{ labels:keys, datasets:[{ label:'Ganancia', data:profit, backgroundColor: profit.map(v=>v>=0?'rgba(78,203,113,0.75)':'rgba(255,107,53,0.75)'), borderColor: profit.map(v=>v>=0?CHART_PALETTE.good:CHART_PALETTE.warn), borderWidth:1 }] },
+    data:{ labels:keys, datasets:[{ label:'Ganancia', data:profit, backgroundColor: profit.map(v=>v>=0?'rgba(38,169,124,0.75)':'rgba(230,103,103,0.75)'), borderColor: profit.map(v=>v>=0?CHART_PALETTE.good:CHART_PALETTE.warn), borderWidth:1 }] },
     options: commonChartOptions({
       plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>(ctx.parsed.y>=0?'+':'')+'$'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(151,178,193,0.07)'}} }
     })
   });
 
@@ -3007,7 +3040,7 @@ function renderTrendCharts() {
     data:{ labels:keys, datasets:[{ label:'ROAS', data:keys.map(k=>dayMetric(k,'roas')), borderColor:CHART_PALETTE.acid, backgroundColor:'rgba(231,255,42,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
     options: commonChartOptions({
       plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'ROAS: '+ctx.parsed.y.toFixed(2)+'x'}} },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>v.toFixed(1)+'x'},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>v.toFixed(1)+'x'},grid:{color:'rgba(151,178,193,0.07)'}} }
     })
   });
 }
@@ -3031,7 +3064,7 @@ function renderHeatmap() {
     const val = avgs[i];
     const intensity = val/max;
     const bg = 'rgba(231,255,42,'+(0.08 + intensity*0.88).toFixed(2)+')';
-    html += '<div class="heatmap-cell" style="background:'+bg+';color:'+(intensity > 0.4 ? '#071e22' : '#f5f7f5')+'">'+val.toFixed(1)+'</div>';
+    html += '<div class="heatmap-cell" style="background:'+bg+';color:'+(intensity > 0.4 ? '#0B1216' : '#f5f7f5')+'">'+val.toFixed(1)+'</div>';
   });
   html += '</div>';
   document.getElementById('heatmapContainer').innerHTML = html;
@@ -3055,8 +3088,8 @@ function renderRevenue() {
       <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?ltRev/totalRev*100:0}%;background:var(--acid)"></div></div>
       <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 1 (${d.bump1} ventas)</span><span class="revenue-item-value" style="color:var(--good)">${fmtMoney(b1Rev)}</span></div>
       <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b1Rev/totalRev*100:0}%;background:var(--good)"></div></div>
-      <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 2 (${d.bump2} ventas)</span><span class="revenue-item-value" style="color:#10b981">${fmtMoney(b2Rev)}</span></div>
-      <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b2Rev/totalRev*100:0}%;background:#10b981"></div></div>
+      <div class="revenue-item" style="margin-top:6px"><span class="revenue-item-label">Bump 2 (${d.bump2} ventas)</span><span class="revenue-item-value" style="color:#26A97C">${fmtMoney(b2Rev)}</span></div>
+      <div class="revenue-bar-bg"><div class="revenue-bar-fill" style="width:${totalRev>0?b2Rev/totalRev*100:0}%;background:#26A97C"></div></div>
       <div class="revenue-item" style="margin-top:14px;border-top:2px solid var(--acid);padding-top:10px"><span class="revenue-item-label" style="font-weight:700">TOTAL</span><span class="revenue-item-value" style="color:var(--acid);font-size:24px">${fmtMoney(totalRev)}</span></div>
     </div>
     <div class="panel">
@@ -3065,13 +3098,13 @@ function renderRevenue() {
       <div class="revenue-item"><span class="revenue-item-label">CPA</span><span class="revenue-item-value" style="color:var(--warn)">${fmtMoney(d.purchases>0?d.spend/d.purchases:0)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">AOV</span><span class="revenue-item-value" style="color:var(--acid)">${fmtMoney(aov)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">Bump 1 Take Rate</span><span class="revenue-item-value" style="color:var(--good)">${fmtPct(b1Rate)}</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Bump 2 Take Rate</span><span class="revenue-item-value" style="color:#10b981">${fmtPct(b2Rate)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Bump 2 Take Rate</span><span class="revenue-item-value" style="color:#26A97C">${fmtPct(b2Rate)}</span></div>
       <div class="revenue-item" style="margin-top:6px;border-top:2px solid ${ganancia>=0?'var(--good)':'var(--warn)'};padding-top:10px"><span class="revenue-item-label" style="font-weight:700">GANANCIA NETA</span><span class="revenue-item-value" style="color:${ganancia>=0?'var(--good)':'var(--warn)'};font-size:22px">${ganancia>=0?'+':''}${fmtMoney(ganancia)}</span></div>
     </div>
     <div class="panel">
       <div class="panel-title" style="margin-bottom:12px">Eficiencia del Embudo</div>
       <div class="revenue-item"><span class="revenue-item-label">CTR</span><span class="revenue-item-value" style="color:var(--blue)">${fmtPct(d.impressions>0?d.clicks/d.impressions*100:0)}</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">Landing \u2192 Lead</span><span class="revenue-item-value" style="color:#f7c948">${fmtPct(d.lpv>0?d.leads/d.lpv*100:0)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Landing \u2192 Lead</span><span class="revenue-item-value" style="color:#E0A82E">${fmtPct(d.lpv>0?d.leads/d.lpv*100:0)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">Lead \u2192 Checkout</span><span class="revenue-item-value" style="color:var(--warn)">${fmtPct(d.leads>0?d.checkouts/d.leads*100:0)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">Checkout \u2192 Compra</span><span class="revenue-item-value" style="color:var(--acid)">${fmtPct(d.checkouts>0?d.purchases/d.checkouts*100:0)}</span></div>
       <div class="revenue-item" style="border-top:1px dashed var(--petrol-light);margin-top:6px;padding-top:8px"><span class="revenue-item-label">Tasa Conv Landing <span style="color:var(--grey-light);font-size:11px">(compras/LPV)</span></span><span class="revenue-item-value" style="color:var(--acid)">${fmtPct(d.lpv>0?d.purchases/d.lpv*100:0)}</span></div>
@@ -3092,12 +3125,12 @@ function renderRevenueCharts() {
       labels:keys,
       datasets:[
         { label:'Low Ticket', data:lt, backgroundColor:'rgba(231,255,42,0.8)', stack:'rev', borderColor:CHART_PALETTE.acid, borderWidth:1 },
-        { label:'Bump 1', data:b1, backgroundColor:'rgba(78,203,113,0.8)', stack:'rev', borderColor:CHART_PALETTE.good, borderWidth:1 },
-        { label:'Bump 2', data:b2, backgroundColor:'rgba(16,185,129,0.8)', stack:'rev', borderColor:'#10b981', borderWidth:1 }
+        { label:'Bump 1', data:b1, backgroundColor:'rgba(38,169,124,0.8)', stack:'rev', borderColor:CHART_PALETTE.good, borderWidth:1 },
+        { label:'Bump 2', data:b2, backgroundColor:'rgba(16,185,129,0.8)', stack:'rev', borderColor:'#26A97C', borderWidth:1 }
       ]
     },
     options: commonChartOptions({
-      scales:{ x:{stacked:true,ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{stacked:true,ticks:{color:'#898A8D',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(26,96,112,0.25)'}} },
+      scales:{ x:{stacked:true,ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{stacked:true,ticks:{color:'#7E8C96',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(151,178,193,0.07)'}} },
       plugins:{ annotation:{annotations: annotationsForChart(keys)} }
     })
   });
@@ -3111,12 +3144,12 @@ function renderRevenueCharts() {
       labels:keys,
       datasets:[
         { label:'Bump 1', data:b1Rate, borderColor:CHART_PALETTE.good, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false },
-        { label:'Bump 2', data:b2Rate, borderColor:'#10b981', tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false }
+        { label:'Bump 2', data:b2Rate, borderColor:'#26A97C', tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false }
       ]
     },
     options: commonChartOptions({
       plugins: { annotation: { annotations: annotationsForChart(keys) } },
-      scales:{ x:{ticks:{color:'#898A8D',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(26,96,112,0.25)'}}, y:{ticks:{color:'#898A8D',font:{size:10},callback:v=>v.toFixed(0)+'%'},grid:{color:'rgba(26,96,112,0.25)'}} }
+      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>v.toFixed(0)+'%'},grid:{color:'rgba(151,178,193,0.07)'}} }
     })
   });
 }
@@ -3252,7 +3285,7 @@ function renderForecast() {
 function renderForecastCharts() {
   const metrics = [
     { id:'purchases', canvas:'chartForecastPurchases', color:'#E7FF2A', label:'Compras' },
-    { id:'revenue',   canvas:'chartForecastRevenue',   color:'#4ecb71', label:'Revenue', money:true },
+    { id:'revenue',   canvas:'chartForecastRevenue',   color:'#26A97C', label:'Revenue', money:true },
     { id:'leads',     canvas:'chartForecastLeads',     color:'#3b82f6', label:'Leads' },
     { id:'profit',    canvas:'chartForecastProfit',    color:'#a855f7', label:'Ganancia', money:true }
   ];
@@ -3286,12 +3319,12 @@ function renderForecastCharts() {
       },
       options: commonChartOptions({
         plugins:{
-          legend:{ display:true, position:'top', labels:{ color:'#c4c5c7', font:{size:10}, boxWidth:14 } },
+          legend:{ display:true, position:'top', labels:{ color:'#ADBCC7', font:{size:10}, boxWidth:14 } },
           tooltip:{ callbacks:{ label:(c)=> c.dataset.label + ': ' + (m.money ? fmtMoney(c.raw||0) : Math.round(c.raw||0)) } }
         },
         scales:{
-          x:{ ticks:{color:'#898A8D',font:{size:9},maxTicksLimit:14,autoSkip:true,maxRotation:0}, grid:{color:'rgba(26,96,112,0.2)'} },
-          y:{ ticks:{color:'#898A8D',font:{size:10},callback:v=> m.money ? fmtMoneyCompact(v) : Math.round(v)}, grid:{color:'rgba(26,96,112,0.2)'} }
+          x:{ ticks:{color:'#7E8C96',font:{size:9},maxTicksLimit:14,autoSkip:true,maxRotation:0}, grid:{color:'rgba(151,178,193,0.08)'} },
+          y:{ ticks:{color:'#7E8C96',font:{size:10},callback:v=> m.money ? fmtMoneyCompact(v) : Math.round(v)}, grid:{color:'rgba(151,178,193,0.08)'} }
         }
       })
     });
@@ -3680,8 +3713,8 @@ function renderAscensos() {
   // --- Charts ---
   setTimeout(() => {
     const mLabels = mkeysView.map(ascMesLabel_);
-    const gridCol = 'rgba(26,96,112,0.25)';
-    const tickStyle = { color:'#898A8D', font:{size:10} };
+    const gridCol = 'rgba(151,178,193,0.07)';
+    const tickStyle = { color:'#7E8C96', font:{size:10} };
 
     // 1. Ventas por mes — stacked por modalidad en "Todas"; serie única si hay segmento
     const c1 = document.getElementById('chartAscVentas');
@@ -3691,18 +3724,18 @@ function renderAscensos() {
       if (seg === 'all') {
         ds = [
           { label:'Guiado',   data:mkeysView.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
-          { label:'Asistido', data:mkeysView.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(59,160,182,0.75)', borderRadius:2, stack:'v' },
-          { label:'Autónomo', data:mkeysView.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(236,72,153,0.65)', borderRadius:2, stack:'v' }
+          { label:'Asistido', data:mkeysView.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(57,135,229,0.75)', borderRadius:2, stack:'v' },
+          { label:'Autónomo', data:mkeysView.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(213,81,129,0.65)', borderRadius:2, stack:'v' }
         ];
       } else {
         ds = [{ label:ASC_SEG_LABEL[seg], data:mkeysView.map(m=>ascSeg_(meses[m], seg).ventas),
-                backgroundColor:mkeysView.map(m => m === (per.mesSel || mesActual) ? 'rgba(231,255,42,0.75)' : 'rgba(59,160,182,0.6)'), borderRadius:3 }];
+                backgroundColor:mkeysView.map(m => m === (per.mesSel || mesActual) ? 'rgba(231,255,42,0.75)' : 'rgba(57,135,229,0.6)'), borderRadius:3 }];
       }
       chartInstances.ascVentas = new Chart(c1, {
         type:'bar',
         data:{ labels:mLabels, datasets:ds },
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display: seg === 'all', position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}} },
+          plugins:{ legend:{display: seg === 'all', position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}} },
           scales:{ x:{stacked:true, ticks:tickStyle, grid:{display:false}}, y:{stacked:true, beginAtZero:true, ticks:tickStyle, grid:{color:gridCol}} } }
       });
     }
@@ -3714,11 +3747,11 @@ function renderAscensos() {
       chartInstances.ascRevenue = new Chart(c2, {
         type:'line',
         data:{ labels:mLabels, datasets:[
-          { label:'Contratado', data:mkeysView.map(m=>Math.round(ascSeg_(meses[m], seg).contratado)), borderColor:'#3ba0b6', backgroundColor:'rgba(59,160,182,0.12)', fill:true, tension:0.3, pointRadius:2 },
+          { label:'Contratado', data:mkeysView.map(m=>Math.round(ascSeg_(meses[m], seg).contratado)), borderColor:'#3987E5', backgroundColor:'rgba(57,135,229,0.12)', fill:true, tension:0.3, pointRadius:2 },
           { label:'Cobrado', data:mkeysView.map(m=>Math.round(ascSeg_(meses[m], seg).cobrado)), borderColor:'#E7FF2A', backgroundColor:'rgba(231,255,42,0.10)', fill:true, tension:0.3, pointRadius:2 }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
           scales:{ x:{ticks:tickStyle, grid:{display:false}}, y:{beginAtZero:true, ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}} } }
       });
     }
@@ -3737,12 +3770,12 @@ function renderAscensos() {
         type:'line',
         data:{ labels: ASC_MESES, datasets:[
           { label:'Ventas 2026', data:serieAnio('2026','ventas'), borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y' },
-          { label:'Ventas 2025', data:serieAnio('2025','ventas'), borderColor:'#898A8D', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y' },
-          { label:'Cobrado 2026', data:serieAnio('2026','cobrado'), borderColor:'#5cd47e', borderDash:[6,4], borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y2', hidden:true },
-          { label:'Cobrado 2025', data:serieAnio('2025','cobrado'), borderColor:'#3ba0b6', borderDash:[6,4], borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y2', hidden:true }
+          { label:'Ventas 2025', data:serieAnio('2025','ventas'), borderColor:'#7E8C96', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y' },
+          { label:'Cobrado 2026', data:serieAnio('2026','cobrado'), borderColor:'#26A97C', borderDash:[6,4], borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y2', hidden:true },
+          { label:'Cobrado 2025', data:serieAnio('2025','cobrado'), borderColor:'#3987E5', borderDash:[6,4], borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y2', hidden:true }
         ]},
         options:{ responsive:true, maintainAspectRatio:false, spanGaps:false,
-          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
             tooltip:{ callbacks:{ label: ctx => ' ' + ctx.dataset.label + ': ' + (ctx.dataset.yAxisID === 'y2' ? '$' + ctx.parsed.y.toLocaleString() : ctx.parsed.y) } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
@@ -3769,11 +3802,11 @@ function renderAscensos() {
       chartInstances.ascMix = new Chart(cMix, {
         type:'bar',
         data:{ labels: mkeysView.map(ascMesLabel_), datasets:[
-          { label:'Cobro de ventas del mes', data:inicial, backgroundColor:'rgba(92,212,126,0.65)', borderRadius:2, stack:'c' },
-          { label:'Cuotas de meses previos', data:cuotas, backgroundColor:'rgba(59,160,182,0.6)', borderRadius:2, stack:'c' }
+          { label:'Cobro de ventas del mes', data:inicial, backgroundColor:'rgba(38,169,124,0.65)', borderRadius:2, stack:'c' },
+          { label:'Cuotas de meses previos', data:cuotas, backgroundColor:'rgba(57,135,229,0.6)', borderRadius:2, stack:'c' }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
             tooltip:{ callbacks:{
               label: ctx => ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(),
               footer: items => {
@@ -3804,10 +3837,10 @@ function renderAscensos() {
       chartInstances.ascDiario = new Chart(c3, {
         data:{ labels: dkeys.map(k => multiMes ? parseInt(k.slice(8,10),10) + '/' + parseInt(k.slice(5,7),10) : parseInt(k.slice(8,10),10)), datasets:[
           { type:'bar', label:'Ventas', data:dkeys.map(k=>ascSeg_(days[k], seg).ventas), backgroundColor:'rgba(231,255,42,0.7)', borderRadius:2, yAxisID:'y' },
-          { type:'line', label:'Cobrado acum.', data:cobradoAcum, borderColor:'#5cd47e', tension:0.3, pointRadius:0, yAxisID:'y2' }
+          { type:'line', label:'Cobrado acum.', data:cobradoAcum, borderColor:'#26A97C', tension:0.3, pointRadius:0, yAxisID:'y2' }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
             y:{beginAtZero:true, position:'left', ticks:{...tickStyle, stepSize:1}, grid:{color:gridCol}},
@@ -3842,18 +3875,18 @@ function renderAscensos() {
       const roasMeta = ecoKeys.map((mk,i) => spendMeta[i] > 0 ? +(revTotal[i]/spendMeta[i]).toFixed(2) : 0);
       const hayGoogle = ecoKeys.some((mk,i) => lt[mk].spendG > 0);
       const dsEco = [
-        { type:'bar', label:'Spend total (Meta+Google+HT)', data:spendReal, backgroundColor:'rgba(255,120,73,0.55)', borderRadius:2, yAxisID:'y' },
-        { type:'bar', label:'Revenue total (LT + HT cobrado)', data:revTotal, backgroundColor:'rgba(92,212,126,0.6)', borderRadius:2, yAxisID:'y' },
+        { type:'bar', label:'Spend total (Meta+Google+HT)', data:spendReal, backgroundColor:'rgba(230,103,103,0.55)', borderRadius:2, yAxisID:'y' },
+        { type:'bar', label:'Revenue total (LT + HT cobrado)', data:revTotal, backgroundColor:'rgba(38,169,124,0.6)', borderRadius:2, yAxisID:'y' },
         { type:'line', label:'ROAS real', data:roasReal, borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y2' }
       ];
       // La línea "solo Meta" únicamente si difiere (hay spend de Google)
       if (hayGoogle) {
-        dsEco.push({ type:'line', label:'ROAS solo Meta (Excel)', data:roasMeta, borderColor:'#898A8D', borderWidth:2, borderDash:[6,4], tension:0.3, pointRadius:0, yAxisID:'y2' });
+        dsEco.push({ type:'line', label:'ROAS solo Meta (Excel)', data:roasMeta, borderColor:'#7E8C96', borderWidth:2, borderDash:[6,4], tension:0.3, pointRadius:0, yAxisID:'y2' });
       }
       chartInstances.ascEco = new Chart(c4, {
         data:{ labels: ecoKeys.map(ascMesLabel_), datasets: dsEco },
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
             tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + 'x' : ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
@@ -3919,8 +3952,8 @@ function renderAscensos() {
             label:'Neto semanal',
             data: neto,
             backgroundColor: neto.map((v,i) => v >= 0
-              ? (esActual[i] ? 'rgba(92,212,126,0.35)' : 'rgba(92,212,126,0.7)')
-              : (esActual[i] ? 'rgba(255,120,73,0.35)' : 'rgba(255,120,73,0.7)')),
+              ? (esActual[i] ? 'rgba(38,169,124,0.35)' : 'rgba(38,169,124,0.7)')
+              : (esActual[i] ? 'rgba(230,103,103,0.35)' : 'rgba(230,103,103,0.7)')),
             borderRadius: 3
           }]},
         options:{ responsive:true, maintainAspectRatio:false,
@@ -3957,10 +3990,10 @@ function renderAscensos() {
       chartInstances.ascDow = new Chart(cDow, {
         data:{ labels: DOW, datasets:[
           { type:'bar', label:'Ventas prom./día', data:avgV, backgroundColor:'rgba(231,255,42,0.7)', borderRadius:3, yAxisID:'y' },
-          { type:'line', label:'Cobrado prom./día', data:avgC, borderColor:'#5cd47e', borderWidth:2, tension:0.3, pointRadius:3, yAxisID:'y2' }
+          { type:'line', label:'Cobrado prom./día', data:avgC, borderColor:'#26A97C', borderWidth:2, tension:0.3, pointRadius:3, yAxisID:'y2' }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
             tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' Cobrado prom.: $' + ctx.parsed.y.toLocaleString() : ' Ventas prom.: ' + ctx.parsed.y } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
@@ -3984,12 +4017,12 @@ function renderAscensos() {
                                         (per.dias.length > 366 ? '/' + k.slice(2,4) : ''));
       chartInstances.ascSerie = new Chart(cSer, {
         data:{ labels: sLabels, datasets:[
-          { type:'bar', label:'Ventas del día', data:serie, backgroundColor:'rgba(59,160,182,0.35)', borderRadius:1, yAxisID:'y' },
+          { type:'bar', label:'Ventas del día', data:serie, backgroundColor:'rgba(57,135,229,0.35)', borderRadius:1, yAxisID:'y' },
           { type:'line', label:'Media móvil 7d', data:ma7, borderColor:'#E7FF2A', borderWidth:2.5, tension:0.35, pointRadius:0, yAxisID:'y' }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
           interaction:{mode:'index', intersect:false},
-          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}} },
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}} },
           scales:{
             x:{ticks:{...tickStyle, maxTicksLimit:14, autoSkip:true, maxRotation:0}, grid:{display:false}},
             y:{beginAtZero:true, ticks:tickStyle, grid:{color:gridCol}}
@@ -4028,13 +4061,13 @@ function renderAscensos() {
       if (subEl) subEl.textContent = 'promedio ' + prom.toFixed(1) + '% · la línea punteada usa las compras LT del mes ANTERIOR (cohorte madurada) — la más justa para el mes en curso';
       chartInstances.ascTasa = new Chart(c5, {
         data:{ labels: tKeys.map(ascMesLabel_), datasets:[
-          { type:'bar', label:'Compras LT', data:tKeys.map(mk => ltCompras[mk]), backgroundColor:'rgba(59,160,182,0.25)', borderRadius:2, yAxisID:'y2' },
+          { type:'bar', label:'Compras LT', data:tKeys.map(mk => ltCompras[mk]), backgroundColor:'rgba(57,135,229,0.25)', borderRadius:2, yAxisID:'y2' },
           { type:'line', label:'Tasa ascenso total %', data:tasaTotal, borderColor:'#E7FF2A', borderWidth:3, tension:0.3, pointRadius:3, yAxisID:'y' },
-          { type:'line', label:'Tasa rezagada (cohorte) %', data:tasaRez, borderColor:'#5cd47e', borderDash:[6,4], borderWidth:2.5, tension:0.3, pointRadius:2, yAxisID:'y', spanGaps:true },
-          { type:'line', label:'Solo Guiado %', data:tasaMent, borderColor:'#ec4899', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y', hidden:true }
+          { type:'line', label:'Tasa rezagada (cohorte) %', data:tasaRez, borderColor:'#26A97C', borderDash:[6,4], borderWidth:2.5, tension:0.3, pointRadius:2, yAxisID:'y', spanGaps:true },
+          { type:'line', label:'Solo Guiado %', data:tasaMent, borderColor:'#D55181', borderWidth:2, tension:0.3, pointRadius:2, yAxisID:'y', hidden:true }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{position:'top', align:'end', labels:{color:'#c4c5c7', usePointStyle:true, boxWidth:8, font:{size:10}}},
+          plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
             tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' ' + ctx.dataset.label.replace(' %','') + ': ' + ctx.parsed.y + '%' : ' Compras LT: ' + ctx.parsed.y } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
