@@ -1378,11 +1378,6 @@
             <div class="chart-subtitle">mismo mes, 2025 vs 2026 &middot; click en la leyenda para ver cobrado &middot; ignora el filtro de per&iacute;odo</div>
             <div class="chart-wrap"><canvas id="chartAscYoY"></canvas></div>
           </div>
-          <div class="chart-card">
-            <div class="chart-title">Mix de cash mensual</div>
-            <div class="chart-subtitle">cobro de ventas del mes vs cuotas de financiaciones previas</div>
-            <div class="chart-wrap"><canvas id="chartAscMix"></canvas></div>
-          </div>
         </div>
 
         <div class="section-title">02 &middot; Detalle diario del mes <span class="sub">ventas y cobros d&iacute;a a d&iacute;a</span></div>
@@ -1398,7 +1393,12 @@
             <div class="chart-wrap"><canvas id="chartAscEco"></canvas></div>
           </div>
         </div>
-        <div class="charts-grid" style="grid-template-columns:1fr">
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Mix de cash mensual</div>
+            <div class="chart-subtitle">cobro de ventas del mes vs cuotas de financiaciones previas</div>
+            <div class="chart-wrap"><canvas id="chartAscMix"></canvas></div>
+          </div>
           <div class="chart-card">
             <div class="chart-title">Caja semanal neta</div>
             <div class="chart-subtitle" id="ascCajaSub">cash total (LT + HT cobrado) &minus; spend total, por semana Lun-Dom &middot; &uacute;ltimas 12 semanas</div>
