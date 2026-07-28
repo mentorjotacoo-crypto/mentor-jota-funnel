@@ -3628,6 +3628,25 @@ function ascAnios_() {
   return [...new Set(Object.keys(APP_DATA.ascensos.days).map(k => k.slice(0, 4)))].sort();
 }
 
+// Estado vacío para charts que dependen de data LT (que arranca en feb 2026):
+// con un período de 2025 no hay con qué combinar. Devuelve true si quedó vacío.
+function ascChartVacio_(canvasId, msg) {
+  const c = document.getElementById(canvasId);
+  if (!c) return true;
+  const wrap = c.parentElement;
+  let ov = wrap.querySelector('.chart-empty');
+  if (msg) {
+    c.style.display = 'none';
+    if (!ov) { ov = document.createElement('div'); ov.className = 'chart-empty'; wrap.appendChild(ov); }
+    ov.textContent = msg;
+    ov.style.display = 'flex';
+    return true;
+  }
+  c.style.display = '';
+  if (ov) ov.style.display = 'none';
+  return false;
+}
+
 // Días del mes anterior a un mes dado (cruza año: Ene 2026 → Dic 2025)
 function ascDiasMesPrev_(mk, all) {
   const mkeys = [...new Set(all.map(k => k.slice(0, 7)))].sort();
