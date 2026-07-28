@@ -212,14 +212,42 @@
   }
   .compare-select:focus { border-color:var(--acid); outline:none; }
   /* Selector de período propio del tab Ascensos (colapsa año+mes en un control) */
-  .asc-select {
-    background:var(--bg-elev); color:var(--white); border:1px solid var(--hairline);
-    padding:7px 11px; border-radius:7px; font-size:11px;
-    font-family:'Clash Display',sans-serif; font-weight:600; letter-spacing:1px;
-    text-transform:uppercase; cursor:pointer; min-height:34px;
+  .asc-period { position:relative; display:inline-block; }
+  .asc-period-btn {
+    background:var(--bg-elev); color:var(--acid); border:1px solid var(--acid);
+    padding:8px 14px; border-radius:7px; font-size:11px; min-height:34px;
+    font-family:'Clash Display',sans-serif; font-weight:700; letter-spacing:1.2px;
+    text-transform:uppercase; cursor:pointer; display:inline-flex; align-items:center; gap:9px;
+    transition:filter 0.15s;
   }
-  .asc-select:focus { border-color:var(--acid); outline:none; }
-  .asc-select.custom { border-color:var(--acid); color:var(--acid); }
+  .asc-period-btn:hover { filter:brightness(1.15); }
+  .asc-period-btn .chev { font-size:9px; opacity:0.8; }
+  .asc-period-pop {
+    display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:1200;
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    padding:14px; min-width:330px; box-shadow:0 12px 34px rgba(0,0,0,0.55);
+  }
+  .asc-period-pop.open { display:block; }
+  .asc-period-pop .grp {
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'Clash Display',sans-serif; font-weight:600; font-size:10px;
+    letter-spacing:1.6px; text-transform:uppercase; color:var(--grey);
+    margin:14px 0 8px;
+  }
+  .asc-period-pop .grp:first-child { margin-top:0; }
+  .asc-period-pop .row { display:flex; flex-wrap:wrap; gap:6px; }
+  .asc-period-pop .row.months { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .asc-opt {
+    background:transparent; border:1px solid var(--hairline); color:var(--grey-light);
+    font-family:'Inter',sans-serif; font-weight:500; font-size:11px;
+    padding:7px 10px; border-radius:7px; cursor:pointer; transition:all 0.15s;
+    white-space:nowrap; text-align:center;
+  }
+  .asc-opt:hover { border-color:var(--grey-faint); color:var(--white); background:var(--panel-hover); }
+  .asc-opt.active { background:var(--acid); border-color:var(--acid); color:#0A0F14; font-weight:700; }
+  @media (max-width:720px) {
+    .asc-period-pop { min-width:0; width:min(88vw, 330px); }
+  }
   .compare-vs {
     font-family:'Clash Display',sans-serif; font-weight:900; font-size:18px;
     color:var(--acid); padding-bottom:10px; letter-spacing:2px;
@@ -1373,11 +1401,15 @@
           <button class="btn" data-seg="curso" onclick="setAscSegment('curso', this)">Asistido</button>
           <button class="btn" data-seg="lite" onclick="setAscSegment('lite', this)">Aut&oacute;nomo</button>
           <span class="period-bar-label" style="margin-left:20px">Per&iacute;odo</span>
-          <select class="asc-select" id="ascPeriodSelect" onchange="setAscPeriodo(this.value)"
-                  title="Ascensos tiene hist&oacute;rico desde ene-2025; el filtro global de arriba solo cubre los meses del Low Ticket"></select>
+          <span class="asc-period">
+            <button class="asc-period-btn" id="ascPeriodBtn" onclick="toggleAscPeriodPop(event)">
+              <span id="ascPeriodBtnLabel">Todo el hist&oacute;rico</span><span class="chev">&#9660;</span>
+            </button>
+            <div class="asc-period-pop" id="ascPeriodPop"></div>
+          </span>
         </div>
 
-        <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; responde al a&ntilde;o/mes de abajo o al filtro global</span></div>
+        <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; hist&oacute;rico propio desde ene-2025</span></div>
         <div class="kpi-strip" id="ascKpiStrip"></div>
 
         <div class="section-title">01 &middot; Evoluci&oacute;n mensual <span class="sub">desde enero 2025</span></div>
@@ -1875,6 +1907,10 @@ function setFilter(f, btn) {
 function switchTab(tab, btn) {
   // En móvil la barra de tabs scrollea: asegurar que el tab elegido quede visible
   if (btn && btn.scrollIntoView) btn.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+  // Ascensos tiene su propio selector de período (histórico distinto al LT):
+  // ocultar la barra global evita dos controles compitiendo.
+  const pbar = document.querySelector('.period-bar-global');
+  if (pbar) pbar.style.display = (tab === 'ascensos') ? 'none' : '';
   const loader = document.getElementById('tabLoader');
   if (loader) loader.classList.add('active');
   // Fade out current
@@ -3583,12 +3619,10 @@ function ascMesLabel_(mk) {
   return ASC_MESES[parseInt(mk.slice(5,7),10)-1] + ' ' + mk.slice(2,4);
 }
 
-// Período propio del tab Ascensos, en UN solo control (evita apilar filas de
-// filtros). Valores: 'all' = obedecer el filtro global del dashboard |
-// 'YYYY' = año completo | 'YYYY-MM' = mes concreto (llega a meses sin data LT).
+// El tab Ascensos tiene su PROPIO período (la barra global se oculta en este
+// tab): su histórico arranca en ene-2025 y el global solo cubre meses del LT.
+// Valores: 'all' | 'last7'|'last14'|'last30' | 'YYYY' | 'YYYY-MM'
 let ascPeriodSel = 'all';
-function ascYearSel_()  { return ascPeriodSel === 'all' ? 'all' : ascPeriodSel.slice(0, 4); }
-function ascMonthSel_() { return ascPeriodSel.length > 4 ? ascPeriodSel.slice(5, 7) : 'all'; }
 
 function ascAnios_() {
   return [...new Set(Object.keys(APP_DATA.ascensos.days).map(k => k.slice(0, 4)))].sort();
@@ -3601,71 +3635,76 @@ function ascDiasMesPrev_(mk, all) {
   return idx > 0 ? all.filter(k => k.startsWith(mkeys[idx - 1])) : [];
 }
 
-// Mapea el período activo a días de ascensos (keys ISO YYYY-MM-DD).
-// Con ascYear='all' obedece el filtro global (los meses refieren al año más
-// reciente con data, igual que el resto del dashboard).
+const ASC_MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                        'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// Mapea el período activo del tab a días de ascensos (keys ISO YYYY-MM-DD).
 function ascPeriodo_() {
   const all = Object.keys(APP_DATA.ascensos.days).sort();
+  const v = ascPeriodSel;
 
-  // ── Control propio del tab (período concreto) ──
-  if (ascPeriodSel !== 'all') {
-    const y = ascYearSel_(), mm = ascMonthSel_();
-    if (mm !== 'all') {
-      const mk = y + '-' + mm;
-      return { dias: all.filter(k => k.startsWith(mk)),
-               prev: ascDiasMesPrev_(mk, all),
-               label: (ASC_MESES_FULL[parseInt(mm, 10) - 1] || '') + ' ' + y,
-               mesSel: mk };
-    }
-    const prevY = String(parseInt(y, 10) - 1);
-    return { dias: all.filter(k => k.startsWith(y)),
-             prev: all.filter(k => k.startsWith(prevY)),
-             label: 'Año ' + y, mesSel: null };
+  if (v.indexOf('last') === 0) {
+    const n = parseInt(v.slice(4), 10);
+    return { dias: all.slice(-n), prev: all.slice(-2*n, -n),
+             label: 'Últimos ' + n + ' días', mesSel: null };
   }
-
-  // ── Filtro global del dashboard ──
-  const f = currentFilter;
-  if (f === 'last7' || f === 'last14' || f === 'last30') {
-    const n = parseInt(f.slice(4), 10);
-    return { dias: all.slice(-n), prev: all.slice(-2*n, -n), label: 'Últimos ' + n + ' días', mesSel: null };
+  if (/^\d{4}-\d{2}$/.test(v)) {
+    return { dias: all.filter(k => k.startsWith(v)), prev: ascDiasMesPrev_(v, all),
+             label: ASC_MESES_FULL[parseInt(v.slice(5,7),10)-1] + ' ' + v.slice(0,4), mesSel: v };
   }
-  if (MONTHS[f] !== undefined) {
-    // El mes del filtro global refiere al año más reciente que lo tenga
-    const mm = String(MONTHS[f] + 1).padStart(2, '0');
-    const anio = ascAnios_().filter(y => all.some(k => k.startsWith(y + '-' + mm))).pop();
-    if (!anio) return { dias: [], prev: [], label: (MONTH_FULL[f] || f), mesSel: null };
-    const mk = anio + '-' + mm;
-    return { dias: all.filter(k => k.startsWith(mk)),
-             prev: ascDiasMesPrev_(mk, all),
-             label: (MONTH_FULL[f] || f) + ' ' + anio, mesSel: mk };
+  if (/^\d{4}$/.test(v)) {
+    return { dias: all.filter(k => k.startsWith(v)),
+             prev: all.filter(k => k.startsWith(String(parseInt(v,10) - 1))),
+             label: 'Año ' + v, mesSel: null };
   }
   return { dias: all, prev: [], label: 'Todo el histórico', mesSel: null };
 }
 
-const ASC_MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-                        'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
 function setAscPeriodo(v) {
   ascPeriodSel = v;
+  cerrarAscPeriodPop();
   renderAscensos();
 }
 
-// Opciones del selector: "Según filtro global" + un grupo por año con
-// "Todo <año>" y sus meses con data (así llega a los meses sin LT).
-function renderAscPeriodSelect() {
-  const sel = document.getElementById('ascPeriodSelect');
-  if (!sel) return;
+function toggleAscPeriodPop(e) {
+  if (e) e.stopPropagation();
+  const pop = document.getElementById('ascPeriodPop');
+  if (!pop) return;
+  if (pop.classList.contains('open')) { cerrarAscPeriodPop(); return; }
+  renderAscPeriodPop();
+  pop.classList.add('open');
+}
+function cerrarAscPeriodPop() {
+  const pop = document.getElementById('ascPeriodPop');
+  if (pop) pop.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  const pop = document.getElementById('ascPeriodPop');
+  if (pop && pop.classList.contains('open') && !e.target.closest('.asc-period')) cerrarAscPeriodPop();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarAscPeriodPop(); });
+
+// Popover: atajos + un bloque por año con "Todo <año>" y sus meses en grid
+// (más compacto y legible que una lista desplegable larga).
+function renderAscPeriodPop() {
+  const pop = document.getElementById('ascPeriodPop');
+  if (!pop) return;
   const all = Object.keys(APP_DATA.ascensos.days).sort();
-  let html = '<option value="all">Según filtro global</option>';
+  const on = v => ascPeriodSel === v ? ' active' : '';
+  let html = '<div class="grp">Atajos</div><div class="row">' +
+    `<button class="asc-opt${on('all')}" onclick="setAscPeriodo('all')">Todo el histórico</button>` +
+    ['last7','last14','last30'].map(v =>
+      `<button class="asc-opt${on(v)}" onclick="setAscPeriodo('${v}')">Últimos ${v.slice(4)}</button>`).join('') +
+    '</div>';
   ascAnios_().slice().reverse().forEach(y => {
-    const mm = [...new Set(all.filter(k => k.startsWith(y)).map(k => k.slice(5, 7)))].sort().reverse();
-    html += `<optgroup label="${y}"><option value="${y}">Todo ${y}</option>`;
-    mm.forEach(m => html += `<option value="${y}-${m}">${ASC_MESES_FULL[parseInt(m,10)-1]} ${y}</option>`);
-    html += '</optgroup>';
+    const mm = [...new Set(all.filter(k => k.startsWith(y)).map(k => k.slice(5, 7)))].sort();
+    html += `<div class="grp"><span>${y}</span>` +
+            `<button class="asc-opt${on(y)}" onclick="setAscPeriodo('${y}')">Todo ${y}</button></div>` +
+            '<div class="row months">' +
+            mm.map(m => `<button class="asc-opt${on(y+'-'+m)}" onclick="setAscPeriodo('${y}-${m}')">${ASC_MESES[parseInt(m,10)-1]}</button>`).join('') +
+            '</div>';
   });
-  sel.innerHTML = html;
-  sel.value = ascPeriodSel;
-  sel.classList.toggle('custom', ascPeriodSel !== 'all');   // resalta si no sigue al filtro global
+  pop.innerHTML = html;
 }
 
 
@@ -3682,10 +3721,11 @@ function renderAscensos() {
   const seg = ascSegment;
 
   // --- Controles propios del tab (año/mes) + período resultante ---
-  renderAscPeriodSelect();
   const per = ascPeriodo_();
   const tEl = document.getElementById('ascPeriodTitle');
   if (tEl) tEl.textContent = per.label;
+  const bLbl = document.getElementById('ascPeriodBtnLabel');
+  if (bLbl) bLbl.textContent = per.label;
   function aggDias(ks) {
     const o = {};
     ks.forEach(k => { const d = days[k]; for (const f2 in d) o[f2] = (o[f2] || 0) + (d[f2] || 0); });
@@ -3698,7 +3738,7 @@ function renderAscensos() {
   // 'all' → todo el histórico; mes/ventana → los meses del período
   // (si el período cae en un solo mes, se incluye el anterior como referencia).
   const perMeses = [...new Set(per.dias.map(k => k.slice(0, 7)))];
-  const verTodo = (ascPeriodSel === 'all' && currentFilter === 'all');
+  const verTodo = (ascPeriodSel === 'all');
   let mkeysView;
   if (verTodo) {
     mkeysView = mkeys;
