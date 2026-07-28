@@ -781,6 +781,10 @@
   }
   .chart-subtitle { font-size:11px; color:var(--grey); font-style:normal; margin-bottom:18px; }
   .chart-wrap { position:relative; height:250px; }
+  .chart-empty {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:0 24px; color:var(--grey); font-size:12px; line-height:1.6;
+  }
   .chart-summary {
     display:flex; flex-wrap:wrap; gap:14px; margin-bottom:14px;
     padding:12px 14px; background:var(--bg-elev); border-left:3px solid var(--acid);
@@ -1361,7 +1365,14 @@
           <button class="btn" data-seg="lite" onclick="setAscSegment('lite', this)">Aut&oacute;nomo</button>
         </div>
 
-        <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; responde al filtro de per&iacute;odo</span></div>
+        <div class="period-bar" style="margin:4px 0;" id="ascYearBar">
+          <span class="period-bar-label">A&ntilde;o</span>
+          <button class="btn active" onclick="setAscYear('all', this)">Seg&uacute;n filtro global</button>
+          <!-- botones por año generados en renderAscYearButtons() -->
+        </div>
+        <div class="period-bar" style="margin:4px 0 10px;" id="ascMonthBar"></div>
+
+        <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; responde al a&ntilde;o/mes de abajo o al filtro global</span></div>
         <div class="kpi-strip" id="ascKpiStrip"></div>
 
         <div class="section-title">01 &middot; Evoluci&oacute;n mensual <span class="sub">desde enero 2025</span></div>
@@ -3567,26 +3578,130 @@ function ascMesLabel_(mk) {
   return ASC_MESES[parseInt(mk.slice(5,7),10)-1] + ' ' + mk.slice(2,4);
 }
 
-// Mapea el filtro global de período (Todo / Feb..Dic / last7/14/30) a días de
-// ascensos (keys ISO YYYY-MM-DD). Los filtros de mes refieren al año 2026,
-// igual que en el resto del dashboard.
+// Año de trabajo del tab Ascensos. 'all' = usar el filtro global del dashboard
+// (comportamiento por defecto). Un año concreto activa los controles propios
+// del tab, que sí llegan a meses sin data LT (todo 2025).
+let ascYear = 'all';
+let ascMonth = 'all';   // 'all' | '01'..'12' — solo aplica con ascYear concreto
+
+function ascAnios_() {
+  return [...new Set(Object.keys(APP_DATA.ascensos.days).map(k => k.slice(0, 4)))].sort();
+}
+
+// Días del mes anterior a un mes dado (cruza año: Ene 2026 → Dic 2025)
+function ascDiasMesPrev_(mk, all) {
+  const mkeys = [...new Set(all.map(k => k.slice(0, 7)))].sort();
+  const idx = mkeys.indexOf(mk);
+  return idx > 0 ? all.filter(k => k.startsWith(mkeys[idx - 1])) : [];
+}
+
+// Mapea el período activo a días de ascensos (keys ISO YYYY-MM-DD).
+// Con ascYear='all' obedece el filtro global (los meses refieren al año más
+// reciente con data, igual que el resto del dashboard).
 function ascPeriodo_() {
   const all = Object.keys(APP_DATA.ascensos.days).sort();
+
+  // ── Controles propios del tab (año concreto) ──
+  if (ascYear !== 'all') {
+    if (ascMonth !== 'all') {
+      const mk = ascYear + '-' + ascMonth;
+      return { dias: all.filter(k => k.startsWith(mk)),
+               prev: ascDiasMesPrev_(mk, all),
+               label: (ASC_MESES_FULL[parseInt(ascMonth, 10) - 1] || '') + ' ' + ascYear,
+               mesSel: mk };
+    }
+    const prevY = String(parseInt(ascYear, 10) - 1);
+    return { dias: all.filter(k => k.startsWith(ascYear)),
+             prev: all.filter(k => k.startsWith(prevY)),
+             label: 'Año ' + ascYear, mesSel: null };
+  }
+
+  // ── Filtro global del dashboard ──
   const f = currentFilter;
   if (f === 'last7' || f === 'last14' || f === 'last30') {
     const n = parseInt(f.slice(4), 10);
     return { dias: all.slice(-n), prev: all.slice(-2*n, -n), label: 'Últimos ' + n + ' días', mesSel: null };
   }
   if (MONTHS[f] !== undefined) {
-    const mk = '2026-' + String(MONTHS[f] + 1).padStart(2, '0');
-    const dias = all.filter(k => k.startsWith(mk));
-    const mkeys = [...new Set(all.map(k => k.slice(0, 7)))];
-    const idx = mkeys.indexOf(mk);
-    const prevMk = idx > 0 ? mkeys[idx - 1] : null;
-    return { dias, prev: prevMk ? all.filter(k => k.startsWith(prevMk)) : [],
-             label: (MONTH_FULL[f] || f) + ' 2026', mesSel: mk };
+    // El mes del filtro global refiere al año más reciente que lo tenga
+    const mm = String(MONTHS[f] + 1).padStart(2, '0');
+    const anio = ascAnios_().filter(y => all.some(k => k.startsWith(y + '-' + mm))).pop();
+    if (!anio) return { dias: [], prev: [], label: (MONTH_FULL[f] || f), mesSel: null };
+    const mk = anio + '-' + mm;
+    return { dias: all.filter(k => k.startsWith(mk)),
+             prev: ascDiasMesPrev_(mk, all),
+             label: (MONTH_FULL[f] || f) + ' ' + anio, mesSel: mk };
   }
   return { dias: all, prev: [], label: 'Todo el histórico', mesSel: null };
+}
+
+const ASC_MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                        'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function setAscYear(y, btn) {
+  ascYear = y; ascMonth = 'all';
+  document.querySelectorAll('#ascYearBar .btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAscMonthChips();
+  renderAscensos();
+}
+
+function setAscMonth(m, btn) {
+  ascMonth = m;
+  document.querySelectorAll('#ascMonthBar .btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAscensos();
+}
+
+// Chips de mes del año elegido (solo meses con data). Ocultos con año='all',
+// donde manda el filtro global de arriba.
+// Botones de año según los años presentes en la data (2025, 2026, …)
+// Estado vacío para charts que dependen de data LT (que arranca en feb 2026):
+// con un período de 2025 no hay con qué combinar. Devuelve true si quedó vacío.
+function ascChartVacio_(canvasId, msg) {
+  const c = document.getElementById(canvasId);
+  if (!c) return true;
+  const wrap = c.parentElement;
+  let ov = wrap.querySelector('.chart-empty');
+  if (msg) {
+    c.style.display = 'none';
+    if (!ov) { ov = document.createElement('div'); ov.className = 'chart-empty'; wrap.appendChild(ov); }
+    ov.textContent = msg;
+    ov.style.display = 'flex';
+    return true;
+  }
+  c.style.display = '';
+  if (ov) ov.style.display = 'none';
+  return false;
+}
+
+function renderAscYearButtons() {
+  const bar = document.getElementById('ascYearBar');
+  if (!bar) return;
+  bar.querySelectorAll('.btn[data-year]').forEach(b => b.remove());
+  ascAnios_().forEach(y => {
+    const b = document.createElement('button');
+    b.className = 'btn' + (ascYear === y ? ' active' : '');
+    b.setAttribute('data-year', y);
+    b.setAttribute('onclick', `setAscYear('${y}', this)`);
+    b.textContent = y;
+    bar.appendChild(b);
+  });
+}
+
+function renderAscMonthChips() {
+  const bar = document.getElementById('ascMonthBar');
+  if (!bar) return;
+  if (ascYear === 'all') { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const all = Object.keys(APP_DATA.ascensos.days).sort();
+  const mmDisp = [...new Set(all.filter(k => k.startsWith(ascYear)).map(k => k.slice(5, 7)))].sort();
+  let html = '<span class="period-bar-label">Mes</span>' +
+             `<button class="btn${ascMonth === 'all' ? ' active' : ''}" onclick="setAscMonth('all', this)">Todo ${ascYear}</button>`;
+  mmDisp.forEach(mm => {
+    html += `<button class="btn${ascMonth === mm ? ' active' : ''}" onclick="setAscMonth('${mm}', this)">${ASC_MESES[parseInt(mm,10)-1]}</button>`;
+  });
+  bar.innerHTML = html;
 }
 
 function renderAscensos() {
@@ -3601,7 +3716,9 @@ function renderAscensos() {
   const mesActual = mkeys[mkeys.length - 1];
   const seg = ascSegment;
 
-  // --- Período según el filtro global + modalidad seleccionada ---
+  // --- Controles propios del tab (año/mes) + período resultante ---
+  renderAscYearButtons();
+  renderAscMonthChips();
   const per = ascPeriodo_();
   const tEl = document.getElementById('ascPeriodTitle');
   if (tEl) tEl.textContent = per.label;
@@ -3617,11 +3734,13 @@ function renderAscensos() {
   // 'all' → todo el histórico; mes/ventana → los meses del período
   // (si el período cae en un solo mes, se incluye el anterior como referencia).
   const perMeses = [...new Set(per.dias.map(k => k.slice(0, 7)))];
+  const verTodo = (ascYear === 'all' && currentFilter === 'all');
   let mkeysView;
-  if (currentFilter === 'all') {
+  if (verTodo) {
     mkeysView = mkeys;
   } else {
     mkeysView = mkeys.filter(mk => perMeses.includes(mk));
+    // Un solo mes: incluir el anterior como referencia visual
     if (mkeysView.length === 1) {
       const iPrev = mkeys.indexOf(mkeysView[0]) - 1;
       if (iPrev >= 0) mkeysView = [mkeys[iPrev], mkeysView[0]];
@@ -3880,6 +3999,9 @@ function renderAscensos() {
         lt[mk].spendG += d.spend_google || 0;
       });
       const ecoKeys = Object.keys(lt).sort().filter(mk => meses[mk] && mkeysView.includes(mk));
+      const ecoVacio = ascChartVacio_('chartAscEco', ecoKeys.length ? '' :
+          'El ecosistema combina spend + revenue del Low Ticket con el cobrado HT — no hay data de Low Ticket en este período (arranca en feb 2026).');
+      if (!ecoVacio) {
       // Ecosistema SIEMPRE con todas las modalidades (ignora el segmento)
       const spendMeta = ecoKeys.map(mk => Math.round(lt[mk].spend + meses[mk].spend));
       const spendReal = ecoKeys.map((mk,i) => Math.round(spendMeta[i] + lt[mk].spendG));
@@ -3907,6 +4029,7 @@ function renderAscensos() {
             y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>v+'x'}, grid:{display:false}}
           } }
       });
+      }
     }
 
     // 4a-bis. Caja semanal neta (ecosistema, últimas 12 semanas, ignora filtros):
@@ -3939,15 +4062,21 @@ function renderAscensos() {
       // mes/ventana → semanas que se cruzan con el período seleccionado.
       let wKeys = Object.keys(sem).sort();
       const ultimaSemana = wKeys[wKeys.length - 1];
-      if (currentFilter !== 'all' && per.dias.length) {
+      let sinCruce = false;
+      if (!verTodo && per.dias.length) {
         const ini = per.dias[0], fin = per.dias[per.dias.length - 1];
         wKeys = wKeys.filter(w => {
           const wEnd = new Date(w + 'T12:00:00');
           wEnd.setDate(wEnd.getDate() + 6);
           return w <= fin && wEnd.toISOString().slice(0, 10) >= ini;
         });
-        if (!wKeys.length) wKeys = Object.keys(sem).sort().slice(-12);
+        // Sin cruce (ej. período de 2025): NO caer al fallback de las últimas
+        // 12 semanas — mostraría semanas de 2026 bajo un título de 2025.
+        if (!wKeys.length) sinCruce = true;
       }
+      const cajaVacia = ascChartVacio_('chartAscCaja', sinCruce
+          ? 'La caja combina el cash con el spend del Low Ticket — no hay semanas con data de Low Ticket en este período (arranca en feb 2026).' : '');
+      if (!cajaVacia) {
       const neto = wKeys.map(w => Math.round(sem[w].cash - sem[w].spend));
       const esActual = wKeys.map(w => w === ultimaSemana);
       const subC = document.getElementById('ascCajaSub');
@@ -3984,6 +4113,7 @@ function renderAscensos() {
             y:{ticks:{...tickStyle, callback:v=>(v<0?'−':'')+'$'+Math.abs(v/1000).toFixed(1)+'k'}, grid:{color:gridCol}}
           } }
       });
+      }
     }
 
     // 4b. Patrón por día de semana (período + segmento): promedio de ventas
@@ -4055,6 +4185,9 @@ function renderAscensos() {
         ltCompras[mk] = (ltCompras[mk] || 0) + (APP_DATA.days[k].purchases || 0);
       });
       const tKeys = Object.keys(ltCompras).sort().filter(mk => meses[mk] && ltCompras[mk] > 0 && mkeysView.includes(mk));
+      const tasaVacia = ascChartVacio_('chartAscTasa', tKeys.length ? '' :
+          'La tasa de ascenso relaciona las ventas HT con las compras del Desafío — no hay data de Low Ticket en este período (arranca en feb 2026).');
+      if (!tasaVacia) {
       const tasaTotal = tKeys.map(mk => +((ascSeg_(meses[mk], 'all').ventas / ltCompras[mk]) * 100).toFixed(2));
       const tasaMent = tKeys.map(mk => +(((meses[mk].ventas || 0) / ltCompras[mk]) * 100).toFixed(2));
       // Tasa REZAGADA: ventas HT del mes ÷ compras LT del MES ANTERIOR.
@@ -4088,6 +4221,7 @@ function renderAscensos() {
             y2:{beginAtZero:true, position:'right', ticks:tickStyle, grid:{display:false}}
           } }
       });
+      }
     }
   }, 30);
 
