@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link href="https://api.fontshare.com/v2/css?f[]=clash-display@700,600,500,400&f[]=general-sans@700,600,500,400,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap" rel="stylesheet">
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
@@ -40,7 +40,7 @@
   }
   body {
     background:var(--bg); color:var(--white);
-    font-family:'Inter','General Sans',sans-serif;
+    font-family:'Inter',sans-serif;
     min-height:100vh; padding:0 0 80px;
     font-feature-settings:'ss01','cv11';
     -webkit-font-smoothing:antialiased;
@@ -161,7 +161,7 @@
   }
   .section-title::after { content:''; flex:1; height:1px; background:linear-gradient(90deg, var(--petrol-light), transparent); }
   .section-title .sub {
-    font-family:'General Sans',sans-serif; font-weight:400; font-style:normal;
+    font-family:'Inter',sans-serif; font-weight:400; font-style:normal;
     font-size:11px; color:var(--grey); letter-spacing:0.2px; text-transform:none;
   }
 
@@ -249,7 +249,7 @@
     .asc-period-pop { min-width:0; width:min(88vw, 330px); }
   }
   .compare-vs {
-    font-family:'Clash Display',sans-serif; font-weight:900; font-size:18px;
+    font-family:'Clash Display',sans-serif; font-weight:700; font-size:18px;
     color:var(--acid); padding-bottom:10px; letter-spacing:2px;
   }
   .compare-grid {
@@ -334,7 +334,7 @@
     margin-bottom:4px;
   }
   .sim-out-value {
-    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:24px; line-height:1; color:var(--white);
   }
   .sim-out-value.acid { color:var(--acid); }
@@ -364,12 +364,12 @@
     color:var(--grey-light); margin-bottom:14px;
   }
   .hero-value {
-    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:clamp(40px, 5.5vw, 76px); line-height:0.95; letter-spacing:-2px;
     color:var(--acid); margin-bottom:18px;
   }
   .hero-meta {
-    font-family:'General Sans',sans-serif; font-size:14px; color:var(--grey-light);
+    font-family:'Inter',sans-serif; font-size:14px; color:var(--grey-light);
   }
   .hero-meta .accent { color:var(--white); font-weight:600; }
   .hero-side {
@@ -387,7 +387,7 @@
     color:var(--grey-light); margin-bottom:8px;
   }
   .hero-mini-value {
-    font-family:'Clash Display',sans-serif; font-weight:800;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:clamp(20px, 2vw, 28px); line-height:1; color:var(--white);
   }
   .hero-mini-value.good { color:var(--good); }
@@ -450,7 +450,7 @@
     color:var(--grey); font-weight:600; margin-bottom:3px;
   }
   .tooltip-card-stat-value {
-    font-family:'Clash Display',sans-serif; font-weight:800;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:14px; color:var(--white);
   }
   @keyframes tooltipIn { from { transform:translateY(8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
@@ -466,11 +466,11 @@
     color:var(--grey-light); margin-bottom:6px;
   }
   .tooltip-card-title {
-    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:24px; color:var(--white); margin-bottom:14px; line-height:1.1;
   }
   .tooltip-card-body {
-    font-family:'General Sans',sans-serif; font-size:15px;
+    font-family:'Inter',sans-serif; font-size:15px;
     color:var(--white); line-height:1.5;
   }
 
@@ -593,7 +593,7 @@
   }
   .funnel-side-label {
     font-size:11px; color:var(--grey-light); width:180px; text-align:right;
-    font-family:'General Sans',sans-serif;
+    font-family:'Inter',sans-serif;
   }
   .funnel-bar-wrap { flex:1; display:flex; justify-content:center; }
   .funnel-bar {
@@ -606,7 +606,7 @@
     color:var(--petrol-dark);
   }
   .funnel-side-pct {
-    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:14px; width:60px; text-align:left;
   }
   .funnel-arrow {
@@ -632,13 +632,13 @@
     transform:scale(1.07); border-color:var(--acid);
   }
   .journey-node-value {
-    font-family:'Clash Display',sans-serif; font-size:22px; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-size:22px; font-weight:700;
     color:var(--petrol-dark);
   }
   .journey-ann-count {
     position:absolute; top:-8px; right:-8px;
     background:var(--acid); color:var(--petrol-dark);
-    font-size:10px; font-weight:900; padding:3px 7px; border-radius:10px;
+    font-size:10px; font-weight:700; padding:3px 7px; border-radius:10px;
     border:2px solid var(--petrol);
     font-family:'Clash Display',sans-serif;
   }
@@ -657,7 +657,7 @@
   .journey-connector-inner { height:100%; }
   .journey-connector-rate {
     position:absolute; top:-48px; left:50%; transform:translateX(-50%);
-    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:11px; color:var(--acid); white-space:nowrap;
     background:#0B1216; padding:3px 10px; border-radius:6px;
     border:1px solid var(--acid); letter-spacing:0.5px;
@@ -714,7 +714,7 @@
     display:flex; align-items:center; gap:6px;
   }
   .imp-val .delta {
-    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:13px; padding:1px 6px; border-radius:6px;
   }
   .imp-val .delta.up { color:var(--good); background:rgba(38,169,124,0.15); }
@@ -739,7 +739,7 @@
     width:100%; max-width:480px;
   }
   .modal-title {
-    font-family:'Clash Display',sans-serif; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-weight:700;
     font-size:18px; letter-spacing:2px; text-transform:uppercase;
     margin-bottom:18px;
   }
@@ -771,7 +771,7 @@
   }
   .tooltip.visible { opacity:1; }
   .tooltip h4 {
-    font-family:'Clash Display',sans-serif; font-size:13px; font-weight:900;
+    font-family:'Clash Display',sans-serif; font-size:13px; font-weight:700;
     letter-spacing:1.5px; text-transform:uppercase; color:var(--acid); margin-bottom:6px;
   }
   .tooltip p { font-size:11px; color:var(--grey-light); line-height:1.5; }
@@ -995,7 +995,7 @@
     .funnel-side-pct {
       grid-area:pct; position:static; width:auto;
       font-size:13px; font-family:'Clash Display',sans-serif;
-      font-weight:900; white-space:nowrap;
+      font-weight:700; white-space:nowrap;
     }
     .funnel-arrow { padding:3px 0; font-size:11px; text-align:left; }
     .funnel-arrow span { display:inline; }
@@ -1075,7 +1075,7 @@
     z-index:9999; align-items:center; gap:14px;
     background:var(--panel); border:1px solid var(--acid); border-radius:10px;
     padding:12px 18px; box-shadow:0 8px 30px rgba(0,0,0,0.5);
-    font-family:'General Sans',sans-serif; font-size:13px; color:#f5f7f5;
+    font-family:'Inter',sans-serif; font-size:13px; color:#f5f7f5;
   }
   .update-banner button {
     background:#E7FF2A; color:#0A1014; border:none; border-radius:10px;
@@ -2693,18 +2693,13 @@ function commonChartOptions(extra) {
     responsive:true, maintainAspectRatio:false,
     interaction:{mode:'index', intersect:false},
     plugins:{
-      legend:{ labels:{color:'#ADBCC7', font:{family:'General Sans', size:11, weight:'500'}, padding:14, boxWidth:8, boxHeight:8, usePointStyle:true} },
-      tooltip:{
-        backgroundColor:'rgba(8,46,56,0.96)', titleColor:'#E7FF2A', bodyColor:'#f5f7f5',
-        borderColor:'rgba(151,178,193,0.13)', borderWidth:1, padding:14, cornerRadius:4,
-        displayColors:true, boxPadding:6,
-        titleFont:{family:'Clash Display', size:12, weight:'700'},
-        bodyFont:{family:'General Sans', size:12, weight:'500'}
-      }
+      // tipografía, color y tooltip vienen de setupChartDefaults_() — aquí solo layout
+      legend:{ labels:{padding:14, boxHeight:8} },
+      tooltip:{ displayColors:true }
     },
     scales:{
-      x:{ ticks:{color:'#7E8C96', font:{family:'General Sans', size:10}, padding:6}, grid:{color:'rgba(151,178,193,0.06)', drawBorder:false}, border:{display:false} },
-      y:{ ticks:{color:'#7E8C96', font:{family:'General Sans', size:10}, padding:6}, grid:{color:'rgba(151,178,193,0.06)', drawBorder:false}, border:{display:false} }
+      x:{ ticks:{padding:6}, grid:{color:'rgba(151,178,193,0.06)', drawBorder:false}, border:{display:false} },
+      y:{ ticks:{padding:6}, grid:{color:'rgba(151,178,193,0.06)', drawBorder:false}, border:{display:false} }
     }
   }, extra || {});
 }
