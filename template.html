@@ -1572,6 +1572,13 @@
   <div id="tab-data" class="tab-panel">
     <main>
       <div class="section-title">Datos detallados <span class="sub">m&eacute;tricas d&iacute;a a d&iacute;a</span></div>
+      <div class="period-bar" style="margin:0 0 12px;">
+        <span class="period-bar-label">Descargar</span>
+        <button class="btn" onclick="exportCSV('lt')" title="Low Ticket del per&iacute;odo seleccionado, una fila por d&iacute;a">Low Ticket (per&iacute;odo)</button>
+        <button class="btn" onclick="exportCSV('lt-all')" title="Low Ticket completo, todos los d&iacute;as">Low Ticket (todo)</button>
+        <button class="btn" onclick="exportCSV('ht')" title="Ascensos por d&iacute;a con las 3 modalidades">Ascensos (todo)</button>
+        <button class="btn" onclick="exportCSV('mensual')" title="Resumen mensual combinado LT + HT, listo para presentar">Resumen mensual</button>
+      </div>
       <div class="data-section">
         <div id="dataGrid"></div>
       </div>
@@ -4274,6 +4281,108 @@ function renderAscensos() {
   });
   html += '</div>';
   document.getElementById('ascTable').innerHTML = html;
+}
+
+// Aviso breve abajo a la derecha (el elemento #toast ya existe en el HTML)
+function toast(msg, tipo) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'toast show' + (tipo ? ' ' + tipo : ' success');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.className = 'toast'; }, 3200);
+}
+
+// ====== EXPORTAR CSV ======
+// Excel en español espera ';' como separador y ',' decimal; se antepone BOM
+// para que respete los acentos al abrir con doble clic.
+function csvDescargar_(nombre, filas) {
+  const esc = v => {
+    if (v === null || v === undefined) return '';
+    const s = typeof v === 'number' ? String(v).replace('.', ',') : String(v);
+    return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const txt = '﻿' + filas.map(f => f.map(esc).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([txt], { type: 'text/csv;charset=utf-8;' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Descargado: ' + nombre);
+}
+
+function exportCSV(tipo) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const dLT = APP_DATA.days;
+  const asc = (APP_DATA.ascensos && APP_DATA.ascensos.days) || {};
+  const ymd = k => { const [m, d] = k.split(' '); return '2026-' + String(MONTHS[m] + 1).padStart(2, '0') + '-' + d; };
+
+  if (tipo === 'lt' || tipo === 'lt-all') {
+    const keys = tipo === 'lt' ? getFilteredDays() : getSortedDayKeys();
+    const cols = ['impressions','reach','clicks','lpv','leads','checkouts','purchases',
+                  'bump1','bump2','revenue_lt','revenue_b1','revenue_b2','revenue','spend','spend_google'];
+    const enc  = ['Impresiones','Alcance','Clics','Vistas landing','Leads','Checkouts','Compras LT',
+                  'Bump 1','Bump 2','Revenue LT','Revenue Bump 1','Revenue Bump 2','Revenue total','Spend Meta','Spend Google'];
+    const filas = [['Fecha', ...enc, 'CPL', 'CPA', 'ROAS']];
+    keys.forEach(k => {
+      const d = dLT[k] || {};
+      const cpl = d.leads > 0 ? +(d.spend / d.leads).toFixed(2) : '';
+      const cpa = d.purchases > 0 ? +(d.spend / d.purchases).toFixed(2) : '';
+      const roas = d.spend > 0 ? +(d.revenue / d.spend).toFixed(3) : '';
+      filas.push([ymd(k), ...cols.map(c => d[c] || 0), cpl, cpa, roas]);
+    });
+    csvDescargar_(`mentoreo_lowticket_${tipo === 'lt' ? 'periodo' : 'completo'}_${hoy}.csv`, filas);
+    return;
+  }
+
+  if (tipo === 'ht') {
+    const filas = [['Fecha','Ventas Guiado','Contratado Guiado','Cobrado Guiado','Cuotas cobradas',
+                    'Ventas Asistido','Contratado Asistido','Cobrado Asistido',
+                    'Ventas Autonomo','Contratado Autonomo','Cobrado Autonomo',
+                    'Ventas TOTAL','Contratado TOTAL','Cobrado TOTAL']];
+    Object.keys(asc).sort().forEach(k => {
+      const d = asc[k], t = ascSeg_(d, 'all');
+      filas.push([k, d.ventas||0, d.contratado||0, d.cobrado||0, d.cobrado_cuotas||0,
+                  d.ventas_stm_curso||0, d.contratado_stm_curso||0, d.cobrado_stm_curso||0,
+                  d.ventas_stm_lite||0, d.contratado_stm_lite||0, d.cobrado_stm_lite||0,
+                  t.ventas, t.contratado, t.cobrado]);
+    });
+    csvDescargar_(`mentoreo_ascensos_${hoy}.csv`, filas);
+    return;
+  }
+
+  // Resumen mensual combinado: la vista que se lleva a una reunión
+  const mes = {};
+  getSortedDayKeys().forEach(k => {
+    const mk = '2026-' + String(MONTHS[k.split(' ')[0]] + 1).padStart(2, '0');
+    const m = mes[mk] || (mes[mk] = {spend:0,spendG:0,imp:0,leads:0,pur:0,rev:0,htV:0,htC:0,htCtr:0});
+    const d = dLT[k];
+    m.spend += d.spend||0; m.spendG += d.spend_google||0; m.imp += d.impressions||0;
+    m.leads += d.leads||0; m.pur += d.purchases||0; m.rev += d.revenue||0;
+  });
+  Object.keys(asc).forEach(k => {
+    const mk = k.slice(0, 7);
+    if (!mes[mk]) return;                       // solo meses con data LT
+    const t = ascSeg_(asc[k], 'all');
+    mes[mk].htV += t.ventas; mes[mk].htC += t.cobrado; mes[mk].htCtr += t.contratado;
+  });
+  const filas = [['Mes','Spend Meta','Spend Google','Spend total','Impresiones','Leads','Compras LT',
+                  'Revenue LT','CPL','CPA','ROAS LT','Ventas HT','Contratado HT','Cobrado HT',
+                  'Cash total','ROAS real','ROAS solo Meta','Tasa ascenso %']];
+  Object.keys(mes).sort().forEach(mk => {
+    const m = mes[mk], spT = m.spend + m.spendG, cash = m.rev + m.htC;
+    filas.push([mk, +m.spend.toFixed(2), +m.spendG.toFixed(2), +spT.toFixed(2), m.imp, m.leads, m.pur,
+      +m.rev.toFixed(2),
+      m.leads ? +(m.spend/m.leads).toFixed(2) : '',
+      m.pur ? +(m.spend/m.pur).toFixed(2) : '',
+      m.spend ? +(m.rev/m.spend).toFixed(3) : '',
+      m.htV, +m.htCtr.toFixed(2), +m.htC.toFixed(2), +cash.toFixed(2),
+      spT ? +(cash/spT).toFixed(3) : '',
+      m.spend ? +(cash/m.spend).toFixed(3) : '',
+      m.pur ? +(m.htV/m.pur*100).toFixed(2) : '']);
+  });
+  csvDescargar_(`mentoreo_resumen_mensual_${hoy}.csv`, filas);
 }
 
 function renderDataGrid() {
