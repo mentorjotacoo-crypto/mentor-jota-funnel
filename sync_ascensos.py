@@ -119,8 +119,24 @@ def main():
         print(f'  - {h}')
     print(f'Días totales: {len(days)}')
 
-    # Guardar JSON local (gitignored)
+    # ¿Cambiaron los DATOS respecto a la corrida anterior?
+    # (el .enc cifra con salt aleatorio, así que siempre difiere byte a byte:
+    #  comparar el archivo cifrado daría "cambio" siempre y llenaría el repo
+    #  de commits vacíos. La comparación real se hace sobre 'days'.)
     json_path = os.path.join(REPO, 'ascensos.json')
+    sin_cambios = False
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, encoding='utf-8') as f:
+                sin_cambios = json.load(f).get('days') == days
+        except (ValueError, OSError):
+            sin_cambios = False
+
+    if sin_cambios:
+        print('[SIN CAMBIOS] los datos son idénticos a la corrida anterior')
+        sys.exit(9)   # el runner interpreta 9 como "nada que publicar"
+
+    # Guardar JSON local (gitignored)
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(ascensos, f, ensure_ascii=False, indent=2)
     print(f'[OK] {json_path}')
