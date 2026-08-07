@@ -1755,12 +1755,8 @@ function parseDayKey(a, b) {
   const [ma,da] = a.split(' '); const [mb,db] = b.split(' ');
   return (MONTHS[ma]*100+parseInt(da)) - (MONTHS[mb]*100+parseInt(db));
 }
-function dayKeyToDate(key) {
-  const [m,d] = key.split(' '); return new Date(2026, MONTHS[m], parseInt(d));
-}
-function dateToDayKey(d) {
-  return MONTH_NAMES[d.getMonth()] + ' ' + String(d.getDate()).padStart(2,'0');
-}
+/* dayKeyToDate / dateToDayKey viven en la seccion FORECAST (definicion unica;
+   antes habia un duplicado aqui que el hoisting anulaba). */
 function isoDateToDayKey(iso) {
   const parts = iso.split('-');
   return dateToDayKey(new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2])));
