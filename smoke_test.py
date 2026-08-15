@@ -176,6 +176,22 @@ def main():
             else:
                 check(f'tab {tab} renderiza', int(val) > 0, f'{val} charts')
 
+    # Histórico de salud: una línea por corrida (permite ver degradaciones)
+    from datetime import datetime
+    hist = os.path.join(REPO, 'smoke_history.csv')
+    nuevo = not os.path.exists(hist)
+    try:
+        with open(hist, 'a', encoding='utf-8', newline='') as f:
+            if nuevo:
+                f.write('fecha;destino;resultado;fallos;avisos;dias_lt;dias_ht;detalle\n')
+            n_lt = len(datos.get('days', {})) if datos else 0
+            n_ht = len(datos.get('ascensos', {}).get('days', {})) if datos else 0
+            det = ' | '.join(fallos + avisos).replace(';', ',')[:300]
+            f.write(f'{datetime.now():%Y-%m-%d %H:%M};{"local" if local else "live"};'
+                    f'{"FALLO" if fallos else "OK"};{len(fallos)};{len(avisos)};{n_lt};{n_ht};{det}\n')
+    except OSError:
+        pass
+
     print()
     if fallos:
         print(f'RESULTADO: {len(fallos)} FALLO(S) CRÍTICO(S)')

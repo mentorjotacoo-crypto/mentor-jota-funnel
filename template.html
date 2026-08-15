@@ -818,6 +818,51 @@
   }
   .chart-subtitle { font-size:11px; color:var(--grey); font-style:normal; margin-bottom:18px; }
   .chart-wrap { position:relative; height:250px; }
+  /* ── PULSO: números grandes, cero ruido ── */
+  .pulso-head {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:16px; flex-wrap:wrap; margin:18px 0 14px;
+  }
+  .pulso-titulo {
+    font-family:'Clash Display',sans-serif; font-weight:700; font-size:clamp(20px,3vw,26px);
+    letter-spacing:1px; text-transform:uppercase; color:var(--white);
+  }
+  .pulso-sub { font-size:12px; color:var(--grey); margin-top:3px; }
+  .pulso-mes {
+    font-size:12px; color:var(--grey-light); text-align:right; line-height:1.7;
+    font-variant-numeric:tabular-nums;
+  }
+  .pulso-mes b { color:var(--acid); font-weight:600; }
+  .pulso-grid {
+    display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px;
+  }
+  .pulso-card {
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    padding:20px 18px; min-width:0;
+  }
+  .pulso-label {
+    font-family:'Clash Display',sans-serif; font-weight:600; font-size:10px;
+    letter-spacing:1.6px; text-transform:uppercase; color:var(--grey);
+    margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .pulso-valor {
+    font-family:'Inter',sans-serif; font-weight:600; font-variant-numeric:tabular-nums;
+    font-size:clamp(26px,3.4vw,40px); line-height:1; letter-spacing:-0.02em; color:var(--white);
+  }
+  .pulso-valor.acid { color:var(--acid); }
+  .pulso-valor.good { color:var(--good); }
+  .pulso-valor.warn { color:var(--warn); }
+  .pulso-delta { margin-top:9px; font-size:11px; font-variant-numeric:tabular-nums; }
+  .pulso-delta .up { color:var(--good); }
+  .pulso-delta .down { color:var(--warn); }
+  .pulso-delta .flat { color:var(--grey); }
+  @media (max-width:900px) {
+    .pulso-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
+    .pulso-card { padding:16px 14px; }
+    .pulso-card:first-child { grid-column:1 / -1; }   /* el cash manda en móvil */
+    .pulso-card:first-child .pulso-valor { font-size:clamp(34px,11vw,52px); }
+    .pulso-mes { text-align:left; }
+  }
   .chart-empty {
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     text-align:center; padding:0 24px; color:var(--grey); font-size:12px; line-height:1.6;
@@ -1183,6 +1228,7 @@
 
   <!-- TABS -->
   <div class="tabs">
+    <button class="tab-btn" onclick="switchTab('pulso', this)">Pulso</button>
     <button class="tab-btn active" onclick="switchTab('resumen', this)">Resumen</button>
     <button class="tab-btn" onclick="switchTab('embudo', this)">Embudo</button>
     <button class="tab-btn" onclick="switchTab('journey', this)">Customer Journey</button>
@@ -1203,6 +1249,25 @@
   </div>
 
   <!-- TAB: RESUMEN (hero) -->
+  <!-- TAB: PULSO — lectura de 3 segundos, pensada para celular -->
+  <div id="tab-pulso" class="tab-panel">
+    <main>
+      <div class="pulso-head">
+        <div>
+          <div class="pulso-titulo" id="pulsoTitulo">Pulso</div>
+          <div class="pulso-sub" id="pulsoSub">&nbsp;</div>
+        </div>
+        <div class="pulso-mes" id="pulsoMes"></div>
+      </div>
+      <div class="pulso-grid" id="pulsoGrid"></div>
+      <div class="chart-card" style="margin-top:14px">
+        <div class="chart-title">&Uacute;ltimos 14 d&iacute;as</div>
+        <div class="chart-subtitle">compras del desaf&iacute;o y cash total por d&iacute;a</div>
+        <div class="chart-wrap" style="height:200px"><canvas id="chartPulso"></canvas></div>
+      </div>
+    </main>
+  </div>
+
   <div id="tab-resumen" class="tab-panel active">
     <main>
       <div class="hero-grid">
@@ -1686,6 +1751,11 @@ async function onAuthSuccess(data) {
   document.getElementById('lastDataHeader').textContent = 'Última data: ' + lastDay;
   document.getElementById('updatedAtHeader').textContent = 'Sincronizado: ' + (data.updatedAt || '-');
   renderPeriodButtons();
+  // En pantallas pequeñas el tab por defecto es Pulso (lectura de 3 segundos)
+  if (window.matchMedia('(max-width:900px)').matches) {
+    const btn = document.querySelector("[onclick*=\"'pulso'\"]");
+    if (btn) { switchTab('pulso', btn); return; }
+  }
   renderAll();
 }
 
@@ -1913,7 +1983,7 @@ function switchTab(tab, btn) {
   // Ascensos tiene su propio selector de período (histórico distinto al LT):
   // ocultar la barra global evita dos controles compitiendo.
   const pbar = document.querySelector('.period-bar-global');
-  if (pbar) pbar.style.display = (tab === 'ascensos') ? 'none' : '';
+  if (pbar) pbar.style.display = (tab === 'ascensos' || tab === 'pulso') ? 'none' : '';
   const loader = document.getElementById('tabLoader');
   if (loader) loader.classList.add('active');
   // Fade out current
@@ -2095,6 +2165,7 @@ function renderAll() {
   destroyCharts();
   renderInsights();
   renderKPIs();
+  if (currentTab === 'pulso')  { renderPulso(); }
   if (currentTab === 'resumen'){ renderResumen(); }
   if (currentTab === 'embudo') { renderFunnelVisual(); setTimeout(()=>{ renderFunnelDailyChart(); renderConversionsChart(); }, 30); }
   if (currentTab === 'journey') { renderJourney(); renderAnnotations(); }
@@ -4277,6 +4348,97 @@ function renderAscensos() {
   });
   html += '</div>';
   document.getElementById('ascTable').innerHTML = html;
+}
+
+// ====== PULSO ======
+// Vista de 3 segundos: el último día cerrado + cómo va el mes.
+// No usa el filtro de período a propósito — siempre responde "¿cómo vamos HOY?".
+function renderPulso() {
+  const dias = getSortedDayKeys().filter(k => {
+    const d = APP_DATA.days[k];
+    return d && (d.spend > 0 || d.purchases > 0);
+  });
+  if (!dias.length) return;
+  const hoyK = dias[dias.length - 1];
+  const ayerK = dias[dias.length - 2];
+  const d = APP_DATA.days[hoyK];
+  const prev = ayerK ? APP_DATA.days[ayerK] : null;
+  const asc = (APP_DATA.ascensos && APP_DATA.ascensos.days) || {};
+  const iso = k => '2026-' + String(MONTHS[k.split(' ')[0]] + 1).padStart(2, '0') + '-' + k.split(' ')[1];
+  const htDia = k => { const a = asc[iso(k)]; return a ? ascSeg_(a, 'all') : { ventas:0, cobrado:0 }; };
+
+  const ht = htDia(hoyK), htPrev = ayerK ? htDia(ayerK) : null;
+  const spend = (d.spend || 0) + (d.spend_google || 0);
+  const cash = (d.revenue || 0) + ht.cobrado;
+  const roas = spend > 0 ? cash / spend : 0;
+  const spendPrev = prev ? (prev.spend || 0) + (prev.spend_google || 0) : 0;
+  const cashPrev = prev ? (prev.revenue || 0) + (htPrev ? htPrev.cobrado : 0) : 0;
+  const roasPrev = spendPrev > 0 ? cashPrev / spendPrev : 0;
+
+  document.getElementById('pulsoTitulo').textContent = 'Pulso · ' + hoyK;
+  document.getElementById('pulsoSub').textContent =
+    'último día con datos' + (ayerK ? ' · comparado contra ' + ayerK : '');
+
+  const dl = (cur, ant, invertir) => {
+    if (!ant) return '<span class="flat">sin comparativo</span>';
+    const pct = (cur - ant) / Math.abs(ant) * 100;
+    const bueno = invertir ? pct < 0 : pct > 0;
+    const cls = Math.abs(pct) < 2 ? 'flat' : (bueno ? 'up' : 'down');
+    const fl = Math.abs(pct) < 2 ? '·' : (pct > 0 ? '▲' : '▼');
+    return `<span class="${cls}">${fl} ${Math.abs(pct).toFixed(0)}% vs día previo</span>`;
+  };
+
+  const cards = [
+    { l:'Cash del día',  v: fmtMoneyCompact(cash),        c:'acid', d: dl(cash, cashPrev) },
+    { l:'Compras LT',    v: Math.round(d.purchases || 0), c:'',     d: dl(d.purchases || 0, prev ? prev.purchases : 0) },
+    { l:'Ventas HT',     v: Math.round(ht.ventas),        c:'',     d: dl(ht.ventas, htPrev ? htPrev.ventas : 0) },
+    { l:'Inversión',     v: fmtMoneyCompact(spend),       c:'',     d: dl(spend, spendPrev, true) },
+    { l:'ROAS del día',  v: roas.toFixed(2) + 'x',
+      c: roas >= 2 ? 'good' : (roas >= 1 ? '' : 'warn'), d: dl(roas, roasPrev) }
+  ];
+  document.getElementById('pulsoGrid').innerHTML = cards.map(k => `
+    <div class="pulso-card">
+      <div class="pulso-label">${k.l}</div>
+      <div class="pulso-valor ${k.c}">${k.v}</div>
+      <div class="pulso-delta">${k.d}</div>
+    </div>`).join('');
+
+  // Cómo va el mes + proyección al cierre según el ritmo
+  const mesK = hoyK.split(' ')[0];
+  const delMes = dias.filter(k => k.startsWith(mesK));
+  const mSpend = delMes.reduce((a,k) => a + (APP_DATA.days[k].spend||0) + (APP_DATA.days[k].spend_google||0), 0);
+  const mCash  = delMes.reduce((a,k) => a + (APP_DATA.days[k].revenue||0) + htDia(k).cobrado, 0);
+  const mPur   = delMes.reduce((a,k) => a + (APP_DATA.days[k].purchases||0), 0);
+  const diasMes = new Date(2026, MONTHS[mesK] + 1, 0).getDate();
+  const proy = delMes.length ? mCash / delMes.length * diasMes : 0;
+  document.getElementById('pulsoMes').innerHTML =
+    `${MONTH_FULL[mesK] || mesK} · día ${delMes.length}/${diasMes}<br>` +
+    `Cash <b>${fmtMoneyCompact(mCash)}</b> · Compras <b>${mPur}</b> · ROAS <b>${mSpend > 0 ? (mCash/mSpend).toFixed(2)+'x' : '-'}</b><br>` +
+    `<span style="color:var(--grey)">proyección de cierre: ${fmtMoneyCompact(proy)}</span>`;
+
+  // Últimos 14 días: barras de compras + línea de cash
+  setTimeout(() => {
+    const c = document.getElementById('chartPulso');
+    if (!c) return;
+    if (chartInstances.pulso) chartInstances.pulso.destroy();
+    const ult = dias.slice(-14);
+    chartInstances.pulso = new Chart(c, {
+      data:{ labels: ult.map(k => k.split(' ')[1]), datasets:[
+        { type:'bar', label:'Compras LT', data: ult.map(k => APP_DATA.days[k].purchases || 0),
+          backgroundColor:'rgba(57,135,229,0.55)', borderRadius:3, yAxisID:'y' },
+        { type:'line', label:'Cash', data: ult.map(k => Math.round((APP_DATA.days[k].revenue||0) + htDia(k).cobrado)),
+          borderColor:'#E7FF2A', borderWidth:2.5, tension:0.3, pointRadius:0, yAxisID:'y2' }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index', intersect:false},
+        plugins:{ legend:{position:'top', align:'end', labels:{boxWidth:8, font:{size:10}}} },
+        scales:{
+          x:{ grid:{display:false} },
+          y:{ beginAtZero:true, position:'left', grid:{color:'rgba(151,178,193,0.07)'} },
+          y2:{ beginAtZero:true, position:'right', ticks:{callback:v=>'$'+(v/1000).toFixed(1)+'k'}, grid:{display:false} }
+        } }
+    });
+  }, 30);
 }
 
 // Aviso breve abajo a la derecha (el elemento #toast ya existe en el HTML)
