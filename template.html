@@ -520,6 +520,7 @@
   }
   /* Variantes por número de columnas (usar clases, NUNCA style inline:
      el inline anula las media queries responsive de abajo) */
+  .kpi-strip.cols-8 { grid-template-columns:repeat(8, minmax(0, 1fr)); }
   .kpi-strip.cols-6 { grid-template-columns:repeat(6, minmax(0, 1fr)); }
   .kpi-strip.cols-4 { grid-template-columns:repeat(4, minmax(0, 1fr)); }
   .kpi-strip.cols-3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
@@ -974,7 +975,7 @@
     .tabs::-webkit-scrollbar { display:none; }
     .tab-btn { white-space:nowrap; flex-shrink:0; padding:14px 14px; }
     .charts-grid { grid-template-columns:1fr; }
-    .kpi-strip, .kpi-strip.cols-6 { grid-template-columns:repeat(3, 1fr); }
+    .kpi-strip, .kpi-strip.cols-8, .kpi-strip.cols-6 { grid-template-columns:repeat(3, 1fr); }
     .kpi-strip.cols-4 { grid-template-columns:repeat(2, 1fr); }
     .kpi-value { font-size:26px; }
     .chart-wrap { height:220px; }
@@ -1005,7 +1006,7 @@
     .btn { padding:8px 12px; font-size:11px; letter-spacing:1px; min-height:34px; }
     .hint { font-size:10px; margin-top:4px; }
 
-    .kpi-strip, .kpi-strip.cols-6, .kpi-strip.cols-4 { grid-template-columns:repeat(2, 1fr); gap:2px; }
+    .kpi-strip, .kpi-strip.cols-8, .kpi-strip.cols-6, .kpi-strip.cols-4 { grid-template-columns:repeat(2, 1fr); gap:2px; }
     .kpi-strip.cols-3 { grid-template-columns:repeat(3, 1fr); gap:2px; }
     .kpi-cell { padding:14px 12px; }
     .kpi-value { font-size:22px; }
@@ -1104,7 +1105,7 @@
 
   /* Mobile small (<=400px) */
   @media (max-width:400px) {
-    .kpi-strip, .kpi-strip.cols-6, .kpi-strip.cols-4, .kpi-strip.cols-3 { grid-template-columns:1fr; }
+    .kpi-strip, .kpi-strip.cols-8, .kpi-strip.cols-6, .kpi-strip.cols-4, .kpi-strip.cols-3 { grid-template-columns:1fr; }
     .kpi-value { font-size:26px; }
     .journey-node { width:60px; height:60px; }
     .journey-node-value { font-size:14px; }
@@ -1475,7 +1476,7 @@
         </div>
 
         <div class="section-title">00 &middot; <span id="ascPeriodTitle">Mes en curso</span> <span class="sub">ventas high ticket &middot; hist&oacute;rico propio desde ene-2025</span></div>
-        <div class="kpi-strip" id="ascKpiStrip"></div>
+        <div class="kpi-strip cols-8" id="ascKpiStrip"></div>
 
         <div class="section-title">01 &middot; Evoluci&oacute;n mensual <span class="sub">desde enero 2025</span></div>
         <div class="charts-grid">
@@ -3891,10 +3892,42 @@ function renderAscensos() {
   }
   const segSub = seg === 'all' ? per.label.toLowerCase() : ASC_SEG_LABEL[seg];
 
+  // ROAS del ecosistema en el período: (revenue LT + cobrado HT de TODAS las
+  // modalidades) / (spend Meta + Google + HT). Usa 'all' aunque haya un segmento
+  // filtrado, porque la inversión es compartida y no se puede repartir por programa.
+  function roasEcoDe(ks) {
+    let sp = 0, cash = 0, hayLT = false;
+    ks.forEach(k => {
+      // Las llaves de LT ('Jun 15') NO llevan año: sin este guard, un día de
+      // 2025 haría match falso con el mismo día de 2026 e inflaría el cálculo.
+      if (k >= '2026-01-01') {
+        const ltKey = ASC_MESES[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(8, 10);
+        const dLT = APP_DATA.days[ltKey];
+        if (dLT) {
+          hayLT = true;
+          sp += (dLT.spend || 0) + (dLT.spend_google || 0);
+          cash += dLT.revenue || 0;
+        }
+      }
+      const dHT = days[k];
+      if (dHT) { sp += dHT.spend || 0; cash += ascSeg_(dHT, 'all').cobrado; }
+    });
+    // En 2025 el negocio era high ticket puro: el ROAS de su propia inversión
+    // sigue siendo válido, solo cambia qué incluye.
+    return { roas: sp > 0 ? cash / sp : null, spend: sp, cash: cash, conLT: hayLT };
+  }
+  const eco = roasEcoDe(per.dias);
+  const ecoPrev = roasEcoDe(per.prev);
+
   const kpis = [
     { label:'Ventas HT', value: Math.round(act.ventas), sub: segSub, d: delta(act.ventas, prev && prev.ventas), cls:'acid' },
     { label:'Contratado', value: fmtMoneyCompact(act.contratado), sub:'valor de ventas', d: delta(act.contratado, prev && prev.contratado), cls:'acid' },
     { label:'Cobrado', value: fmtMoneyCompact(act.cobrado), sub:'cash-in real', d: delta(act.cobrado, prev && prev.cobrado), cls:'good' },
+    { label:'ROAS', value: eco.roas !== null ? eco.roas.toFixed(2) + 'x' : '—',
+      sub: eco.roas !== null ? (eco.conLT ? 'ecosistema' : 'solo HT') + ' · cash ' + fmtMoneyCompact(eco.cash) + ' / inv ' + fmtMoneyCompact(eco.spend)
+                             : 'sin inversión registrada',
+      d: (eco.roas !== null && ecoPrev.roas !== null) ? delta(eco.roas, ecoPrev.roas) : '',
+      cls: eco.roas === null ? '' : (eco.roas >= 2 ? 'good' : (eco.roas >= 1 ? 'acid' : 'warn')) },
     { label:'AOV', value: fmtMoneyCompact(aov), sub:'ticket promedio', d:'', cls:'' },
     { label:'% Cobro', value: pctCobro.toFixed(0) + '%', sub:'cobrado/contratado', d: deltaPp(pctCobro, pctCobroPrev), cls: pctCobro >= 60 ? 'good' : '' },
     { label:'Ritmo', value: ritmoVal, sub: ritmoSub, d:'', cls:'' },
