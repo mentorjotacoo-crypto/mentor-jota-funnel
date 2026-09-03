@@ -91,7 +91,12 @@ setTimeout(async () => {
       await esperar(600);
       let n = 0, sinDatos = 0;
       Object.values(chartInstances).forEach(c => {
-        if (c && c.canvas) { n++; if (!(c.data.labels || []).length) sinDatos++; }
+        if (!c || !c.canvas) return;
+        n++;
+        // Un scatter/bubble no usa labels: sus datos viven en los datasets.
+        const conPuntos = (c.data.datasets || []).some(
+          d => (d.data || []).some(v => v !== null && v !== undefined));
+        if (!(c.data.labels || []).length && !conPuntos) sinDatos++;
       });
       out.push(t + '=' + n + (sinDatos ? '/vacios:' + sinDatos : ''));
     } catch (e) { out.push(t + '=EXCEPCION:' + e.message); }
