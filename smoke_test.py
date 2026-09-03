@@ -34,7 +34,7 @@ EDGE_CANDIDATOS = [
     r'C:\Program Files\Microsoft\Edge\Application\msedge.exe',
 ]
 TABS = ['pulso', 'resumen', 'embudo', 'journey', 'trends', 'revenue',
-        'ascensos', 'forecast', 'compare', 'data']
+        'ascensos', 'closers', 'forecast', 'compare', 'data']
 
 fallos = []
 avisos = []

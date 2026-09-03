@@ -11,3 +11,4 @@ run_ascensos_daily.bat
 ascensos_daily.log
 run_smoke_daily.bat
 smoke_daily.log
+closers.json

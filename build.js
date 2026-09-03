@@ -22,6 +22,26 @@ const IV_LEN = 12;
 
 const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
 
+// Fusiona un blob .enc del repo (mismo formato salt|iv|tag|ct que el payload,
+// gzip opcional) dentro de `data` bajo la llave indicada.
+function fusionarEnc(archivo, llave, describir) {
+  const p = path.join(__dirname, archivo);
+  if (!fs.existsSync(p)) return;
+  try {
+    const blob = Buffer.from(fs.readFileSync(p, 'ascii'), 'base64');
+    const key = crypto.pbkdf2Sync(password, blob.subarray(0, 16), ITERATIONS, 32, 'sha256');
+    const dec = crypto.createDecipheriv('aes-256-gcm', key, blob.subarray(16, 28));
+    dec.setAuthTag(blob.subarray(28, 44));
+    let plain = Buffer.concat([dec.update(blob.subarray(44)), dec.final()]);
+    if (plain.length > 2 && plain[0] === 0x1f && plain[1] === 0x8b) plain = zlib.gunzipSync(plain);
+    data[llave] = JSON.parse(plain.toString('utf8'));
+    console.log('[OK] ' + archivo + ' fusionado: ' + describir(data[llave]));
+  } catch (e) {
+    console.warn('[WARN] No se pudo desencriptar ' + archivo + ': ' + e.message);
+  }
+}
+fusionarEnc('closers.enc', 'closers', d => d.r.length + ' citas, ' + d.closers.length + ' closers');
+
 // Fusionar ascensos.enc si existe (blob encriptado commiteado al repo —
 // mismo formato salt|iv|tag|ct que el payload; lo genera sync_ascensos.py).
 // Así los auto-syncs del tracker LT no pisan los datos de ascensos.

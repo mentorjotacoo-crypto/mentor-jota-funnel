@@ -1236,6 +1236,7 @@
     <button class="tab-btn" onclick="switchTab('trends', this)">Tendencias</button>
     <button class="tab-btn" onclick="switchTab('revenue', this)">Revenue</button>
     <button class="tab-btn" onclick="switchTab('ascensos', this)">Ascensos</button>
+    <button class="tab-btn" onclick="switchTab('closers', this)">Closers</button>
     <button class="tab-btn" onclick="switchTab('forecast', this)">Proyecci&oacute;n</button>
     <button class="tab-btn" onclick="switchTab('compare', this)">Comparar</button>
     <button class="tab-btn" onclick="switchTab('data', this)">Datos</button>
@@ -1454,6 +1455,103 @@
   </div>
 
   <!-- TAB: ASCENSOS (high ticket MENtoreo) -->
+  <!-- TAB: CLOSERS — reemplazo del Power BI -->
+  <div id="tab-closers" class="tab-panel">
+    <main>
+      <div id="closersEmpty" style="display:none; padding:40px 0; color:var(--grey); font-size:14px;">
+        No hay datos de closers en este build. Corre <code>sync_closers.py</code> y regenera.
+      </div>
+      <div id="closersContent">
+        <div class="period-bar" style="margin:14px 0 4px;">
+          <span class="period-bar-label">Closer</span>
+          <span class="asc-period">
+            <button class="asc-period-btn" id="cloCloserBtn" onclick="toggleCloPop(event,'closer')">
+              <span id="cloCloserLabel">Todos</span><span class="chev">&#9660;</span>
+            </button>
+            <div class="asc-period-pop" id="cloCloserPop"></div>
+          </span>
+          <span class="period-bar-label" style="margin-left:18px">Per&iacute;odo</span>
+          <span class="asc-period">
+            <button class="asc-period-btn" id="cloPeriodBtn" onclick="toggleCloPop(event,'periodo')">
+              <span id="cloPeriodLabel">Todo el hist&oacute;rico</span><span class="chev">&#9660;</span>
+            </button>
+            <div class="asc-period-pop" id="cloPeriodPop"></div>
+          </span>
+          <span class="period-bar-label" style="margin-left:18px">Origen</span>
+          <button class="btn active" data-ori="all" onclick="setCloOrigen('all', this)">Todos</button>
+          <button class="btn" data-ori="Automatico" onclick="setCloOrigen('Automatico', this)">Autom&aacute;tico</button>
+          <button class="btn" data-ori="Desafio" onclick="setCloOrigen('Desafio', this)">Desaf&iacute;o</button>
+          <button class="btn" data-ori="Setter" onclick="setCloOrigen('Setter', this)">Setter</button>
+        </div>
+
+        <div class="section-title">00 &middot; <span id="cloTitle">Todo el hist&oacute;rico</span> <span class="sub">desempe&ntilde;o de closers &middot; citas agendadas, asistencia y cierre</span></div>
+        <div class="kpi-strip cols-8" id="cloKpiStrip"></div>
+
+        <div class="section-title">01 &middot; Evoluci&oacute;n en el tiempo <span class="sub">l&iacute;nea mensual de vol&uacute;menes y tasas</span></div>
+        <div class="chart-grid-2">
+          <div class="chart-card">
+            <div class="chart-title">Vol&uacute;menes por mes</div>
+            <div class="chart-subtitle">agendas, asistidas y cierres</div>
+            <div class="chart-wrap"><canvas id="chartCloVol"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Tasas por mes</div>
+            <div class="chart-subtitle">asistencia y cierre (sobre asistidas y sobre agendas)</div>
+            <div class="chart-wrap"><canvas id="chartCloTasas"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Revenue cerrado por mes</div>
+          <div class="chart-subtitle">valor de las ventas cerradas y ticket promedio</div>
+          <div class="chart-wrap" style="height:230px"><canvas id="chartCloRev"></canvas></div>
+        </div>
+
+        <div class="section-title">02 &middot; Comparativo entre closers <span class="sub">respeta per&iacute;odo y origen, ignora el filtro de closer</span></div>
+        <div class="chart-grid-2">
+          <div class="chart-card">
+            <div class="chart-title">Ranking por tasa de cierre</div>
+            <div class="chart-subtitle">sobre asistidas &middot; solo closers con 20+ citas en el per&iacute;odo</div>
+            <div class="chart-wrap"><canvas id="chartCloRank"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Asistencia vs cierre</div>
+            <div class="chart-subtitle">cada burbuja es un closer &middot; tama&ntilde;o = citas atendidas</div>
+            <div class="chart-wrap"><canvas id="chartCloScatter"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Tasa de cierre mensual por closer</div>
+          <div class="chart-subtitle">una l&iacute;nea por closer &middot; meses con 10+ citas atendidas</div>
+          <div class="chart-wrap" style="height:250px"><canvas id="chartCloLineas"></canvas></div>
+        </div>
+
+        <div class="section-title">03 &middot; Geograf&iacute;a <span class="sub">d&oacute;nde se cierra mejor</span></div>
+        <div class="chart-grid-2">
+          <div class="chart-card">
+            <div class="chart-title">Pa&iacute;ses por tasa de cierre</div>
+            <div class="chart-subtitle">solo pa&iacute;ses con 15+ citas atendidas en el per&iacute;odo</div>
+            <div class="chart-wrap"><canvas id="chartCloPais"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Volumen y revenue por pa&iacute;s</div>
+            <div class="chart-subtitle">top 10 por citas atendidas</div>
+            <div class="chart-wrap"><canvas id="chartCloPaisVol"></canvas></div>
+          </div>
+        </div>
+
+        <div class="section-title">04 &middot; Por qu&eacute; no se cierra <span class="sub">motivos declarados en citas atendidas sin venta</span></div>
+        <div class="chart-card">
+          <div class="chart-wrap" style="height:260px"><canvas id="chartCloMotivos"></canvas></div>
+        </div>
+
+        <div class="section-title">05 &middot; Detalle por closer</div>
+        <div class="table-wrap">
+          <table class="data-table" id="cloTabla"></table>
+        </div>
+      </div>
+    </main>
+  </div>
+
   <div id="tab-ascensos" class="tab-panel">
     <main>
       <div id="ascensosEmpty" style="display:none; padding:40px 0; color:var(--grey); font-size:14px;">
@@ -1984,7 +2082,7 @@ function switchTab(tab, btn) {
   // Ascensos tiene su propio selector de período (histórico distinto al LT):
   // ocultar la barra global evita dos controles compitiendo.
   const pbar = document.querySelector('.period-bar-global');
-  if (pbar) pbar.style.display = (tab === 'ascensos' || tab === 'pulso') ? 'none' : '';
+  if (pbar) pbar.style.display = (tab === 'ascensos' || tab === 'pulso' || tab === 'closers') ? 'none' : '';
   const loader = document.getElementById('tabLoader');
   if (loader) loader.classList.add('active');
   // Fade out current
@@ -2166,6 +2264,7 @@ function renderAll() {
   destroyCharts();
   renderInsights();
   renderKPIs();
+  if (currentTab === 'closers'){ renderClosers(); }
   if (currentTab === 'pulso')  { renderPulso(); }
   if (currentTab === 'resumen'){ renderResumen(); }
   if (currentTab === 'embudo') { renderFunnelVisual(); setTimeout(()=>{ renderFunnelDailyChart(); renderConversionsChart(); }, 30); }
@@ -4381,6 +4480,454 @@ function renderAscensos() {
   });
   html += '</div>';
   document.getElementById('ascTable').innerHTML = html;
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB CLOSERS — reemplazo del Power BI
+//  Data: APP_DATA.closers, formato columnar {cols, closers[], paises[],
+//  tipos[], motivos[], programas[], r:[[fecha,cl,pa,asist,cerro,venta,
+//  pagado,tipo,motivo,prog], ...]}. Las tasas se muestran en las dos bases
+//  (sobre asistidas y sobre agendas) porque miden cosas distintas: la
+//  primera es habilidad del closer, la segunda incluye la calidad del lead.
+// ══════════════════════════════════════════════════════════════════
+let cloCloserSel = 'all';
+let cloPeriodoSel = 'all';
+let cloOrigenSel = 'all';
+
+const CLO_MESES_C = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+function cloDatos_() { return (APP_DATA && APP_DATA.closers) || null; }
+
+// Filas filtradas por período/origen/closer, como objetos legibles
+function cloFiltrar_(opts) {
+  const d = cloDatos_();
+  if (!d) return [];
+  opts = opts || {};
+  const ignorarCloser = !!opts.ignorarCloser;
+  const out = [];
+  for (const f of d.r) {
+    const fecha = f[0];
+    if (cloPeriodoSel !== 'all') {
+      if (cloPeriodoSel.length === 4) { if (fecha.slice(0, 4) !== cloPeriodoSel) continue; }
+      else if (fecha.slice(0, 7) !== cloPeriodoSel) continue;
+    }
+    if (cloOrigenSel !== 'all' && d.tipos[f[7]] !== cloOrigenSel) continue;
+    if (!ignorarCloser && cloCloserSel !== 'all' && d.closers[f[1]] !== cloCloserSel) continue;
+    out.push({ fecha: fecha, closer: d.closers[f[1]], pais: d.paises[f[2]],
+               asistio: f[3] === 1, cerro: f[4] === 1, venta: f[5], pagado: f[6],
+               tipo: d.tipos[f[7]], motivo: d.motivos[f[8]], programa: d.programas[f[9]] });
+  }
+  return out;
+}
+
+function cloMetricas_(filas) {
+  const ag = filas.length;
+  const as = filas.filter(f => f.asistio).length;
+  const ci = filas.filter(f => f.cerro).length;
+  const rev = filas.reduce((a, f) => a + (f.venta || 0), 0);
+  const cash = filas.reduce((a, f) => a + (f.pagado || 0), 0);
+  return {
+    agendas: ag, asistidas: as, cierres: ci, revenue: rev, cash: cash,
+    tAsist: ag ? as / ag * 100 : 0,
+    tCierre: as ? ci / as * 100 : 0,
+    tCierreAg: ag ? ci / ag * 100 : 0,
+    ticket: ci ? rev / ci : 0
+  };
+}
+
+// Período anterior comparable, para los deltas de los KPIs
+function cloPeriodoPrev_() {
+  if (cloPeriodoSel === 'all') return null;
+  if (cloPeriodoSel.length === 4) return String(parseInt(cloPeriodoSel, 10) - 1);
+  const y = parseInt(cloPeriodoSel.slice(0, 4), 10);
+  const m = parseInt(cloPeriodoSel.slice(5), 10);
+  return m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0');
+}
+function cloMetricasPrev_() {
+  const prev = cloPeriodoPrev_();
+  if (!prev) return null;
+  const guardar = cloPeriodoSel;
+  cloPeriodoSel = prev;
+  const m = cloMetricas_(cloFiltrar_());
+  cloPeriodoSel = guardar;
+  return m.agendas ? m : null;
+}
+
+// ── Popovers de closer y período ──
+function toggleCloPop(ev, cual) {
+  ev.stopPropagation();
+  const pop = document.getElementById(cual === 'closer' ? 'cloCloserPop' : 'cloPeriodPop');
+  const otro = document.getElementById(cual === 'closer' ? 'cloPeriodPop' : 'cloCloserPop');
+  if (otro) otro.classList.remove('open');
+  if (!pop) return;
+  if (pop.classList.contains('open')) { pop.classList.remove('open'); return; }
+  if (cual === 'closer') renderCloCloserPop(); else renderCloPeriodPop();
+  pop.classList.add('open');
+}
+document.addEventListener('click', function () {
+  ['cloCloserPop', 'cloPeriodPop'].forEach(function (id) {
+    const p = document.getElementById(id);
+    if (p) p.classList.remove('open');
+  });
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') ['cloCloserPop', 'cloPeriodPop'].forEach(function (id) {
+    const p = document.getElementById(id);
+    if (p) p.classList.remove('open');
+  });
+});
+
+function renderCloCloserPop() {
+  const d = cloDatos_();
+  if (!d) return;
+  // Ordenados por volumen: los activos quedan arriba
+  const conteo = {};
+  d.r.forEach(function (f) { const n = d.closers[f[1]]; conteo[n] = (conteo[n] || 0) + 1; });
+  const lista = d.closers.slice().sort(function (a, b) { return (conteo[b] || 0) - (conteo[a] || 0); });
+  let h = '<div class="asc-pop-sec"><div class="asc-pop-tit">Closer</div>';
+  h += '<button class="asc-opt' + (cloCloserSel === 'all' ? ' sel' : '') + '" onclick="setCloCloser(\'all\')">Todos los closers</button>';
+  lista.forEach(function (n) {
+    const esc = n.replace(/'/g, '&#39;');
+    h += '<button class="asc-opt' + (cloCloserSel === n ? ' sel' : '') + '" onclick="setCloCloser(this.dataset.n)" data-n="' + esc + '">' +
+         n + ' <span style="opacity:.5">&middot; ' + conteo[n] + '</span></button>';
+  });
+  document.getElementById('cloCloserPop').innerHTML = h + '</div>';
+}
+
+function renderCloPeriodPop() {
+  const d = cloDatos_();
+  if (!d) return;
+  const meses = new Set(), anios = new Set();
+  d.r.forEach(function (f) { meses.add(f[0].slice(0, 7)); anios.add(f[0].slice(0, 4)); });
+  let h = '<div class="asc-pop-sec"><div class="asc-pop-tit">Atajos</div>' +
+          '<button class="asc-opt' + (cloPeriodoSel === 'all' ? ' sel' : '') +
+          '" onclick="setCloPeriodo(\'all\')">Todo el hist&oacute;rico</button></div>';
+  Array.from(anios).sort().reverse().forEach(function (a) {
+    h += '<div class="asc-pop-sec"><div class="asc-pop-tit">' + a + '</div>';
+    h += '<button class="asc-opt' + (cloPeriodoSel === a ? ' sel' : '') + '" onclick="setCloPeriodo(\'' + a + '\')">Todo ' + a + '</button>';
+    h += '<div class="asc-pop-grid">';
+    for (let m = 1; m <= 12; m++) {
+      const k = a + '-' + String(m).padStart(2, '0');
+      if (!meses.has(k)) continue;
+      h += '<button class="asc-opt mini' + (cloPeriodoSel === k ? ' sel' : '') +
+           '" onclick="setCloPeriodo(\'' + k + '\')">' + CLO_MESES_C[m - 1] + '</button>';
+    }
+    h += '</div></div>';
+  });
+  document.getElementById('cloPeriodPop').innerHTML = h;
+}
+
+function cloEtiquetaPeriodo_(v) {
+  if (v === 'all') return 'Todo el histórico';
+  if (v.length === 4) return v;
+  return CLO_MESES_C[parseInt(v.slice(5), 10) - 1] + ' ' + v.slice(0, 4);
+}
+
+function setCloCloser(v) {
+  cloCloserSel = v;
+  document.getElementById('cloCloserLabel').textContent = v === 'all' ? 'Todos' : v;
+  document.getElementById('cloCloserPop').classList.remove('open');
+  renderClosers();
+}
+function setCloPeriodo(v) {
+  cloPeriodoSel = v;
+  document.getElementById('cloPeriodLabel').textContent = cloEtiquetaPeriodo_(v);
+  document.getElementById('cloPeriodPop').classList.remove('open');
+  renderClosers();
+}
+function setCloOrigen(v, btn) {
+  cloOrigenSel = v;
+  document.querySelectorAll('#tab-closers [data-ori]').forEach(function (b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  renderClosers();
+}
+
+function cloVacio_(id, msg) {
+  const c = document.getElementById(id);
+  if (!c) return;
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.save();
+  ctx.fillStyle = 'rgba(151,178,193,0.55)';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(msg, c.width / 2, c.height / 2);
+  ctx.restore();
+}
+
+function renderClosers() {
+  const d = cloDatos_();
+  const empty = document.getElementById('closersEmpty');
+  const cont = document.getElementById('closersContent');
+  if (!d || !d.r || !d.r.length) {
+    if (empty) empty.style.display = 'block';
+    if (cont) cont.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (cont) cont.style.display = '';
+
+  const filas = cloFiltrar_();
+  const m = cloMetricas_(filas);
+  const prev = cloMetricasPrev_();
+
+  document.getElementById('cloTitle').textContent =
+    cloEtiquetaPeriodo_(cloPeriodoSel) + (cloCloserSel === 'all' ? '' : ' · ' + cloCloserSel);
+
+  const dl = function (cur, ant, pp) {
+    if (ant === null || ant === undefined || !isFinite(ant) || ant === 0) return '';
+    const dif = pp ? (cur - ant) : ((cur - ant) / Math.abs(ant) * 100);
+    if (!isFinite(dif)) return '';
+    const cls = Math.abs(dif) < (pp ? 0.5 : 2) ? 'flat' : (dif > 0 ? 'up' : 'down');
+    const fl = cls === 'flat' ? '·' : (dif > 0 ? '▲' : '▼');
+    return '<span class="' + cls + '">' + fl + ' ' + Math.abs(dif).toFixed(1) + (pp ? ' pp' : '%') + '</span>';
+  };
+
+  const kpis = [
+    { l: 'Citas agendadas', v: m.agendas, s: cloOrigenSel === 'all' ? 'en el período' : cloOrigenSel.toLowerCase(), d: dl(m.agendas, prev && prev.agendas), c: '' },
+    { l: 'Asistidas', v: m.asistidas, s: 'se presentaron', d: dl(m.asistidas, prev && prev.asistidas), c: '' },
+    { l: 'Tasa asistencia', v: m.tAsist.toFixed(1) + '%', s: 'asistidas / agendadas', d: dl(m.tAsist, prev && prev.tAsist, true), c: m.tAsist >= 55 ? 'good' : (m.tAsist >= 45 ? '' : 'warn') },
+    { l: 'Cierres', v: m.cierres, s: 'ventas confirmadas', d: dl(m.cierres, prev && prev.cierres), c: 'acid' },
+    { l: 'Tasa cierre', v: m.tCierre.toFixed(1) + '%', s: 'sobre asistidas', d: dl(m.tCierre, prev && prev.tCierre, true), c: m.tCierre >= 28 ? 'good' : (m.tCierre >= 20 ? '' : 'warn') },
+    { l: 'Cierre s/agenda', v: m.tCierreAg.toFixed(1) + '%', s: 'incluye no-shows', d: dl(m.tCierreAg, prev && prev.tCierreAg, true), c: '' },
+    { l: 'Revenue', v: fmtMoneyCompact(m.revenue), s: 'valor cerrado', d: dl(m.revenue, prev && prev.revenue), c: 'good' },
+    { l: 'Ticket promedio', v: fmtMoneyCompact(m.ticket), s: 'revenue / cierres', d: dl(m.ticket, prev && prev.ticket), c: '' }
+  ];
+  document.getElementById('cloKpiStrip').innerHTML = kpis.map(function (k) {
+    return '<div class="kpi-cell"><div class="kpi-label">' + k.l + '</div>' +
+      '<div class="kpi-value ' + k.c + '">' + k.v + '</div>' +
+      '<div class="kpi-sub">' + k.s + '</div>' +
+      (k.d ? '<div class="kpi-delta">' + k.d + '</div>' : '') + '</div>';
+  }).join('');
+
+  // Series mensuales del conjunto filtrado
+  const porMes = {};
+  filas.forEach(function (f) {
+    const k = f.fecha.slice(0, 7);
+    (porMes[k] = porMes[k] || []).push(f);
+  });
+  const mesesK = Object.keys(porMes).sort();
+  const etiq = mesesK.map(function (k) { return CLO_MESES_C[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4); });
+  const serie = mesesK.map(function (k) { return cloMetricas_(porMes[k]); });
+
+  setTimeout(function () {
+    const nuevo = function (id, cfg) {
+      const c = document.getElementById(id);
+      if (!c) return;
+      if (chartInstances[id]) chartInstances[id].destroy();
+      chartInstances[id] = new Chart(c, cfg);
+    };
+    const GRID = { color: 'rgba(151,178,193,0.07)' };
+    const pct = function (v) { return v + '%'; };
+
+    // ── 01 · Volúmenes por mes ──
+    if (!mesesK.length) cloVacio_('chartCloVol', 'Sin citas en el período');
+    else nuevo('chartCloVol', {
+      data: { labels: etiq, datasets: [
+        { type: 'bar', label: 'Agendadas', data: serie.map(function (s) { return s.agendas; }), backgroundColor: 'rgba(151,178,193,0.30)', borderRadius: 3 },
+        { type: 'bar', label: 'Asistidas', data: serie.map(function (s) { return s.asistidas; }), backgroundColor: 'rgba(57,135,229,0.65)', borderRadius: 3 },
+        { type: 'line', label: 'Cierres', data: serie.map(function (s) { return s.cierres; }), borderColor: '#E7FF2A', borderWidth: 2.5, tension: 0.3, pointRadius: 2, yAxisID: 'y2' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } } },
+        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID },
+                  y2: { beginAtZero: true, position: 'right', grid: { display: false } } } }
+    });
+
+    // ── 01 · Tasas por mes ──
+    if (!mesesK.length) cloVacio_('chartCloTasas', 'Sin citas en el período');
+    else nuevo('chartCloTasas', {
+      type: 'line',
+      data: { labels: etiq, datasets: [
+        { label: 'Tasa asistencia', data: serie.map(function (s) { return +s.tAsist.toFixed(1); }), borderColor: '#3987E5', backgroundColor: 'rgba(57,135,229,0.10)', borderWidth: 2.5, tension: 0.3, pointRadius: 2, fill: true },
+        { label: 'Cierre s/asistidas', data: serie.map(function (s) { return +s.tCierre.toFixed(1); }), borderColor: '#E7FF2A', borderWidth: 2.5, tension: 0.3, pointRadius: 2 },
+        { label: 'Cierre s/agendas', data: serie.map(function (s) { return +s.tCierreAg.toFixed(1); }), borderColor: 'rgba(151,178,193,0.75)', borderWidth: 1.8, borderDash: [4, 3], tension: 0.3, pointRadius: 0 }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } },
+          tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + c.parsed.y + '%'; } } } },
+        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID, ticks: { callback: pct } } } }
+    });
+
+    // ── 01 · Revenue cerrado ──
+    if (!mesesK.length) cloVacio_('chartCloRev', 'Sin citas en el período');
+    else nuevo('chartCloRev', {
+      data: { labels: etiq, datasets: [
+        { type: 'bar', label: 'Revenue cerrado', data: serie.map(function (s) { return Math.round(s.revenue); }), backgroundColor: 'rgba(38,169,124,0.60)', borderRadius: 3 },
+        { type: 'line', label: 'Ticket promedio', data: serie.map(function (s) { return Math.round(s.ticket); }), borderColor: '#E7FF2A', borderWidth: 2, tension: 0.3, pointRadius: 2, yAxisID: 'y2' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } },
+          tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': $' + c.parsed.y.toLocaleString('es-CO'); } } } },
+        scales: { x: { grid: { display: false } },
+          y: { beginAtZero: true, grid: GRID, ticks: { callback: function (v) { return '$' + (v / 1000).toFixed(0) + 'k'; } } },
+          y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: function (v) { return '$' + (v / 1000).toFixed(1) + 'k'; } } } } }
+    });
+
+    // ── 02 · Comparativo entre closers (ignora el filtro de closer) ──
+    const todos = cloFiltrar_({ ignorarCloser: true });
+    const porCloser = {};
+    todos.forEach(function (f) { (porCloser[f.closer] = porCloser[f.closer] || []).push(f); });
+    const rank = Object.keys(porCloser).map(function (n) {
+      const x = cloMetricas_(porCloser[n]); x.n = n; return x;
+    }).filter(function (x) { return x.agendas >= 20 && x.asistidas > 0; })
+      .sort(function (a, b) { return b.tCierre - a.tCierre; });
+
+    if (!rank.length) cloVacio_('chartCloRank', 'Ningún closer con 20+ citas en el período');
+    else nuevo('chartCloRank', {
+      type: 'bar',
+      data: { labels: rank.map(function (x) { return x.n; }), datasets: [{
+        label: 'Tasa de cierre', data: rank.map(function (x) { return +x.tCierre.toFixed(1); }),
+        backgroundColor: rank.map(function (x) { return x.n === cloCloserSel ? '#E7FF2A' : 'rgba(57,135,229,0.65)'; }),
+        borderRadius: 3 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: function (c) {
+            const x = rank[c.dataIndex];
+            return ['Cierre: ' + x.tCierre.toFixed(1) + '% (' + x.cierres + '/' + x.asistidas + ')',
+                    'Asistencia: ' + x.tAsist.toFixed(1) + '%',
+                    'Revenue: $' + Math.round(x.revenue).toLocaleString('es-CO')];
+          } } } },
+        scales: { x: { beginAtZero: true, grid: GRID, ticks: { callback: pct } }, y: { grid: { display: false } } } }
+    });
+
+    // ── 02 · Asistencia vs cierre ──
+    if (!rank.length) cloVacio_('chartCloScatter', 'Ningún closer con 20+ citas en el período');
+    else nuevo('chartCloScatter', {
+      type: 'bubble',
+      data: { datasets: rank.map(function (x, i) {
+        return { label: x.n,
+          data: [{ x: +x.tAsist.toFixed(1), y: +x.tCierre.toFixed(1), r: Math.max(5, Math.min(24, Math.sqrt(x.asistidas) * 1.5)) }],
+          backgroundColor: x.n === cloCloserSel ? 'rgba(231,255,42,0.75)' : 'hsla(' + (200 + i * 26) + ',62%,58%,0.62)',
+          borderColor: x.n === cloCloserSel ? '#E7FF2A' : 'hsla(' + (200 + i * 26) + ',62%,58%,0.95)',
+          borderWidth: 1.5 };
+      }) },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 9 } } },
+          tooltip: { callbacks: { label: function (c) {
+            const x = rank.filter(function (r) { return r.n === c.dataset.label; })[0];
+            return c.dataset.label + ': asist ' + x.tAsist.toFixed(1) + '% · cierre ' + x.tCierre.toFixed(1) + '% · ' + x.asistidas + ' atendidas';
+          } } } },
+        scales: { x: { title: { display: true, text: 'Tasa de asistencia', font: { size: 10 } }, grid: GRID, ticks: { callback: pct } },
+                  y: { title: { display: true, text: 'Tasa de cierre', font: { size: 10 } }, grid: GRID, ticks: { callback: pct } } } }
+    });
+
+    // ── 02 · Tasa de cierre mensual por closer (analítica de tiempo) ──
+    const mesesTodos = Object.keys(todos.reduce(function (a, f) { a[f.fecha.slice(0, 7)] = 1; return a; }, {})).sort();
+    const activos = rank.slice(0, 6);
+    const dsLineas = activos.map(function (x, i) {
+      const n = x.n;
+      const pts = mesesTodos.map(function (mk) {
+        const fs = todos.filter(function (f) { return f.closer === n && f.fecha.slice(0, 7) === mk; });
+        const as = fs.filter(function (f) { return f.asistio; }).length;
+        if (as < 10) return null;               // meses flacos distorsionan la tasa
+        return +(fs.filter(function (f) { return f.cerro; }).length / as * 100).toFixed(1);
+      });
+      const destacado = n === cloCloserSel;
+      return { label: n, data: pts, spanGaps: true,
+        borderColor: destacado ? '#E7FF2A' : 'hsla(' + (200 + i * 26) + ',62%,58%,0.85)',
+        borderWidth: destacado ? 3 : 1.8, tension: 0.3, pointRadius: 2 };
+    });
+    const hayLineas = dsLineas.some(function (ds) { return ds.data.some(function (v) { return v !== null; }); });
+    if (!mesesTodos.length || !hayLineas) cloVacio_('chartCloLineas', 'Sin meses con 10+ citas atendidas por closer');
+    else nuevo('chartCloLineas', {
+      type: 'line',
+      data: { labels: mesesTodos.map(function (k) { return CLO_MESES_C[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4); }), datasets: dsLineas },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 9 } } },
+          tooltip: { callbacks: { label: function (c) { return c.parsed.y === null ? null : c.dataset.label + ': ' + c.parsed.y + '%'; } } } },
+        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID, ticks: { callback: pct } } } }
+    });
+
+    // ── 03 · Geografía ──
+    const porPais = {};
+    filas.forEach(function (f) { if (f.pais) (porPais[f.pais] = porPais[f.pais] || []).push(f); });
+    const paises = Object.keys(porPais).map(function (n) {
+      const x = cloMetricas_(porPais[n]); x.n = n; return x;
+    }).filter(function (x) { return x.asistidas >= 15; })
+      .sort(function (a, b) { return b.tCierre - a.tCierre; });
+
+    if (!paises.length) cloVacio_('chartCloPais', 'Ningún país con 15+ citas atendidas');
+    else nuevo('chartCloPais', {
+      type: 'bar',
+      data: { labels: paises.map(function (x) { return x.n; }), datasets: [{
+        label: 'Tasa de cierre', data: paises.map(function (x) { return +x.tCierre.toFixed(1); }),
+        backgroundColor: paises.map(function (x, i) { return i === 0 ? '#E7FF2A' : 'rgba(38,169,124,0.62)'; }), borderRadius: 3 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: function (c) {
+            const x = paises[c.dataIndex];
+            return ['Cierre: ' + x.tCierre.toFixed(1) + '% (' + x.cierres + '/' + x.asistidas + ')',
+                    'Asistencia: ' + x.tAsist.toFixed(1) + '%',
+                    'Ticket: $' + Math.round(x.ticket).toLocaleString('es-CO')];
+          } } } },
+        scales: { x: { beginAtZero: true, grid: GRID, ticks: { callback: pct } }, y: { grid: { display: false } } } }
+    });
+
+    const paisVol = Object.keys(porPais).map(function (n) {
+      const x = cloMetricas_(porPais[n]); x.n = n; return x;
+    }).sort(function (a, b) { return b.asistidas - a.asistidas; }).slice(0, 10);
+    if (!paisVol.length) cloVacio_('chartCloPaisVol', 'Sin datos de país en el período');
+    else nuevo('chartCloPaisVol', {
+      data: { labels: paisVol.map(function (x) { return x.n; }), datasets: [
+        { type: 'bar', label: 'Citas atendidas', data: paisVol.map(function (x) { return x.asistidas; }), backgroundColor: 'rgba(57,135,229,0.62)', borderRadius: 3 },
+        { type: 'line', label: 'Revenue', data: paisVol.map(function (x) { return Math.round(x.revenue); }), borderColor: '#E7FF2A', borderWidth: 2, tension: 0.3, pointRadius: 2, yAxisID: 'y2' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } } },
+        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID },
+          y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: function (v) { return '$' + (v / 1000).toFixed(0) + 'k'; } } } } }
+    });
+
+    // ── 04 · Motivos de no cierre ──
+    const mot = {};
+    filas.filter(function (f) { return f.asistio && !f.cerro && f.motivo; })
+         .forEach(function (f) { mot[f.motivo] = (mot[f.motivo] || 0) + 1; });
+    const motTop = Object.keys(mot).map(function (k) { return [k, mot[k]]; })
+      .sort(function (a, b) { return b[1] - a[1]; }).slice(0, 10);
+    if (!motTop.length) cloVacio_('chartCloMotivos', 'Sin motivos registrados en el período');
+    else nuevo('chartCloMotivos', {
+      type: 'bar',
+      data: { labels: motTop.map(function (x) { return x[0].length > 34 ? x[0].slice(0, 33) + '…' : x[0]; }),
+        datasets: [{ label: 'Citas', data: motTop.map(function (x) { return x[1]; }), backgroundColor: 'rgba(230,103,103,0.58)', borderRadius: 3 }] },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: {
+            title: function (c) { return motTop[c[0].dataIndex][0]; },
+            label: function (c) {
+              const tot = motTop.reduce(function (a, x) { return a + x[1]; }, 0);
+              return c.parsed.x + ' citas · ' + (c.parsed.x / tot * 100).toFixed(1) + '% de las no cerradas';
+            } } } },
+        scales: { x: { beginAtZero: true, grid: GRID }, y: { grid: { display: false } } } }
+    });
+  }, 30);
+
+  // ── 05 · Tabla por closer ──
+  const todosT = cloFiltrar_({ ignorarCloser: true });
+  const grupos = {};
+  todosT.forEach(function (f) { (grupos[f.closer] = grupos[f.closer] || []).push(f); });
+  const filasT = Object.keys(grupos).map(function (n) {
+    const x = cloMetricas_(grupos[n]); x.n = n; return x;
+  }).sort(function (a, b) { return b.cierres - a.cierres; });
+  const tot = cloMetricas_(todosT);
+  document.getElementById('cloTabla').innerHTML =
+    '<thead><tr><th>Closer</th><th class="num">Agendadas</th><th class="num">Asistidas</th>' +
+    '<th class="num">% Asist.</th><th class="num">Cierres</th><th class="num">% Cierre</th>' +
+    '<th class="num">% s/agenda</th><th class="num">Revenue</th><th class="num">Ticket</th></tr></thead><tbody>' +
+    filasT.map(function (x) {
+      return '<tr' + (x.n === cloCloserSel ? ' style="background:rgba(231,255,42,0.06)"' : '') + '>' +
+        '<td>' + x.n + '</td><td class="num">' + x.agendas + '</td><td class="num">' + x.asistidas + '</td>' +
+        '<td class="num">' + x.tAsist.toFixed(1) + '%</td><td class="num">' + x.cierres + '</td>' +
+        '<td class="num"><b>' + x.tCierre.toFixed(1) + '%</b></td><td class="num">' + x.tCierreAg.toFixed(1) + '%</td>' +
+        '<td class="num">' + fmtMoneyCompact(x.revenue) + '</td><td class="num">' + fmtMoneyCompact(x.ticket) + '</td></tr>';
+    }).join('') +
+    '<tr style="border-top:2px solid var(--hairline); font-weight:600">' +
+    '<td>TOTAL</td><td class="num">' + tot.agendas + '</td><td class="num">' + tot.asistidas + '</td>' +
+    '<td class="num">' + tot.tAsist.toFixed(1) + '%</td><td class="num">' + tot.cierres + '</td>' +
+    '<td class="num">' + tot.tCierre.toFixed(1) + '%</td><td class="num">' + tot.tCierreAg.toFixed(1) + '%</td>' +
+    '<td class="num">' + fmtMoneyCompact(tot.revenue) + '</td><td class="num">' + fmtMoneyCompact(tot.ticket) + '</td></tr></tbody>';
 }
 
 // ====== PULSO ======
