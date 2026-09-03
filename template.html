@@ -4527,12 +4527,17 @@ function cloMetricas_(filas) {
   const ci = filas.filter(f => f.cerro).length;
   const rev = filas.reduce((a, f) => a + (f.venta || 0), 0);
   const cash = filas.reduce((a, f) => a + (f.pagado || 0), 0);
+  // Hay cierres sin "Valor venta" digitado en el consolidado. Contarlos como $0
+  // en el promedio subestimaría el ticket, así que el divisor son solo los
+  // cierres con valor registrado (el revenue total sí suma todo lo que hay).
+  const ciVal = filas.filter(f => f.cerro && f.venta > 0).length;
   return {
-    agendas: ag, asistidas: as, cierres: ci, revenue: rev, cash: cash,
+    agendas: ag, asistidas: as, cierres: ci, cierresConValor: ciVal,
+    revenue: rev, cash: cash,
     tAsist: ag ? as / ag * 100 : 0,
     tCierre: as ? ci / as * 100 : 0,
     tCierreAg: ag ? ci / ag * 100 : 0,
-    ticket: ci ? rev / ci : 0
+    ticket: ciVal ? rev / ciVal : 0
   };
 }
 
@@ -4693,7 +4698,9 @@ function renderClosers() {
     { l: 'Tasa cierre', v: m.tCierre.toFixed(1) + '%', s: 'sobre asistidas', d: dl(m.tCierre, prev && prev.tCierre, true), c: m.tCierre >= 28 ? 'good' : (m.tCierre >= 20 ? '' : 'warn') },
     { l: 'Cierre s/agenda', v: m.tCierreAg.toFixed(1) + '%', s: 'incluye no-shows', d: dl(m.tCierreAg, prev && prev.tCierreAg, true), c: '' },
     { l: 'Revenue', v: fmtMoneyCompact(m.revenue), s: 'valor cerrado', d: dl(m.revenue, prev && prev.revenue), c: 'good' },
-    { l: 'Ticket promedio', v: fmtMoneyCompact(m.ticket), s: 'revenue / cierres', d: dl(m.ticket, prev && prev.ticket), c: '' }
+    { l: 'Ticket promedio', v: fmtMoneyCompact(m.ticket),
+      s: m.cierresConValor < m.cierres ? 'sobre ' + m.cierresConValor + ' de ' + m.cierres + ' con valor' : 'revenue / cierres',
+      d: dl(m.ticket, prev && prev.ticket), c: '' }
   ];
   document.getElementById('cloKpiStrip').innerHTML = kpis.map(function (k) {
     return '<div class="kpi-cell"><div class="kpi-label">' + k.l + '</div>' +

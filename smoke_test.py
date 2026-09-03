@@ -14,6 +14,14 @@ Uso:  python smoke_test.py "<clave>" [--local]
 Sale con código 0 si todo pasa, 1 si algo falla (apto para CI/tarea programada).
 """
 import sys
+
+
+def _p(txt=''):
+    """print que no revienta en consolas cp1252."""
+    try:
+        print(txt)
+    except UnicodeEncodeError:
+        print(str(txt).encode('ascii', 'replace').decode('ascii'))
 import os
 import re
 import json
@@ -29,7 +37,11 @@ from cryptography.hazmat.primitives import hashes
 
 URL = 'https://mentorjotacoo-crypto.github.io/mentor-jota-funnel/'
 REPO = os.path.dirname(os.path.abspath(__file__))
+# Chrome va primero: el headless de Edge se volvió intermitente en esta máquina
+# (devuelve DOM vacío sin error). Se prueba el siguiente si uno no responde.
 EDGE_CANDIDATOS = [
+    r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+    r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
     r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
     r'C:\Program Files\Microsoft\Edge\Application\msedge.exe',
 ]
@@ -73,9 +85,9 @@ def descifrar(html, clave):
 
 def prueba_navegador(html, clave):
     """Abre el dashboard ya logueado y reporta charts por tab + errores JS."""
-    edge = next((e for e in EDGE_CANDIDATOS if os.path.exists(e)), None)
-    if not edge:
-        return None, 'Edge no encontrado (se omite la prueba de runtime)'
+    navegadores = [e for e in EDGE_CANDIDATOS if os.path.exists(e)]
+    if not navegadores:
+        return None, 'ningún navegador encontrado (se omite la prueba de runtime)'
 
     inject = ("<script>sessionStorage.setItem('funnel_pw'," + json.dumps(clave) + ");"
               "window.__err=[];window.onerror=(m,s,l)=>window.__err.push(m+'@'+l);"
@@ -111,13 +123,24 @@ setTimeout(async () => {
     with open(ruta, 'w', encoding='utf-8') as f:
         f.write(doc)
 
-    try:
-        salida = subprocess.run(
-            [edge, '--headless=new', '--disable-gpu', '--allow-file-access-from-files',
-             '--virtual-time-budget=30000', '--dump-dom', 'file:///' + ruta.replace('\\', '/')],
-            capture_output=True, text=True, timeout=180, encoding='utf-8', errors='replace').stdout
-    except subprocess.TimeoutExpired:
-        return None, 'timeout del navegador'
+    # Un headless roto devuelve DOM vacío sin código de error, así que se
+    # recorren navegador × modo hasta que uno responda.
+    salida = ''
+    for nav in navegadores:
+        for modo in ('--headless=new', '--headless'):
+            try:
+                salida = subprocess.run(
+                    [nav, modo, '--disable-gpu',
+                     '--virtual-time-budget=30000', '--dump-dom', 'file:///' + ruta.replace('\\', '/')],
+                    capture_output=True, text=True, timeout=180, encoding='utf-8', errors='replace').stdout or ''
+            except subprocess.TimeoutExpired:
+                continue
+            if salida.strip():
+                break
+        if salida.strip():
+            break
+    if not salida.strip():
+        return None, 'ningun navegador headless devolvio contenido'
     t = re.search(r'<title>SMOKE\|(.*?)</title>', salida or '', re.S)
     return (t.group(1) if t else None), None
 
@@ -200,13 +223,13 @@ def main():
 
     print()
     if fallos:
-        print(f'RESULTADO: {len(fallos)} FALLO(S) CRÍTICO(S)')
+        _p(f'RESULTADO: {len(fallos)} FALLO(S) CRITICOS')
         for f in fallos:
-            print(f'  ✗ {f}')
+            _p(f'  X {f}')
         sys.exit(1)
     print('RESULTADO: TODO OK' + (f' ({len(avisos)} aviso(s))' if avisos else ''))
     for a in avisos:
-        print(f'  ! {a}')
+        _p(f'  ! {a}')
     sys.exit(0)
 
 
