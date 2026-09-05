@@ -1490,19 +1490,19 @@
         <div class="section-title">01 &middot; Evoluci&oacute;n en el tiempo <span class="sub">l&iacute;nea mensual de vol&uacute;menes y tasas</span></div>
         <div class="chart-grid-2">
           <div class="chart-card">
-            <div class="chart-title">Vol&uacute;menes por mes</div>
-            <div class="chart-subtitle">agendas, asistidas y cierres</div>
+            <div class="chart-title" id="chartCloVolTit">Vol&uacute;menes por mes</div>
+            <div class="chart-subtitle" id="chartCloVolSub">agendas, asistidas y cierres</div>
             <div class="chart-wrap"><canvas id="chartCloVol"></canvas></div>
           </div>
           <div class="chart-card">
-            <div class="chart-title">Tasas por mes</div>
-            <div class="chart-subtitle">asistencia y cierre (sobre asistidas y sobre agendas)</div>
+            <div class="chart-title" id="chartCloTasasTit">Tasas por mes</div>
+            <div class="chart-subtitle" id="chartCloTasasSub">asistencia y cierre (sobre asistidas y sobre agendas)</div>
             <div class="chart-wrap"><canvas id="chartCloTasas"></canvas></div>
           </div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Revenue cerrado por mes</div>
-          <div class="chart-subtitle">valor de las ventas cerradas y ticket promedio</div>
+          <div class="chart-title" id="chartCloRevTit">Revenue cerrado por mes</div>
+          <div class="chart-subtitle" id="chartCloRevSub">valor de las ventas cerradas y ticket promedio</div>
           <div class="chart-wrap" style="height:230px"><canvas id="chartCloRev"></canvas></div>
         </div>
 
@@ -1510,7 +1510,7 @@
         <div class="chart-grid-2">
           <div class="chart-card">
             <div class="chart-title">Ranking por tasa de cierre</div>
-            <div class="chart-subtitle">sobre asistidas &middot; solo closers con 20+ citas en el per&iacute;odo</div>
+            <div class="chart-subtitle">sobre asistidas &middot; entre par&eacute;ntesis las citas atendidas; barras tenues = muestra chica</div>
             <div class="chart-wrap"><canvas id="chartCloRank"></canvas></div>
           </div>
           <div class="chart-card">
@@ -1529,7 +1529,7 @@
         <div class="chart-grid-2">
           <div class="chart-card">
             <div class="chart-title">Pa&iacute;ses por tasa de cierre</div>
-            <div class="chart-subtitle">solo pa&iacute;ses con 15+ citas atendidas en el per&iacute;odo</div>
+            <div class="chart-subtitle">solo pa&iacute;ses con 15+ citas atendidas &middot; entre par&eacute;ntesis la base; las barras tenues tienen muestra chica</div>
             <div class="chart-wrap"><canvas id="chartCloPais"></canvas></div>
           </div>
           <div class="chart-card">
@@ -1579,13 +1579,13 @@
         <div class="section-title">01 &middot; Evoluci&oacute;n mensual <span class="sub">desde enero 2025</span></div>
         <div class="charts-grid">
           <div class="chart-card accent-top">
-            <div class="chart-title">Ventas por mes</div>
-            <div class="chart-subtitle">Cierres high ticket mensuales</div>
+            <div class="chart-title" id="ascVentasTitle">Ventas por mes</div>
+            <div class="chart-subtitle" id="ascVentasSub">Cierres high ticket mensuales</div>
             <div class="chart-wrap"><canvas id="chartAscVentas"></canvas></div>
           </div>
           <div class="chart-card">
-            <div class="chart-title">Contratado vs Cobrado</div>
-            <div class="chart-subtitle">USD por mes &middot; contratado = valor de venta, cobrado = cash-in</div>
+            <div class="chart-title" id="ascRevenueTitle">Contratado vs Cobrado</div>
+            <div class="chart-subtitle" id="ascRevenueSub">USD por mes &middot; contratado = valor de venta, cobrado = cash-in</div>
             <div class="chart-wrap"><canvas id="chartAscRevenue"></canvas></div>
           </div>
           <div class="chart-card">
@@ -1610,7 +1610,7 @@
         </div>
         <div class="charts-grid">
           <div class="chart-card">
-            <div class="chart-title">Mix de cash mensual</div>
+            <div class="chart-title" id="ascMixTitle">Mix de cash mensual</div>
             <div class="chart-subtitle">cobro de ventas del mes vs cuotas de financiaciones previas</div>
             <div class="chart-wrap"><canvas id="chartAscMix"></canvas></div>
           </div>
@@ -4069,6 +4069,44 @@ function renderAscensos() {
   // --- Charts ---
   setTimeout(() => {
     const mLabels = mkeysView.map(ascMesLabel_);
+
+    // Con UN mes seleccionado, una serie mensual queda en un solo punto. En ese
+    // caso las series del período pasan a días del mes: se sustituye el agregado
+    // por mes por uno por día MANTENIENDO la misma forma ({clave:{campos}}), así
+    // los charts no cambian. Los días sin movimiento van en 0 para no saltar
+    // fechas. El comparativo interanual, el ecosistema, la tasa de ascenso y la
+    // tabla siguen mensuales a propósito: cruzan con LT agregado por mes o son
+    // comparativos de estacionalidad.
+    const esMesUnico = ascPeriodSel !== 'all' && /^\d{4}-\d{2}$/.test(ascPeriodSel);
+    let vKeys = mkeysView, vDatos = meses, vLabels = mLabels;
+    if (esMesUnico) {
+      const CAMPOS_D = ['ventas','contratado','cobrado','cobrado_cuotas',
+        'ventas_stm_curso','contratado_stm_curso','cobrado_stm_curso',
+        'ventas_stm_lite','contratado_stm_lite','cobrado_stm_lite','spend'];
+      const nd = new Date(parseInt(ascPeriodSel.slice(0,4),10), parseInt(ascPeriodSel.slice(5),10), 0).getDate();
+      vKeys = []; vDatos = {};
+      for (let i = 1; i <= nd; i++) {
+        const k = ascPeriodSel + '-' + String(i).padStart(2,'0');
+        vKeys.push(k);
+        const orig = days[k];
+        const o = {};
+        CAMPOS_D.forEach(c => o[c] = orig ? (orig[c] || 0) : 0);
+        vDatos[k] = o;
+      }
+      vLabels = vKeys.map(k => String(parseInt(k.slice(8,10),10)));
+    }
+    // Los títulos deben decir si se está viendo por día o por mes
+    const unidadAsc = esMesUnico ? 'diarias' : 'mensuales';
+    const tAscV = document.getElementById('ascVentasTitle');
+    if (tAscV) tAscV.textContent = 'Ventas ' + unidadAsc + ' por modalidad';
+    const tAscR = document.getElementById('ascRevenueTitle');
+    if (tAscR) tAscR.textContent = 'Contratado vs cobrado (' + (esMesUnico ? 'por día' : 'por mes') + ')';
+    const tAscM = document.getElementById('ascMixTitle');
+    if (tAscM) tAscM.textContent = 'Mix de cash ' + (esMesUnico ? 'diario' : 'mensual');
+    const sAscV = document.getElementById('ascVentasSub');
+    if (sAscV) sAscV.textContent = esMesUnico ? 'cierres high ticket por día del mes' : 'Cierres high ticket mensuales';
+    const sAscR = document.getElementById('ascRevenueSub');
+    if (sAscR) sAscR.textContent = 'USD ' + (esMesUnico ? 'por día' : 'por mes') + ' · contratado = valor de venta, cobrado = cash-in';
     const gridCol = 'rgba(151,178,193,0.07)';
     const tickStyle = { color:'#7E8C96', font:{size:10} };
 
@@ -4079,17 +4117,18 @@ function renderAscensos() {
       let ds;
       if (seg === 'all') {
         ds = [
-          { label:'Guiado',   data:mkeysView.map(m=>meses[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
-          { label:'Asistido', data:mkeysView.map(m=>meses[m].ventas_stm_curso), backgroundColor:'rgba(57,135,229,0.75)', borderRadius:2, stack:'v' },
-          { label:'Autónomo', data:mkeysView.map(m=>meses[m].ventas_stm_lite),  backgroundColor:'rgba(213,81,129,0.65)', borderRadius:2, stack:'v' }
+          { label:'Guiado',   data:vKeys.map(m=>vDatos[m].ventas),           backgroundColor:'rgba(231,255,42,0.75)', borderRadius:2, stack:'v' },
+          { label:'Asistido', data:vKeys.map(m=>vDatos[m].ventas_stm_curso), backgroundColor:'rgba(57,135,229,0.75)', borderRadius:2, stack:'v' },
+          { label:'Autónomo', data:vKeys.map(m=>vDatos[m].ventas_stm_lite),  backgroundColor:'rgba(213,81,129,0.65)', borderRadius:2, stack:'v' }
         ];
       } else {
-        ds = [{ label:ASC_SEG_LABEL[seg], data:mkeysView.map(m=>ascSeg_(meses[m], seg).ventas),
-                backgroundColor:mkeysView.map(m => m === (per.mesSel || mesActual) ? 'rgba(231,255,42,0.75)' : 'rgba(57,135,229,0.6)'), borderRadius:3 }];
+        ds = [{ label:ASC_SEG_LABEL[seg], data:vKeys.map(m=>ascSeg_(vDatos[m], seg).ventas),
+                backgroundColor: esMesUnico ? 'rgba(231,255,42,0.75)'
+                  : vKeys.map(m => m === (per.mesSel || mesActual) ? 'rgba(231,255,42,0.75)' : 'rgba(57,135,229,0.6)'), borderRadius:3 }];
       }
       chartInstances.ascVentas = new Chart(c1, {
         type:'bar',
-        data:{ labels:mLabels, datasets:ds },
+        data:{ labels:vLabels, datasets:ds },
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{display: seg === 'all', position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}} },
           scales:{ x:{stacked:true, ticks:tickStyle, grid:{display:false}}, y:{stacked:true, beginAtZero:true, ticks:tickStyle, grid:{color:gridCol}} } }
@@ -4102,9 +4141,9 @@ function renderAscensos() {
       if (chartInstances.ascRevenue) chartInstances.ascRevenue.destroy();
       chartInstances.ascRevenue = new Chart(c2, {
         type:'line',
-        data:{ labels:mLabels, datasets:[
-          { label:'Contratado', data:mkeysView.map(m=>Math.round(ascSeg_(meses[m], seg).contratado)), borderColor:'#3987E5', backgroundColor:'rgba(57,135,229,0.12)', fill:true, tension:0.3, pointRadius:2 },
-          { label:'Cobrado', data:mkeysView.map(m=>Math.round(ascSeg_(meses[m], seg).cobrado)), borderColor:'#E7FF2A', backgroundColor:'rgba(231,255,42,0.10)', fill:true, tension:0.3, pointRadius:2 }
+        data:{ labels:vLabels, datasets:[
+          { label:'Contratado', data:vKeys.map(m=>Math.round(ascSeg_(vDatos[m], seg).contratado)), borderColor:'#3987E5', backgroundColor:'rgba(57,135,229,0.12)', fill:true, tension:0.3, pointRadius:esMesUnico?1:2 },
+          { label:'Cobrado', data:vKeys.map(m=>Math.round(ascSeg_(vDatos[m], seg).cobrado)), borderColor:'#E7FF2A', backgroundColor:'rgba(231,255,42,0.10)', fill:true, tension:0.3, pointRadius:esMesUnico?1:2 }
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
@@ -4147,17 +4186,17 @@ function renderAscensos() {
     const cMix = document.getElementById('chartAscMix');
     if (cMix) {
       if (chartInstances.ascMix) chartInstances.ascMix.destroy();
-      const inicial = mkeysView.map(m => {
-        const d = meses[m];
+      const inicial = vKeys.map(m => {
+        const d = vDatos[m];
         if (seg === 'main')  return Math.round(d.cobrado || 0);
         if (seg === 'curso') return Math.round(d.cobrado_stm_curso || 0);
         if (seg === 'lite')  return Math.round(d.cobrado_stm_lite || 0);
         return Math.round((d.cobrado || 0) + (d.cobrado_stm_curso || 0) + (d.cobrado_stm_lite || 0));
       });
-      const cuotas = mkeysView.map(m => (seg === 'all' || seg === 'main') ? Math.round(meses[m].cobrado_cuotas || 0) : 0);
+      const cuotas = vKeys.map(m => (seg === 'all' || seg === 'main') ? Math.round(vDatos[m].cobrado_cuotas || 0) : 0);
       chartInstances.ascMix = new Chart(cMix, {
         type:'bar',
-        data:{ labels: mkeysView.map(ascMesLabel_), datasets:[
+        data:{ labels: vLabels, datasets:[
           { label:'Cobro de ventas del mes', data:inicial, backgroundColor:'rgba(38,169,124,0.65)', borderRadius:2, stack:'c' },
           { label:'Cuotas de meses previos', data:cuotas, backgroundColor:'rgba(57,135,229,0.6)', borderRadius:2, stack:'c' }
         ]},
@@ -4648,6 +4687,61 @@ function setCloOrigen(v, btn) {
   renderClosers();
 }
 
+// Con un mes seleccionado, una serie mensual queda en UN solo punto: en ese
+// caso el eje pasa a días del mes (rellenando los días sin citas con 0 para que
+// la línea no mienta saltándose fechas).
+function cloEsMes_() {
+  return cloPeriodoSel !== 'all' && cloPeriodoSel.length === 7;
+}
+
+function cloAgrupar_(filas) {
+  const porDia = cloEsMes_();
+  const g = {};
+  filas.forEach(function (f) {
+    const k = porDia ? f.fecha : f.fecha.slice(0, 7);
+    (g[k] = g[k] || []).push(f);
+  });
+  let claves;
+  if (porDia) {
+    claves = [];
+    const y = parseInt(cloPeriodoSel.slice(0, 4), 10);
+    const m = parseInt(cloPeriodoSel.slice(5), 10);
+    const nd = new Date(y, m, 0).getDate();
+    for (let i = 1; i <= nd; i++) {
+      const k = cloPeriodoSel + '-' + String(i).padStart(2, '0');
+      claves.push(k);
+      if (!g[k]) g[k] = [];
+    }
+  } else {
+    claves = Object.keys(g).sort();
+  }
+  return {
+    porDia: porDia,
+    claves: claves,
+    etiquetas: claves.map(function (k) {
+      return porDia ? String(parseInt(k.slice(8, 10), 10))
+                    : CLO_MESES_C[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(2, 4);
+    }),
+    grupos: claves.map(function (k) { return g[k] || []; })
+  };
+}
+
+// En vista diaria las tasas por día son ruido puro (2 citas y 1 cierre = 50%),
+// así que se grafica la tasa ACUMULADA del mes: converge y sí es interpretable.
+function cloTasasAcum_(grupos) {
+  let ag = 0, as = 0, ci = 0;
+  const tAs = [], tCi = [], tCiAg = [];
+  grupos.forEach(function (fs) {
+    ag += fs.length;
+    as += fs.filter(function (f) { return f.asistio; }).length;
+    ci += fs.filter(function (f) { return f.cerro; }).length;
+    tAs.push(ag ? +(as / ag * 100).toFixed(1) : null);
+    tCi.push(as ? +(ci / as * 100).toFixed(1) : null);
+    tCiAg.push(ag ? +(ci / ag * 100).toFixed(1) : null);
+  });
+  return { tAsist: tAs, tCierre: tCi, tCierreAg: tCiAg };
+}
+
 function cloVacio_(id, msg) {
   const c = document.getElementById(id);
   if (!c) return;
@@ -4709,15 +4803,34 @@ function renderClosers() {
       (k.d ? '<div class="kpi-delta">' + k.d + '</div>' : '') + '</div>';
   }).join('');
 
-  // Series mensuales del conjunto filtrado
-  const porMes = {};
-  filas.forEach(function (f) {
-    const k = f.fecha.slice(0, 7);
-    (porMes[k] = porMes[k] || []).push(f);
+  // Series del conjunto filtrado: por día si hay un mes seleccionado, si no por mes
+  const gr = cloAgrupar_(filas);
+  const mesesK = gr.claves;
+  const etiq = gr.etiquetas;
+  const serie = gr.grupos.map(function (fs) { return cloMetricas_(fs); });
+  const acum = gr.porDia ? cloTasasAcum_(gr.grupos) : null;
+  const unidad = gr.porDia ? 'día' : 'mes';
+
+  // Los subtítulos deben decir qué se está viendo
+  const subs = {
+    chartCloVolSub: gr.porDia ? 'agendas, asistidas y cierres por día del mes' : 'agendas, asistidas y cierres',
+    chartCloTasasSub: gr.porDia ? 'acumulado del mes: converge conforme avanzan los días'
+                                : 'asistencia y cierre (sobre asistidas y sobre agendas)',
+    chartCloRevSub: gr.porDia ? 'valor cerrado por día y ticket promedio' : 'valor de las ventas cerradas y ticket promedio'
+  };
+  Object.keys(subs).forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = subs[id];
   });
-  const mesesK = Object.keys(porMes).sort();
-  const etiq = mesesK.map(function (k) { return CLO_MESES_C[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4); });
-  const serie = mesesK.map(function (k) { return cloMetricas_(porMes[k]); });
+  const tits = {
+    chartCloVolTit: 'Volúmenes por ' + unidad,
+    chartCloTasasTit: gr.porDia ? 'Tasas acumuladas del mes' : 'Tasas por mes',
+    chartCloRevTit: 'Revenue cerrado por ' + unidad
+  };
+  Object.keys(tits).forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = tits[id];
+  });
 
   setTimeout(function () {
     const nuevo = function (id, cfg) {
@@ -4748,9 +4861,15 @@ function renderClosers() {
     else nuevo('chartCloTasas', {
       type: 'line',
       data: { labels: etiq, datasets: [
-        { label: 'Tasa asistencia', data: serie.map(function (s) { return +s.tAsist.toFixed(1); }), borderColor: '#3987E5', backgroundColor: 'rgba(57,135,229,0.10)', borderWidth: 2.5, tension: 0.3, pointRadius: 2, fill: true },
-        { label: 'Cierre s/asistidas', data: serie.map(function (s) { return +s.tCierre.toFixed(1); }), borderColor: '#E7FF2A', borderWidth: 2.5, tension: 0.3, pointRadius: 2 },
-        { label: 'Cierre s/agendas', data: serie.map(function (s) { return +s.tCierreAg.toFixed(1); }), borderColor: 'rgba(151,178,193,0.75)', borderWidth: 1.8, borderDash: [4, 3], tension: 0.3, pointRadius: 0 }
+        { label: 'Tasa asistencia' + (acum ? ' (acum.)' : ''),
+          data: acum ? acum.tAsist : serie.map(function (s) { return +s.tAsist.toFixed(1); }),
+          borderColor: '#3987E5', backgroundColor: 'rgba(57,135,229,0.10)', borderWidth: 2.5, tension: 0.3, pointRadius: acum ? 0 : 2, fill: true, spanGaps: true },
+        { label: 'Cierre s/asistidas' + (acum ? ' (acum.)' : ''),
+          data: acum ? acum.tCierre : serie.map(function (s) { return +s.tCierre.toFixed(1); }),
+          borderColor: '#E7FF2A', borderWidth: 2.5, tension: 0.3, pointRadius: acum ? 0 : 2, spanGaps: true },
+        { label: 'Cierre s/agendas' + (acum ? ' (acum.)' : ''),
+          data: acum ? acum.tCierreAg : serie.map(function (s) { return +s.tCierreAg.toFixed(1); }),
+          borderColor: 'rgba(151,178,193,0.75)', borderWidth: 1.8, borderDash: [4, 3], tension: 0.3, pointRadius: 0, spanGaps: true }
       ]},
       options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
         plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } },
@@ -4785,10 +4904,15 @@ function renderClosers() {
     if (!rank.length) cloVacio_('chartCloRank', 'Ningún closer con 20+ citas en el período');
     else nuevo('chartCloRank', {
       type: 'bar',
-      data: { labels: rank.map(function (x) { return x.n; }), datasets: [{
+      data: { labels: rank.map(function (x) { return x.n + '  (' + x.asistidas + ')'; }), datasets: [{
         label: 'Tasa de cierre', data: rank.map(function (x) { return +x.tCierre.toFixed(1); }),
-        backgroundColor: rank.map(function (x) { return x.n === cloCloserSel ? '#E7FF2A' : 'rgba(57,135,229,0.65)'; }),
-        borderRadius: 3 }] },
+        backgroundColor: rank.map(function (x) {
+          const firme = x.asistidas >= 40;
+          if (x.n === cloCloserSel) return firme ? '#E7FF2A' : 'rgba(231,255,42,0.32)';
+          return firme ? 'rgba(57,135,229,0.72)' : 'rgba(57,135,229,0.28)';
+        }),
+        borderColor: rank.map(function (x) { return x.asistidas >= 40 ? 'transparent' : 'rgba(151,178,193,0.35)'; }),
+        borderWidth: 1, borderRadius: 3 }] },
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false },
           tooltip: { callbacks: { label: function (c) {
@@ -4856,19 +4980,33 @@ function renderClosers() {
     }).filter(function (x) { return x.asistidas >= 15; })
       .sort(function (a, b) { return b.tCierre - a.tCierre; });
 
+    // Una tasa sobre 15 citas no es comparable con una sobre 269: la etiqueta
+    // lleva la base y las muestras chicas van atenuadas para no leerse como
+    // un ranking firme.
+    const MUESTRA_FIRME = 40;
     if (!paises.length) cloVacio_('chartCloPais', 'Ningún país con 15+ citas atendidas');
     else nuevo('chartCloPais', {
       type: 'bar',
-      data: { labels: paises.map(function (x) { return x.n; }), datasets: [{
+      data: { labels: paises.map(function (x) { return x.n + '  (' + x.asistidas + ')'; }), datasets: [{
         label: 'Tasa de cierre', data: paises.map(function (x) { return +x.tCierre.toFixed(1); }),
-        backgroundColor: paises.map(function (x, i) { return i === 0 ? '#E7FF2A' : 'rgba(38,169,124,0.62)'; }), borderRadius: 3 }] },
+        backgroundColor: paises.map(function (x, i) {
+          const firme = x.asistidas >= MUESTRA_FIRME;
+          if (i === 0) return firme ? '#E7FF2A' : 'rgba(231,255,42,0.30)';
+          return firme ? 'rgba(38,169,124,0.72)' : 'rgba(38,169,124,0.26)';
+        }),
+        borderColor: paises.map(function (x) {
+          return x.asistidas >= MUESTRA_FIRME ? 'transparent' : 'rgba(151,178,193,0.35)';
+        }),
+        borderWidth: 1, borderRadius: 3 }] },
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false },
           tooltip: { callbacks: { label: function (c) {
             const x = paises[c.dataIndex];
-            return ['Cierre: ' + x.tCierre.toFixed(1) + '% (' + x.cierres + '/' + x.asistidas + ')',
+            const filas = ['Cierre: ' + x.tCierre.toFixed(1) + '% (' + x.cierres + '/' + x.asistidas + ')',
                     'Asistencia: ' + x.tAsist.toFixed(1) + '%',
                     'Ticket: $' + Math.round(x.ticket).toLocaleString('es-CO')];
+            if (x.asistidas < MUESTRA_FIRME) filas.push('⚠ muestra pequeña: la tasa es poco confiable');
+            return filas;
           } } } },
         scales: { x: { beginAtZero: true, grid: GRID, ticks: { callback: pct } }, y: { grid: { display: false } } } }
     });
