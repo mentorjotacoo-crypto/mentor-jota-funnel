@@ -41,6 +41,7 @@ function fusionarEnc(archivo, llave, describir) {
   }
 }
 fusionarEnc('closers.enc', 'closers', d => d.r.length + ' citas, ' + d.closers.length + ' closers');
+fusionarEnc('atribucion.enc', 'atribucion', d => Object.keys(d.dias).length + ' dias por canal (' + d.modelo + ')');
 
 // Fusionar ascensos.enc si existe (blob encriptado commiteado al repo —
 // mismo formato salt|iv|tag|ct que el payload; lo genera sync_ascensos.py).

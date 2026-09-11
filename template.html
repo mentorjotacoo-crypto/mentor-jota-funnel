@@ -1451,6 +1451,25 @@
           <div class="chart-wrap"><canvas id="chartBumps"></canvas></div>
         </div>
       </div>
+
+      <div class="section-title">03 &middot; Canales <span class="sub">de d&oacute;nde vino cada peso &middot; triangulaci&oacute;n por &uacute;ltimo clic</span></div>
+      <div id="canalesEmpty" style="display:none; padding:14px 0 4px; color:var(--grey); font-size:13px;">
+        Sin datos de atribuci&oacute;n en este build. Se cargan con <code>sync_atribucion.py</code>.
+      </div>
+      <div id="canalesContent">
+        <div class="chart-subtitle" id="canalesNota" style="margin:-4px 0 10px"></div>
+        <div class="kpi-strip cols-4" id="canalesKpis"></div>
+        <div class="chart-card" style="margin-top:12px">
+          <div class="chart-title">Revenue diario por canal</div>
+          <div class="chart-subtitle">cada venta acreditada al clic que la produjo</div>
+          <div class="chart-wrap"><canvas id="chartCanales"></canvas></div>
+        </div>
+        <div class="table-wrap" style="margin-top:12px"><table class="data-table" id="canalesTabla"></table></div>
+
+        <div class="section-title" style="margin-top:22px">04 &middot; Valor por canal de adquisici&oacute;n <span class="sub">lo que termin&oacute; rindiendo cada canal, incluidos los ascensos</span></div>
+        <div class="chart-subtitle" id="canalesLtvNota" style="margin:-4px 0 10px"></div>
+        <div class="table-wrap"><table class="data-table" id="canalesLtv"></table></div>
+      </div>
     </main>
   </div>
 
@@ -2270,7 +2289,7 @@ function renderAll() {
   if (currentTab === 'embudo') { renderFunnelVisual(); setTimeout(()=>{ renderFunnelDailyChart(); renderConversionsChart(); }, 30); }
   if (currentTab === 'journey') { renderJourney(); renderAnnotations(); }
   if (currentTab === 'trends')  { setTimeout(()=>{ renderTrendCharts(); renderAccumulatedMonthCharts(); renderHeatmap(); }, 30); }
-  if (currentTab === 'revenue') { renderRevenue(); setTimeout(()=>{ renderRevenueCharts(); }, 30); }
+  if (currentTab === 'revenue') { renderRevenue(); setTimeout(()=>{ renderRevenueCharts(); renderCanales(); }, 30); }
   if (currentTab === 'ascensos'){ renderAscensos(); }
   if (currentTab === 'forecast'){ renderForecast(); runSimulator(); setTimeout(()=>{ renderForecastCharts(); }, 30); }
   if (currentTab === 'compare') { populateCompareSelectors(); renderCompare(); }
@@ -3379,6 +3398,164 @@ function renderRevenueCharts() {
 }
 
 // ====== FORECAST ======
+// ====== CANALES (triangulación) ======
+// GHL no dice si una venta vino de Meta o de Google. Lo dice el servicio de
+// triangulación (mentor-jota-tracking), que acredita cada venta al clic que la
+// produjo y cuadra al centavo contra GHL; sync_atribucion.py trae su reporte.
+// Aquí solo se agrega por el período activo: el servicio es la fuente.
+const CANAL_BASE = {
+  meta: 'Meta', google: 'Google', tiktok: 'TikTok', youtube: 'YouTube',
+  instagram: 'Instagram', facebook: 'Facebook', organic_search: 'Búsqueda orgánica',
+  email: 'Email', direct: 'Directo', referral: 'Referidos', whatsapp: 'WhatsApp',
+  sin_atribuir: 'Sin camino registrado', seguimiento: 'Seguimiento (links enviados)'
+};
+function canalNombre_(c) {
+  if (!c) return 'Sin dato';
+  let base = c, suf = '';
+  if (c.endsWith('_pago')) { base = c.slice(0, -5); suf = ' · pauta'; }
+  else if (c.endsWith('_organico')) { base = c.slice(0, -9); suf = ' · orgánico'; }
+  const n = CANAL_BASE[base] || (base.charAt(0).toUpperCase() + base.slice(1).replace(/_/g, ' '));
+  return n + suf;
+}
+function canalColor_(c) {
+  if (/^meta/.test(c)) return c.endsWith('_pago') ? '#3987E5' : 'rgba(57,135,229,0.42)';
+  if (/^google/.test(c)) return c.endsWith('_pago') ? '#C98500' : 'rgba(201,133,0,0.42)';
+  if (c === 'direct') return 'rgba(151,178,193,0.55)';
+  if (c === 'sin_atribuir') return 'rgba(151,178,193,0.25)';
+  if (/_organico$|organic/.test(c)) return '#26A97C';
+  return '#D55181';
+}
+// El filtro global usa llaves 'Ago 05'; la atribución, fechas ISO.
+function isoDelPeriodo_() {
+  return getFilteredDays().map(k => {
+    const d = dayKeyToDate(k);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  });
+}
+
+function renderCanales() {
+  const cont = document.getElementById('canalesContent');
+  const vacio = document.getElementById('canalesEmpty');
+  if (!cont || !vacio) return;
+  const at = APP_DATA.atribucion;
+  if (!at || !at.dias) { cont.style.display = 'none'; vacio.style.display = ''; return; }
+  cont.style.display = ''; vacio.style.display = 'none';
+
+  const dias = isoDelPeriodo_();
+  const conDato = dias.filter(k => at.dias[k] !== undefined);
+  const faltan = dias.length - conDato.length;
+
+  // Agregado por canal del período
+  const agg = {};
+  conDato.forEach(k => (at.dias[k] || []).forEach(f => {
+    const a = agg[f.canal] || (agg[f.canal] = { canal: f.canal, pago: f.pago, spend: 0, revenue: 0, ventas: 0, leads: 0 });
+    a.spend += f.spend; a.revenue += f.revenue; a.ventas += f.ventas; a.leads += f.leads;
+  }));
+  const filas = Object.values(agg).sort((a, b) => b.revenue - a.revenue || b.spend - a.spend);
+  const totRev = filas.reduce((s, f) => s + f.revenue, 0);
+  const pauta = filas.filter(f => f.pago);
+  const spendP = pauta.reduce((s, f) => s + f.spend, 0);
+  const revP = pauta.reduce((s, f) => s + f.revenue, 0);
+  const revSinPauta = totRev - revP;
+
+  const act = at.actualizado ? at.actualizado.slice(0, 16).replace('T', ' ') : '';
+  document.getElementById('canalesNota').innerHTML =
+    (faltan > 0
+      ? `<b style="color:var(--mid)">La atribución arranca el ${at.desde}:</b> ${faltan} de ${dias.length} días del período no tienen datos por canal. `
+      : '') +
+    `Modelo ${at.modelo === 'last_click' ? 'último clic' : at.modelo} · actualizado ${act} · ` +
+    `<a href="https://tracking-production-6322.up.railway.app" target="_blank" rel="noopener" style="color:var(--acid)">detalle por campaña y anuncio ↗</a>`;
+
+  if (!conDato.length) {
+    document.getElementById('canalesKpis').innerHTML = '';
+    document.getElementById('canalesTabla').innerHTML = '';
+    document.getElementById('canalesLtv').innerHTML = '';
+    document.getElementById('canalesLtvNota').textContent = '';
+    if (chartInstances.canales) { chartInstances.canales.destroy(); delete chartInstances.canales; }
+    return;
+  }
+
+  // El ROAS "de pauta" solo divide lo que la pauta produjo: el orgánico y el
+  // directo no costaron nada y, mezclados, inflan el retorno que se escala.
+  const kpis = [
+    { l: 'Revenue atribuido', v: fmtMoneyCompact(totRev), s: conDato.length + ' días con datos', c: '' },
+    { l: 'Gasto en pauta', v: fmtMoneyCompact(spendP), s: 'Meta + Google', c: '' },
+    { l: 'ROAS de pauta', v: spendP > 0 ? (revP / spendP).toFixed(2) + 'x' : '—',
+      s: 'solo lo que produjeron los anuncios', c: spendP > 0 && revP / spendP >= 1 ? 'good' : 'warn' },
+    { l: 'Revenue sin pauta', v: totRev > 0 ? (revSinPauta / totRev * 100).toFixed(0) + '%' : '—',
+      s: fmtMoneyCompact(revSinPauta) + ' orgánico, directo o sin camino', c: '' }
+  ];
+  document.getElementById('canalesKpis').innerHTML = kpis.map(k =>
+    `<div class="kpi-cell"><div class="kpi-label">${k.l}</div><div class="kpi-value ${k.c}">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
+
+  // Tabla por canal
+  document.getElementById('canalesTabla').innerHTML =
+    '<thead><tr><th>Canal</th><th class="num">Gasto</th><th class="num">Revenue</th><th class="num">% del revenue</th>' +
+    '<th class="num">Ventas</th><th class="num">ROAS</th><th class="num">Costo por venta</th></tr></thead><tbody>' +
+    filas.map(f => `<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;background:${canalColor_(f.canal)}"></span>${canalNombre_(f.canal)}</td>` +
+      `<td class="num">${f.spend > 0 ? fmtMoneyCompact(f.spend) : '—'}</td>` +
+      `<td class="num">${fmtMoneyCompact(f.revenue)}</td>` +
+      `<td class="num">${totRev > 0 ? (f.revenue / totRev * 100).toFixed(1) + '%' : '—'}</td>` +
+      `<td class="num">${Math.round(f.ventas * 10) / 10}</td>` +
+      `<td class="num"><b>${f.spend > 0 ? (f.revenue / f.spend).toFixed(2) + 'x' : '—'}</b></td>` +
+      `<td class="num">${f.spend > 0 && f.ventas > 0 ? fmtMoneyCompact(f.spend / f.ventas) : '—'}</td></tr>`).join('') +
+    `<tr style="border-top:2px solid var(--hairline);font-weight:600"><td>TOTAL</td><td class="num">${fmtMoneyCompact(spendP)}</td>` +
+    `<td class="num">${fmtMoneyCompact(totRev)}</td><td class="num">100%</td>` +
+    `<td class="num">${Math.round(filas.reduce((s, f) => s + f.ventas, 0) * 10) / 10}</td>` +
+    `<td class="num">${spendP > 0 ? (revP / spendP).toFixed(2) + 'x' : '—'}</td><td class="num"></td></tr></tbody>`;
+
+  // Revenue diario apilado por canal
+  setTimeout(() => {
+    const c = document.getElementById('chartCanales');
+    if (!c) return;
+    if (chartInstances.canales) chartInstances.canales.destroy();
+    const multiMes = new Set(conDato.map(k => k.slice(0, 7))).size > 1;
+    const orden = filas.map(f => f.canal);
+    chartInstances.canales = new Chart(c, {
+      type: 'bar',
+      data: {
+        labels: conDato.map(k => multiMes ? parseInt(k.slice(8), 10) + '/' + parseInt(k.slice(5, 7), 10) : String(parseInt(k.slice(8), 10))),
+        datasets: orden.map(cn => ({
+          label: canalNombre_(cn),
+          data: conDato.map(k => { const r = (at.dias[k] || []).find(f => f.canal === cn); return r ? Math.round(r.revenue) : 0; }),
+          backgroundColor: canalColor_(cn), borderRadius: 2, stack: 'r'
+        }))
+      },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } },
+          tooltip: { callbacks: { label: t => t.parsed.y ? ' ' + t.dataset.label + ': $' + t.parsed.y.toLocaleString('es-CO') : null } } },
+        scales: { x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(151,178,193,0.07)' }, ticks: { callback: v => '$' + v.toLocaleString('es-CO') } } } }
+    });
+  }, 30);
+
+  // 04 · Valor por canal (LTV): se agrupa por mes del CLIC, así que cada mes
+  // sigue sumando mientras sus compradores asciendan. La tasa se recalcula
+  // sobre los totales (promediar tasas de meses distintos las distorsiona).
+  const meses = [...new Set(conDato.map(k => k.slice(0, 7)))].filter(m => at.ltv && at.ltv[m]);
+  const lagg = {};
+  meses.forEach(m => (at.ltv[m] || []).forEach(f => {
+    const a = lagg[f.canal] || (lagg[f.canal] = { canal: f.canal, pago: f.pago, spend: 0, front: 0, altoNuevo: 0, cuotas: 0, total: 0, vFront: 0, vAlto: 0 });
+    a.spend += f.spend || 0; a.front += f.revenue_front || 0; a.altoNuevo += f.revenue_high_nuevos || 0;
+    a.cuotas += f.revenue_high_cuotas || 0; a.total += f.revenue_total || 0;
+    a.vFront += f.ventas_front || 0; a.vAlto += f.ventas_high_nuevas || 0;
+  }));
+  const lf = Object.values(lagg).filter(f => f.total > 0 || f.spend > 0).sort((a, b) => b.total - a.total);
+  document.getElementById('canalesLtvNota').textContent = meses.length
+    ? `Clics de ${meses.map(m => MONTH_NAMES[parseInt(m.slice(5), 10) - 1] + ' ' + m.slice(0, 4)).join(', ')} y todo lo que esas personas compraron después, aunque sea en otro mes. Tasa de ascenso = ascensos nuevos (cuota #1) sobre compradores de entrada.`
+    : '';
+  document.getElementById('canalesLtv').innerHTML = !lf.length ? '' :
+    '<thead><tr><th>Canal</th><th class="num">Gasto</th><th class="num">Entrada</th><th class="num">Ascensos nuevos</th>' +
+    '<th class="num">Cuotas</th><th class="num">Total</th><th class="num">ROAS total</th><th class="num">Tasa de ascenso</th></tr></thead><tbody>' +
+    lf.map(f => `<tr><td>${canalNombre_(f.canal)}</td>` +
+      `<td class="num">${f.spend > 0 ? fmtMoneyCompact(f.spend) : '—'}</td>` +
+      `<td class="num">${fmtMoneyCompact(f.front)}</td><td class="num">${fmtMoneyCompact(f.altoNuevo)}</td>` +
+      `<td class="num">${fmtMoneyCompact(f.cuotas)}</td><td class="num"><b>${fmtMoneyCompact(f.total)}</b></td>` +
+      `<td class="num">${f.spend > 0 ? (f.total / f.spend).toFixed(2) + 'x' : '—'}</td>` +
+      `<td class="num">${f.vFront >= 1 ? (f.vAlto / f.vFront * 100).toFixed(1) + '% <span style="opacity:.55">(' + Math.round(f.vFront) + ')</span>' : '—'}</td></tr>`).join('') +
+    '</tbody>';
+}
+
 function dayKeyToDate(k) {
   const [m, d] = k.split(' ');
   const monthIdx = MONTHS[m] || 0;
