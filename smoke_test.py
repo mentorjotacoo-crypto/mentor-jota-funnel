@@ -68,7 +68,10 @@ def cargar_html(local):
         with open(os.path.join(REPO, 'index.html'), encoding='utf-8') as f:
             return f.read()
     import time
-    return urlopen(f'{URL}?smoke={int(time.time())}').read().decode('utf-8', 'replace')
+    # Sin timeout, una red inestable al prender el PC dejaba la descarga colgada:
+    # la tarea moría a los 20 min sin log, sin historial y sin alerta. Con timeout
+    # la excepción sale con código 1 y el runner sí dispara el aviso.
+    return urlopen(f'{URL}?smoke={int(time.time())}', timeout=45).read().decode('utf-8', 'replace')
 
 
 def descifrar(html, clave):
