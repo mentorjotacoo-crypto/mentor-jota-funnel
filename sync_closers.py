@@ -97,6 +97,26 @@ def norm_closer(v, hoja):
     return CLOSER_NORM.get(s.lower(), s)
 
 
+# ORIGEN: los libros de César Gomez y Christian Correa marcan sus citas como
+# "Automatico", pero desde que existe el Desafío 12 Días (primera agenda en el
+# CRM: 21-ene-2026) todas las suyas salen de los calendarios del Desafío
+# (Sesión Estratégica con Mentor), y el CRM las cuenta como Desafío. Se corrige
+# aquí para no depender de cómo llena cada closer la columna "Tipo
+# agendamiento". Juan Santiago sí distingue en su libro y no se toca.
+CLOSERS_SOLO_DESAFIO = {'Cesar Gomez', 'Christian Correa'}
+DESAFIO_DESDE = '2026-01-21'
+
+
+def corregir_tipo(filas):
+    n = 0
+    for f in filas:
+        if (f['closer'] in CLOSERS_SOLO_DESAFIO and f['fecha'] >= DESAFIO_DESDE
+                and f['tipo'].strip().lower() in ('', 'automatico', 'automático')):
+            f['tipo'] = 'Desafio'
+            n += 1
+    return n
+
+
 def leer():
     filas = []
     vistos = set()
@@ -202,6 +222,7 @@ def main():
 
     print('Leyendo consolidados...')
     filas = leer()
+    print(f'  Origen corregido a Desafio: {corregir_tipo(filas)} citas de Cesar/Christian')
     if not filas:
         print('[SKIP] no se extrajo ninguna cita')
         sys.exit(0)
