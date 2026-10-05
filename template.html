@@ -1899,7 +1899,8 @@ async function onAuthSuccess(data) {
     const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
   });
   const lastDay = withData[withData.length - 1] || '-';
-  document.getElementById('lastDataHeader').textContent = 'Última data: ' + lastDay;
+  document.getElementById('lastDataHeader').textContent = 'Última data: ' + lastDay +
+    (withData.length ? ' ' + dayKeyYear(lastDay) : '');
   document.getElementById('updatedAtHeader').textContent = 'Sincronizado: ' + (data.updatedAt || '-');
   renderPeriodButtons();
   // En pantallas pequeñas el tab por defecto es Pulso (lectura de 3 segundos)
@@ -1972,9 +1973,45 @@ const STAGE_NAMES = {
 const MONTHS = {Ene:0,Feb:1,Mar:2,Abr:3,May:4,Jun:5,Jul:6,Ago:7,Sep:8,Oct:9,Nov:10,Dic:11};
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 function getSortedDayKeys() { return Object.keys(APP_DATA.days).sort(parseDayKey); }
+// Los días del Low Ticket llegan como 'Mes DD', sin año. El año se deduce de la
+// fecha de sincronización: un mes posterior al mes sincronizado pertenece al año
+// anterior (en enero, 'Dic 20' es del año pasado). Como el Low Ticket arranca en
+// LT_INICIO, nada puede caer antes: así un mes futuro pre-creado en el tracker
+// no se va al año anterior. Sirve mientras el histórico sea menor a 12 meses;
+// después el origen (apps-script-sync.js) debe emitir el año en la llave.
+const LT_INICIO = '2026-02-01';
+function dataRefDate_() {
+  if (dataRefDate_.d && dataRefDate_.src === APP_DATA) return dataRefDate_.d;
+  const m = /^(\d{4})-(\d{2})/.exec((APP_DATA && APP_DATA.updatedAt) || '') || /^(\d{4})-(\d{2})/.exec(BUILD_DATE);
+  const hoy = new Date();
+  dataRefDate_.d = m ? { y: parseInt(m[1], 10), m: parseInt(m[2], 10) - 1 } : { y: hoy.getFullYear(), m: hoy.getMonth() };
+  dataRefDate_.src = APP_DATA;
+  return dataRefDate_.d;
+}
+function dayKeyYear(k) {
+  const partes = k.split(' ');
+  const mi = MONTHS[partes[0]] || 0;
+  const ref = dataRefDate_();
+  let y = mi > ref.m ? ref.y - 1 : ref.y;
+  const iso = () => y + '-' + String(mi + 1).padStart(2, '0') + '-' + String(parseInt(partes[1] || '1', 10)).padStart(2, '0');
+  if (iso() < LT_INICIO) y++;
+  return y;
+}
+function dayKeyToISO(k) {
+  const partes = k.split(' ');
+  return dayKeyYear(k) + '-' + String((MONTHS[partes[0]] || 0) + 1).padStart(2, '0') + '-' + String(parseInt(partes[1], 10)).padStart(2, '0');
+}
+function monthKeyYear(m) { return dayKeyYear(m + ' 01'); }
+// Día del Low Ticket que corresponde a una fecha ISO (o undefined). Compara el
+// año deducido: sin eso, un día de otro año haría match falso con el mismo 'Mes DD'.
+function ltDayOfISO(iso) {
+  const k = MONTH_NAMES[parseInt(iso.slice(5, 7), 10) - 1] + ' ' + iso.slice(8, 10);
+  const d = APP_DATA.days[k];
+  return d && dayKeyToISO(k) === iso ? d : undefined;
+}
 function parseDayKey(a, b) {
-  const [ma,da] = a.split(' '); const [mb,db] = b.split(' ');
-  return (MONTHS[ma]*100+parseInt(da)) - (MONTHS[mb]*100+parseInt(db));
+  const ia = dayKeyToISO(a), ib = dayKeyToISO(b);
+  return ia < ib ? -1 : (ia > ib ? 1 : 0);
 }
 /* dayKeyToDate / dateToDayKey viven en la seccion FORECAST (definicion unica;
    antes habia un duplicado aqui que el hoisting anulaba). */
@@ -2123,7 +2160,7 @@ function setFilter(f, btn) {
     if (match && match[1] === f) b.classList.add('active');
   });
   const labelMap = {all:'Acumulado total', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
-  document.getElementById('activePeriodLabel').textContent = labelMap[f] || (MONTH_FULL[f] ? MONTH_FULL[f] + ' 2026' : f);
+  document.getElementById('activePeriodLabel').textContent = labelMap[f] || (MONTH_FULL[f] ? MONTH_FULL[f] + ' ' + monthKeyYear(f) : f);
   renderAll();
 }
 
@@ -2386,7 +2423,7 @@ function renderInsights() {
   const dowNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   withData.slice(-30).forEach(k => {
     const [m, d] = k.split(' ');
-    const date = new Date(2026, MONTHS[m], parseInt(d, 10));
+    const date = new Date(dayKeyYear(k), MONTHS[m], parseInt(d, 10));
     dowSum[date.getDay()].push(APP_DATA.days[k].purchases || 0);
   });
   let bestDow = -1, bestAvg = 0, worstDow = -1, worstAvg = Infinity;
@@ -3592,7 +3629,7 @@ function renderCanales() {
 function dayKeyToDate(k) {
   const [m, d] = k.split(' ');
   const monthIdx = MONTHS[m] || 0;
-  return new Date(2026, monthIdx, parseInt(d, 10));
+  return new Date(dayKeyYear(k), monthIdx, parseInt(d, 10));
 }
 function dateToDayKey(date) {
   return MONTH_NAMES[date.getMonth()] + ' ' + String(date.getDate()).padStart(2, '0');
@@ -3843,7 +3880,7 @@ function getComparePresets() {
   // Meses
   monthsAvail.forEach(m => {
     const days = withData.filter(k => k.startsWith(m));
-    presets.push({ id:'month:'+m, label:monthFull[m]+' 2026', keys:days });
+    presets.push({ id:'month:'+m, label:monthFull[m]+' '+monthKeyYear(m), keys:days });
   });
   // Últimas semanas
   presets.push({ id:'last7',    label:'Últimos 7 días',  keys:withData.slice(-7) });
@@ -4173,8 +4210,7 @@ function renderAscensos() {
     let ltC = 0, htV = 0;
     ks.forEach(k => {
       if (k < '2026-01-01') return;
-      const ltKey = ASC_MESES[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(8, 10);
-      const dLT = APP_DATA.days[ltKey];
+      const dLT = ltDayOfISO(k);
       if (!dLT) return;
       ltC += dLT.purchases || 0;
       htV += ascSeg_(days[k], seg).ventas;
@@ -4210,8 +4246,7 @@ function renderAscensos() {
       // Las llaves de LT ('Jun 15') NO llevan año: sin este guard, un día de
       // 2025 haría match falso con el mismo día de 2026 e inflaría el cálculo.
       if (k >= '2026-01-01') {
-        const ltKey = ASC_MESES[parseInt(k.slice(5, 7), 10) - 1] + ' ' + k.slice(8, 10);
-        const dLT = APP_DATA.days[ltKey];
+        const dLT = ltDayOfISO(k);
         if (dLT) {
           hayLT = true;
           sp += (dLT.spend || 0) + (dLT.spend_google || 0);
@@ -4464,8 +4499,7 @@ function renderAscensos() {
       const lt = {};
       getSortedDayKeys().forEach(k => {
         const d = APP_DATA.days[k];
-        const mi = MONTHS[k.split(' ')[0]];
-        const mk = '2026-' + String(mi+1).padStart(2,'0');
+        const mk = dayKeyToISO(k).slice(0, 7);
         if (!lt[mk]) lt[mk] = { spend:0, revenue:0, spendG:0 };
         lt[mk].spend += d.spend || 0;
         lt[mk].revenue += d.revenue || 0;
@@ -4518,7 +4552,7 @@ function renderAscensos() {
       const sem = {};   // lunes ISO -> {spend, cash}
       getSortedDayKeys().forEach(k => {
         const d = APP_DATA.days[k];
-        const iso = '2026-' + String(MONTHS[k.split(' ')[0]] + 1).padStart(2, '0') + '-' + k.split(' ')[1];
+        const iso = dayKeyToISO(k);
         const w = lunesDe(iso);
         if (!sem[w]) sem[w] = { spend: 0, cash: 0 };
         sem[w].spend += (d.spend || 0) + (d.spend_google || 0);
@@ -4653,8 +4687,7 @@ function renderAscensos() {
       if (chartInstances.ascTasa) chartInstances.ascTasa.destroy();
       const ltCompras = {};
       getSortedDayKeys().forEach(k => {
-        const mi = MONTHS[k.split(' ')[0]];
-        const mk = '2026-' + String(mi+1).padStart(2,'0');
+        const mk = dayKeyToISO(k).slice(0, 7);
         ltCompras[mk] = (ltCompras[mk] || 0) + (APP_DATA.days[k].purchases || 0);
       });
       const tKeys = Object.keys(ltCompras).sort().filter(mk => meses[mk] && ltCompras[mk] > 0 && mkeysView.includes(mk));
@@ -5305,7 +5338,7 @@ function renderPulso() {
   const d = APP_DATA.days[hoyK];
   const prev = ayerK ? APP_DATA.days[ayerK] : null;
   const asc = (APP_DATA.ascensos && APP_DATA.ascensos.days) || {};
-  const iso = k => '2026-' + String(MONTHS[k.split(' ')[0]] + 1).padStart(2, '0') + '-' + k.split(' ')[1];
+  const iso = dayKeyToISO;
   const htDia = k => { const a = asc[iso(k)]; return a ? ascSeg_(a, 'all') : { ventas:0, cobrado:0 }; };
 
   const ht = htDia(hoyK), htPrev = ayerK ? htDia(ayerK) : null;
@@ -5350,7 +5383,7 @@ function renderPulso() {
   const mSpend = delMes.reduce((a,k) => a + (APP_DATA.days[k].spend||0) + (APP_DATA.days[k].spend_google||0), 0);
   const mCash  = delMes.reduce((a,k) => a + (APP_DATA.days[k].revenue||0) + htDia(k).cobrado, 0);
   const mPur   = delMes.reduce((a,k) => a + (APP_DATA.days[k].purchases||0), 0);
-  const diasMes = new Date(2026, MONTHS[mesK] + 1, 0).getDate();
+  const diasMes = new Date(dayKeyYear(hoyK), MONTHS[mesK] + 1, 0).getDate();
   const proy = delMes.length ? mCash / delMes.length * diasMes : 0;
   document.getElementById('pulsoMes').innerHTML =
     `${MONTH_FULL[mesK] || mesK} · día ${delMes.length}/${diasMes}<br>` +
@@ -5415,7 +5448,7 @@ function exportCSV(tipo) {
   const hoy = new Date().toISOString().slice(0, 10);
   const dLT = APP_DATA.days;
   const asc = (APP_DATA.ascensos && APP_DATA.ascensos.days) || {};
-  const ymd = k => { const [m, d] = k.split(' '); return '2026-' + String(MONTHS[m] + 1).padStart(2, '0') + '-' + d; };
+  const ymd = dayKeyToISO;
 
   if (tipo === 'lt' || tipo === 'lt-all') {
     const keys = tipo === 'lt' ? getFilteredDays() : getSortedDayKeys();
@@ -5454,7 +5487,7 @@ function exportCSV(tipo) {
   // Resumen mensual combinado: la vista que se lleva a una reunión
   const mes = {};
   getSortedDayKeys().forEach(k => {
-    const mk = '2026-' + String(MONTHS[k.split(' ')[0]] + 1).padStart(2, '0');
+    const mk = dayKeyToISO(k).slice(0, 7);
     const m = mes[mk] || (mes[mk] = {spend:0,spendG:0,imp:0,leads:0,pur:0,rev:0,htV:0,htC:0,htCtr:0});
     const d = dLT[k];
     m.spend += d.spend||0; m.spendG += d.spend_google||0; m.imp += d.impressions||0;
