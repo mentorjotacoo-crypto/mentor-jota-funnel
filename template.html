@@ -2226,9 +2226,25 @@ function setFilter(f, btn) {
     const match = onclickStr.match(/setFilter\('([^']+)'/);
     if (match && match[1] === f) b.classList.add('active');
   });
-  const labelMap = {all:'Acumulado total', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
-  document.getElementById('activePeriodLabel').textContent = labelMap[f] || (MONTH_FULL[f] ? MONTH_FULL[f] + ' ' + monthKeyYear(f) : f);
+  actualizarEtiquetaPeriodo();
   renderAll();
+}
+
+// La píldora del encabezado dice el período que REALMENTE aplica en la pestaña
+// activa: Ascensos y Closers tienen filtro propio y Pulso ignora el filtro.
+function actualizarEtiquetaPeriodo() {
+  const el = document.getElementById('activePeriodLabel');
+  if (!el || !APP_DATA) return;
+  let txt;
+  if (currentTab === 'pulso') txt = 'Último día + mes en curso';
+  else if (currentTab === 'closers') txt = cloEtiquetaPeriodo_(cloPeriodoSel);
+  else if (currentTab === 'ascensos' && APP_DATA.ascensos && APP_DATA.ascensos.days) txt = ascPeriodo_().label;
+  else {
+    const f = currentFilter;
+    const labelMap = {all:'Acumulado total', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
+    txt = labelMap[f] || (MONTH_FULL[f] ? MONTH_FULL[f] + ' ' + monthKeyYear(f) : f);
+  }
+  el.textContent = txt;
 }
 
 // ====== TABS ======
@@ -2252,6 +2268,7 @@ function switchTab(tab, btn) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     if (btn) btn.classList.add('active');
+    actualizarEtiquetaPeriodo();
     destroyCharts();
     renderAll();
     if (loader) setTimeout(() => loader.classList.remove('active'), 180);
@@ -4165,6 +4182,7 @@ function ascPeriodo_() {
 function setAscPeriodo(v) {
   ascPeriodSel = v;
   cerrarAscPeriodPop();
+  actualizarEtiquetaPeriodo();
   renderAscensos();
 }
 
@@ -4989,6 +5007,7 @@ function setCloPeriodo(v) {
   cloPeriodoSel = v;
   document.getElementById('cloPeriodLabel').textContent = cloEtiquetaPeriodo_(v);
   document.getElementById('cloPeriodPop').classList.remove('open');
+  actualizarEtiquetaPeriodo();
   renderClosers();
 }
 function setCloOrigen(v, btn) {
