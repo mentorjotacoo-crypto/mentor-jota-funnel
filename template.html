@@ -139,6 +139,10 @@
     font-size:11px; letter-spacing:1.3px; padding:5px 12px; border-radius:7px;
     text-transform:uppercase;
   }
+  .moneda-nota {
+    border:1px solid rgba(231,255,42,0.45); color:var(--white); border-radius:7px;
+    font-size:12px; font-weight:600; letter-spacing:0.4px; padding:4px 10px; white-space:nowrap;
+  }
   .header-meta { font-size:10px; color:var(--grey); letter-spacing:1px; text-transform:uppercase; }
 
   /* ===== TABS ===== */
@@ -1285,6 +1289,7 @@
     </div>
     <div class="header-right">
       <span class="period-label" id="activePeriodLabel">Acumulado total</span>
+      <span class="moneda-nota" title="Todas las cifras de dinero del tablero están en dólares">Cifras en USD</span>
       <span class="header-meta" id="lastDataHeader">-</span>
       <span class="header-meta" id="updatedAtHeader">-</span>
       <button class="btn" onclick="window.print()">Imprimir</button>
@@ -1764,9 +1769,9 @@
               <button class="btn small" onclick="setSimSpend(250)">$250</button>
               <button class="btn small" onclick="setSimSpend(500)">$500</button>
               <button class="btn small" onclick="setSimSpend(750)">$750</button>
-              <button class="btn small" onclick="setSimSpend(1000)">$1k</button>
-              <button class="btn small" onclick="setSimSpend(1500)">$1.5k</button>
-              <button class="btn small" onclick="setSimSpend(2000)">$2k</button>
+              <button class="btn small" onclick="setSimSpend(1000)">$1.000</button>
+              <button class="btn small" onclick="setSimSpend(1500)">$1.500</button>
+              <button class="btn small" onclick="setSimSpend(2000)">$2.000</button>
             </div>
           </div>
           <div class="simulator-output" id="simulatorOutput"></div>
@@ -2149,15 +2154,29 @@ function isoDateToDayKey(iso) {
 }
 function formatNum(n) {
   if (n == null || isNaN(n)) return '0';
-  if (Math.abs(n) >= 1000000) return (n/1000000).toFixed(1)+'M';
+  if (Math.abs(n) >= 1000000) return (n/1000000).toFixed(1).replace('.', ',')+'M';
   if (Math.abs(n) >= 10000) return (n/1000).toFixed(0)+'K';
-  if (Math.abs(n) >= 1000) return (n/1000).toFixed(1)+'K';
-  return Math.round(n).toLocaleString();
+  if (Math.abs(n) >= 1000) return (n/1000).toFixed(1).replace('.', ',')+'K';
+  return Math.round(n).toLocaleString('es-CO');
 }
-function fmtMoney(n) { return '$' + (n || 0).toFixed(2); }
+// Dinero: única puerta de formato. Siempre es-CO fijo (miles con punto,
+// decimales con coma) para que no cambie con el idioma del navegador, y sin
+// 'K': "$12.5K" y "$12.500" se confundían. Solo los millones se abrevian.
+const NF_MONEY_0 = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
+const NF_MONEY_2 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmtMoney(n) {
+  n = Number(n) || 0;
+  return (n < 0 ? '\u2212' : '') + '$' + NF_MONEY_2.format(Math.abs(n));
+}
 function fmtMoneyCompact(n) {
-  if (Math.abs(n) >= 10000) return '$' + (n/1000).toFixed(1) + 'K';
-  return '$' + Math.round(n).toLocaleString();
+  n = Number(n) || 0;
+  const a = Math.abs(n), sg = n < 0 ? '\u2212' : '';
+  if (a >= 1000000) return sg + '$' + NF_MONEY_2.format(a / 1000000) + ' M';
+  return sg + '$' + NF_MONEY_0.format(Math.round(a));
+}
+// Ejes de gráficas: entero con miles; con centavos solo si el tick no es entero
+function fmtMoneyAxis(v) {
+  return Math.abs(v) < 1000 && Math.round(v) !== v ? fmtMoney(v) : fmtMoneyCompact(v);
 }
 function fmtPct(n) { return (n || 0).toFixed(1) + '%'; }
 
@@ -2193,7 +2212,7 @@ function openInfoPopover(el, label, kpiId) {
   const avgV = validVals.length ? validVals.reduce((a,b)=>a+b,0)/validVals.length : 0;
   const isMoney = ['revenue','profit','cpl','cpa','aov','spend'].includes(kpiId);
   const isRoas = kpiId === 'roas';
-  const fmtV = (v) => isMoney ? fmtMoney(v) : (isRoas ? v.toFixed(2)+'x' : Math.round(v).toLocaleString());
+  const fmtV = (v) => isMoney ? fmtMoney(v) : (isRoas ? v.toFixed(2)+'x' : Math.round(v).toLocaleString('es-CO'));
   document.getElementById('tooltipCardStats').innerHTML = `
     <div class="tooltip-card-stat"><div class="tooltip-card-stat-label">Mínimo</div><div class="tooltip-card-stat-value">${fmtV(minV)}</div></div>
     <div class="tooltip-card-stat"><div class="tooltip-card-stat-label">Promedio</div><div class="tooltip-card-stat-value">${fmtV(avgV)}</div></div>
@@ -2405,8 +2424,8 @@ function renderResumen() {
   _safeSet('#heroRevenue', 'text', fmtMoneyCompact(revenue));
   _safeSet('#heroRevenueMeta', 'html',
     `<span class="accent">${periodLabel}</span> · ${filtered.length} d&iacute;a${filtered.length===1?'':'s'} · ` +
-    `<span class="accent">${purchases.toLocaleString()}</span> compras LT, ` +
-    `<span class="accent">${(bump1+bump2).toLocaleString()}</span> bumps`);
+    `<span class="accent">${purchases.toLocaleString('es-CO')}</span> compras LT, ` +
+    `<span class="accent">${(bump1+bump2).toLocaleString('es-CO')}</span> bumps`);
 
   // Profit mini
   const profitCls = profit >= 0 ? 'good' : 'warn';
@@ -2422,9 +2441,9 @@ function renderResumen() {
   _safeSet('#heroRoas .hero-mini-sub', 'text', roas >= 1.5 ? 'Rentable' : roas >= 1 ? 'Break-even' : 'Perdiendo');
 
   // Purchases mini
-  _safeSet('#heroPurchases .hero-mini-value', 'text', purchases.toLocaleString());
+  _safeSet('#heroPurchases .hero-mini-value', 'text', purchases.toLocaleString('es-CO'));
   _safeSet('#heroPurchases .hero-mini-value', 'class', 'hero-mini-value acid');
-  _safeSet('#heroPurchases .hero-mini-sub', 'text', `CPA $${cpa.toFixed(1)} promedio`);
+  _safeSet('#heroPurchases .hero-mini-sub', 'text', `CPA ${fmtMoney(cpa)} promedio`);
 
   // Chart de revenue diario (en try/catch propio - no debe afectar las cifras)
   setTimeout(() => {
@@ -2559,7 +2578,7 @@ function renderInsights() {
           type: subiendo ? 'warn' : 'good',
           icon: subiendo ? '▲' : '▼',
           title:`CPA ${subiendo?'subiendo':'bajando'} ${Math.abs(pct).toFixed(0)}%`,
-          detail:`Últimos 7d: <span class="num ${subiendo?'warn':'good'}">$${cpa7.toFixed(1)}</span> vs $${cpa14.toFixed(1)} semana previa`
+          detail:`Últimos 7d: <span class="num ${subiendo?'warn':'good'}">${fmtMoney(cpa7)}</span> vs ${fmtMoney(cpa14)} semana previa`
         });
       }
     }
@@ -2646,7 +2665,7 @@ function renderInsights() {
     else if (roas < 0.9) { type='warn'; icon='✗'; title='ROAS bajo'; }
     insights.push({
       type, icon, title,
-      detail:`${roas.toFixed(2)}x ${periodLabel}: por cada $1 invertido, $${roas.toFixed(2)} de revenue`
+      detail:`${roas.toFixed(2)}x ${periodLabel}: por cada $1 invertido, ${fmtMoney(roas)} de revenue`
     });
   }
 
@@ -2752,8 +2771,8 @@ function renderKPIs() {
   function fmtVal(v, kind) {
     if (kind === 'roas') return v.toFixed(2) + 'x';
     if (kind === 'money') {
-      if (Math.abs(v) >= 1000) return '$' + v.toFixed(0);
-      return '$' + v.toFixed(2);
+      if (Math.abs(v) >= 1000) return fmtMoneyCompact(v);
+      return fmtMoney(v);
     }
     return String(Math.round(v));
   }
@@ -2798,8 +2817,8 @@ function drawSparkline(canvasId, values, color, labels, fmt) {
   const formatVal = (v) => {
     if (fmt === 'roas') return v.toFixed(2) + 'x';
     if (fmt === 'money') {
-      if (Math.abs(v) >= 1000) return '$' + v.toFixed(0);
-      return '$' + v.toFixed(2);
+      if (Math.abs(v) >= 1000) return fmtMoneyCompact(v);
+      return fmtMoney(v);
     }
     return Math.round(v).toString();
   };
@@ -3173,7 +3192,7 @@ const lastPointLabelPlugin = {
 };
 
 function computeSeriesStats(values, labels, fmt) {
-  fmt = fmt || (v => Math.round(v).toLocaleString());
+  fmt = fmt || (v => Math.round(v).toLocaleString('es-CO'));
   const nonZero = values.map((v,i) => ({v, i})).filter(x => x.v > 0);
   const total = values.reduce((s,v) => s + (v||0), 0);
   const nDays = values.length;
@@ -3409,7 +3428,7 @@ function renderAccumulatedMonthCharts() {
           bodyFont:{family:'JetBrains Mono', size:11},
           callbacks: {
             title: (items) => 'Día ' + items[0].label,
-            label: (ctx) => '  ' + ctx.dataset.label + ': ' + Math.round(ctx.parsed.y).toLocaleString()
+            label: (ctx) => '  ' + ctx.dataset.label + ': ' + Math.round(ctx.parsed.y).toLocaleString('es-CO')
           }
         }
       },
@@ -3421,7 +3440,7 @@ function renderAccumulatedMonthCharts() {
         },
         y: {
           beginAtZero: true,
-          ticks: {color:'#7E8C96', font:{size:10}, callback:v=>Math.round(v).toLocaleString()},
+          ticks: {color:'#7E8C96', font:{size:10}, callback:v=>Math.round(v).toLocaleString('es-CO')},
           grid: {color:'rgba(151,178,193,0.07)'},
           title: {display:true, text:'Acumulado', color:'#7E8C96', font:{size:10, family:'Clash Display', weight:'600'}}
         }
@@ -3471,8 +3490,8 @@ function renderTrendCharts() {
     type:'line',
     data:{ labels:keys, datasets:[{ label:'CPL', data:keys.map(k=>dayMetric(k,'cpl')), borderColor:CHART_PALETTE.purple, backgroundColor:'rgba(168,85,247,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
     options: commonChartOptions({
-      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPL: $'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(151,178,193,0.07)'}} }
+      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPL: '+fmtMoney(ctx.parsed.y)}} },
+      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>fmtMoneyAxis(v)},grid:{color:'rgba(151,178,193,0.07)'}} }
     })
   });
 
@@ -3480,8 +3499,8 @@ function renderTrendCharts() {
     type:'line',
     data:{ labels:keys, datasets:[{ label:'CPA', data:keys.map(k=>dayMetric(k,'cpa')), borderColor:CHART_PALETTE.warn, backgroundColor:'rgba(230,103,103,0.15)', tension:0.35, fill:true, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
     options: commonChartOptions({
-      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPA: $'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(151,178,193,0.07)'}} }
+      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>'CPA: '+fmtMoney(ctx.parsed.y)}} },
+      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>fmtMoneyAxis(v)},grid:{color:'rgba(151,178,193,0.07)'}} }
     })
   });
 
@@ -3490,8 +3509,8 @@ function renderTrendCharts() {
     type:'bar',
     data:{ labels:keys, datasets:[{ label:'Ganancia', data:profit, backgroundColor: profit.map(v=>v>=0?'rgba(38,169,124,0.75)':'rgba(230,103,103,0.75)'), borderColor: profit.map(v=>v>=0?CHART_PALETTE.good:CHART_PALETTE.warn), borderWidth:1 }] },
     options: commonChartOptions({
-      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>(ctx.parsed.y>=0?'+':'')+'$'+ctx.parsed.y.toFixed(2)}} },
-      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(151,178,193,0.07)'}} }
+      plugins:{ annotation:{annotations:annConfig}, legend:{display:false}, tooltip:{callbacks:{label:ctx=>(ctx.parsed.y>=0?'+':'')+fmtMoney(ctx.parsed.y)}} },
+      scales:{ x:{ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{ticks:{color:'#7E8C96',font:{size:10},callback:v=>fmtMoneyAxis(v)},grid:{color:'rgba(151,178,193,0.07)'}} }
     })
   });
 
@@ -3590,7 +3609,7 @@ function renderRevenueCharts() {
       ]
     },
     options: commonChartOptions({
-      scales:{ x:{stacked:true,ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{stacked:true,ticks:{color:'#7E8C96',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(151,178,193,0.07)'}} },
+      scales:{ x:{stacked:true,ticks:{color:'#7E8C96',font:{size:10},maxTicksLimit:10,autoSkip:true,maxRotation:0},grid:{color:'rgba(151,178,193,0.07)'}}, y:{stacked:true,ticks:{color:'#7E8C96',font:{size:10},callback:v=>fmtMoneyAxis(v)},grid:{color:'rgba(151,178,193,0.07)'}} },
       plugins:{ annotation:{annotations: annotationsForChart(keys)} }
     })
   });
@@ -3742,7 +3761,7 @@ function renderCanales() {
         plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } },
           tooltip: { callbacks: { label: t => t.parsed.y ? ' ' + t.dataset.label + ': $' + t.parsed.y.toLocaleString('es-CO') : null } } },
         scales: { x: { stacked: true, grid: { display: false } },
-          y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(151,178,193,0.07)' }, ticks: { callback: v => '$' + v.toLocaleString('es-CO') } } } }
+          y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(151,178,193,0.07)' }, ticks: { callback: v => fmtMoneyAxis(v) } } } }
     });
   }, 30);
 
@@ -4001,11 +4020,11 @@ function runSimulator() {
     return ` ${arrow}${Math.abs(v).toFixed(0)}%`;
   }
   const cards = [
-    { label:'Spend total', value:fmtMoneyCompact(totSpend), sub:`$${spendInput.toFixed(0)}/d&iacute;a${deltaTxt(deltaSpend)}`, cls:'' },
-    { label:'Compras', value:Math.round(totPurch).toLocaleString(), sub:`~${projDailyPurchases.toFixed(1)}/d&iacute;a${deltaTxt(deltaPurch)}`, cls:'acid' },
-    { label:'Leads', value:Math.round(totLeads).toLocaleString(), sub:`~${projDailyLeads.toFixed(1)}/d&iacute;a`, cls:'' },
-    { label:'Revenue', value:fmtMoneyCompact(totRev), sub:`~$${projDailyRevenue.toFixed(0)}/d&iacute;a${deltaTxt(deltaRev)}`, cls:'acid' },
-    { label:'Ganancia', value:(totProfit>=0?'+':'')+fmtMoneyCompact(totProfit), sub:`~$${projDailyProfit.toFixed(0)}/d&iacute;a`, cls:totProfit>=0?'good':'warn' },
+    { label:'Spend total', value:fmtMoneyCompact(totSpend), sub:`${fmtMoneyCompact(spendInput)}/d&iacute;a${deltaTxt(deltaSpend)}`, cls:'' },
+    { label:'Compras', value:Math.round(totPurch).toLocaleString('es-CO'), sub:`~${projDailyPurchases.toFixed(1)}/d&iacute;a${deltaTxt(deltaPurch)}`, cls:'acid' },
+    { label:'Leads', value:Math.round(totLeads).toLocaleString('es-CO'), sub:`~${projDailyLeads.toFixed(1)}/d&iacute;a`, cls:'' },
+    { label:'Revenue', value:fmtMoneyCompact(totRev), sub:`~${fmtMoneyCompact(projDailyRevenue)}/d&iacute;a${deltaTxt(deltaRev)}`, cls:'acid' },
+    { label:'Ganancia', value:(totProfit>=0?'+':'')+fmtMoneyCompact(totProfit), sub:`~${fmtMoneyCompact(projDailyProfit)}/d&iacute;a`, cls:totProfit>=0?'good':'warn' },
     { label:'ROAS', value:projRoas.toFixed(2)+'x', sub:projRoas>=1.5?'Rentable':projRoas>=1?'Break-even':'Perdiendo', cls:projRoas>=1.5?'good':projRoas>=1?'':'warn' }
   ];
   document.getElementById('simulatorOutput').innerHTML = cards.map(c => `
@@ -4075,7 +4094,7 @@ function renderCompare() {
       if (fmt === 'moneyc')  return fmtMoneyCompact(v);
       if (fmt === 'pct')     return v.toFixed(2) + '%';
       if (fmt === 'roas')    return v.toFixed(2) + 'x';
-      return Math.round(v).toLocaleString();
+      return Math.round(v).toLocaleString('es-CO');
     };
     let dCls = 'neutral', arrow = '→', pct = 0;
     if (bV !== 0 && isFinite(bV)) {
@@ -4541,7 +4560,7 @@ function renderAscensos() {
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:11}}} },
-          scales:{ x:{ticks:tickStyle, grid:{display:false}}, y:{beginAtZero:true, ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}} } }
+          scales:{ x:{ticks:tickStyle, grid:{display:false}}, y:{beginAtZero:true, ticks:{...tickStyle, callback:v=>fmtMoneyAxis(v)}, grid:{color:gridCol}} } }
       });
     }
 
@@ -4565,11 +4584,11 @@ function renderAscensos() {
         ]},
         options:{ responsive:true, maintainAspectRatio:false, spanGaps:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
-            tooltip:{ callbacks:{ label: ctx => ' ' + ctx.dataset.label + ': ' + (ctx.dataset.yAxisID === 'y2' ? '$' + ctx.parsed.y.toLocaleString() : ctx.parsed.y) } } },
+            tooltip:{ callbacks:{ label: ctx => ' ' + ctx.dataset.label + ': ' + (ctx.dataset.yAxisID === 'y2' ? '$' + ctx.parsed.y.toLocaleString('es-CO') : ctx.parsed.y) } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
             y:{beginAtZero:true, position:'left', ticks:tickStyle, grid:{color:gridCol}},
-            y2:{beginAtZero:true, position:'right', display:'auto', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{display:false}}
+            y2:{beginAtZero:true, position:'right', display:'auto', ticks:{...tickStyle, callback:v=>fmtMoneyAxis(v)}, grid:{display:false}}
           } }
       });
     }
@@ -4597,15 +4616,15 @@ function renderAscensos() {
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
             tooltip:{ callbacks:{
-              label: ctx => ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(),
+              label: ctx => ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString('es-CO'),
               footer: items => {
                 const i = items[0].dataIndex;
                 const tot = inicial[i] + cuotas[i];
-                return tot > 0 ? 'Total: $' + tot.toLocaleString() + ' · cuotas = ' + Math.round(cuotas[i] / tot * 100) + '%' : '';
+                return tot > 0 ? 'Total: $' + tot.toLocaleString('es-CO') + ' · cuotas = ' + Math.round(cuotas[i] / tot * 100) + '%' : '';
               } } } },
           scales:{
             x:{stacked:true, ticks:tickStyle, grid:{display:false}},
-            y:{stacked:true, beginAtZero:true, ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}}
+            y:{stacked:true, beginAtZero:true, ticks:{...tickStyle, callback:v=>fmtMoneyAxis(v)}, grid:{color:gridCol}}
           } }
       });
     }
@@ -4633,7 +4652,7 @@ function renderAscensos() {
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
             y:{beginAtZero:true, position:'left', ticks:{...tickStyle, stepSize:1}, grid:{color:gridCol}},
-            y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(1)+'k'}, grid:{display:false}}
+            y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>fmtMoneyAxis(v)}, grid:{display:false}}
           } }
       });
     }
@@ -4678,10 +4697,10 @@ function renderAscensos() {
         data:{ labels: ecoKeys.map(ascMesLabel_), datasets: dsEco },
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
-            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + 'x' : ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } } },
+            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + 'x' : ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString('es-CO') } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
-            y:{beginAtZero:true, position:'left', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, grid:{color:gridCol}},
+            y:{beginAtZero:true, position:'left', ticks:{...tickStyle, callback:v=>fmtMoneyAxis(v)}, grid:{color:gridCol}},
             y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>v+'x'}, grid:{display:false}}
           } }
       });
@@ -4741,7 +4760,7 @@ function renderAscensos() {
         const esParcial = esActual[esActual.length - 1];
         subC.textContent = 'cash total (LT + HT cobrado) − spend total, por semana Lun-Dom · ' +
                            (esParcial ? 'semana actual: ' : 'última semana del período: ') +
-                           (u >= 0 ? '+' : '−') + '$' + Math.abs(u).toLocaleString() + (esParcial ? ' (parcial)' : '');
+                           (u >= 0 ? '+' : '−') + '$' + Math.abs(u).toLocaleString('es-CO') + (esParcial ? ' (parcial)' : '');
       }
       chartInstances.ascCaja = new Chart(cCaja, {
         type: 'bar',
@@ -4760,13 +4779,13 @@ function renderAscensos() {
               title: items => 'Semana del ' + wKeys[items[0].dataIndex].slice(8,10) + '/' + wKeys[items[0].dataIndex].slice(5,7) + (esActual[items[0].dataIndex] ? ' (en curso)' : ''),
               label: ctx => {
                 const w = wKeys[ctx.dataIndex];
-                return [' Neto: ' + (ctx.parsed.y >= 0 ? '+' : '−') + '$' + Math.abs(ctx.parsed.y).toLocaleString(),
-                        ' Cash: $' + Math.round(sem[w].cash).toLocaleString(),
-                        ' Spend: $' + Math.round(sem[w].spend).toLocaleString()];
+                return [' Neto: ' + (ctx.parsed.y >= 0 ? '+' : '−') + '$' + Math.abs(ctx.parsed.y).toLocaleString('es-CO'),
+                        ' Cash: $' + Math.round(sem[w].cash).toLocaleString('es-CO'),
+                        ' Spend: $' + Math.round(sem[w].spend).toLocaleString('es-CO')];
               } } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
-            y:{ticks:{...tickStyle, callback:v=>(v<0?'−':'')+'$'+Math.abs(v/1000).toFixed(1)+'k'}, grid:{color:gridCol}}
+            y:{ticks:{...tickStyle, callback:v=>fmtMoneyAxis(v)}, grid:{color:gridCol}}
           } }
       });
       }
@@ -4793,11 +4812,11 @@ function renderAscensos() {
         ]},
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{position:'top', align:'end', labels:{color:'#ADBCC7', usePointStyle:true, boxWidth:8, font:{size:10}}},
-            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' Cobrado prom.: $' + ctx.parsed.y.toLocaleString() : ' Ventas prom.: ' + ctx.parsed.y } } },
+            tooltip:{ callbacks:{ label: ctx => ctx.dataset.type === 'line' ? ' Cobrado prom.: $' + ctx.parsed.y.toLocaleString('es-CO') : ' Ventas prom.: ' + ctx.parsed.y } } },
           scales:{
             x:{ticks:tickStyle, grid:{display:false}},
             y:{beginAtZero:true, position:'left', ticks:tickStyle, grid:{color:gridCol}},
-            y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>'$'+(v/1000).toFixed(1)+'k'}, grid:{display:false}}
+            y2:{beginAtZero:true, position:'right', ticks:{...tickStyle, callback:v=>fmtMoneyAxis(v)}, grid:{display:false}}
           } }
       });
     }
@@ -4891,17 +4910,17 @@ function renderAscensos() {
       { lbl:'Ventas Asistido', fn:m => Math.round(m.ventas_stm_curso) },
       { lbl:'Ventas Autónomo', fn:m => Math.round(m.ventas_stm_lite) },
       { lbl:'Ventas TOTAL', fn:m => Math.round(ascSeg_(m,'all').ventas), em:true },
-      { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,'all').contratado).toLocaleString() },
-      { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,'all').cobrado).toLocaleString(), em:true },
-      { lbl:'Ticket prom.', fn:m => { const s = ascSeg_(m,'all'); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString() : '-'; } },
+      { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,'all').contratado).toLocaleString('es-CO') },
+      { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,'all').cobrado).toLocaleString('es-CO'), em:true },
+      { lbl:'Ticket prom.', fn:m => { const s = ascSeg_(m,'all'); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString('es-CO') : '-'; } },
       { lbl:'% Cobro', fn:m => { const s = ascSeg_(m,'all'); return s.contratado > 0 ? Math.round(s.cobrado/s.contratado*100) + '%' : '-'; } }
     ];
   } else {
     filas = [
       { lbl:'Ventas', fn:m => Math.round(ascSeg_(m,seg).ventas) },
-      { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,seg).contratado).toLocaleString() },
-      { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,seg).cobrado).toLocaleString(), em:true },
-      { lbl:'Ticket prom.', fn:m => { const s = ascSeg_(m,seg); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString() : '-'; } },
+      { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,seg).contratado).toLocaleString('es-CO') },
+      { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,seg).cobrado).toLocaleString('es-CO'), em:true },
+      { lbl:'Ticket prom.', fn:m => { const s = ascSeg_(m,seg); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString('es-CO') : '-'; } },
       { lbl:'% Cobro', fn:m => { const s = ascSeg_(m,seg); return s.contratado > 0 ? Math.round(s.cobrado/s.contratado*100) + '%' : '-'; } }
     ];
   }
@@ -5289,8 +5308,8 @@ function renderClosers() {
         plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } },
           tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': $' + c.parsed.y.toLocaleString('es-CO'); } } } },
         scales: { x: { grid: { display: false } },
-          y: { beginAtZero: true, grid: GRID, ticks: { callback: function (v) { return '$' + (v / 1000).toFixed(0) + 'k'; } } },
-          y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: function (v) { return '$' + (v / 1000).toFixed(1) + 'k'; } } } } }
+          y: { beginAtZero: true, grid: GRID, ticks: { callback: function (v) { return fmtMoneyAxis(v); } } },
+          y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: function (v) { return fmtMoneyAxis(v); } } } } }
     });
 
     // ── 02 · Comparativo entre closers (ignora el filtro de closer) ──
@@ -5424,7 +5443,7 @@ function renderClosers() {
       options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
         plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } } },
         scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID },
-          y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: function (v) { return '$' + (v / 1000).toFixed(0) + 'k'; } } } } }
+          y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: function (v) { return fmtMoneyAxis(v); } } } } }
     });
 
     // ── 04 · Motivos de no cierre ──
@@ -5561,7 +5580,7 @@ function renderPulso() {
         scales:{
           x:{ grid:{display:false} },
           y:{ beginAtZero:true, position:'left', grid:{color:'rgba(151,178,193,0.07)'} },
-          y2:{ beginAtZero:true, position:'right', ticks:{callback:v=>'$'+(v/1000).toFixed(1)+'k'}, grid:{display:false} }
+          y2:{ beginAtZero:true, position:'right', ticks:{callback:v=>fmtMoneyAxis(v)}, grid:{display:false} }
         } }
     });
   }, 30);
@@ -5683,14 +5702,14 @@ function renderDataGrid() {
     html += `<div class="data-cell label">${labels[fi]}</div>`;
     days.forEach(p => {
       const v = APP_DATA.days[p][f] || 0;
-      html += `<div class="data-cell computed">${f==='spend'?'$'+parseFloat(v).toFixed(0):formatNum(v)}</div>`;
+      html += `<div class="data-cell computed">${f==='spend'?fmtMoneyCompact(parseFloat(v)):formatNum(v)}</div>`;
     });
   });
 
   const computed = [
-    { lbl:'Revenue', fn:d => '$' + Math.round(d.revenue||0).toLocaleString() },
+    { lbl:'Revenue', fn:d => '$' + Math.round(d.revenue||0).toLocaleString('es-CO') },
     { lbl:'ROAS', fn:d => { const r=d.revenue||0; return d.spend>0?(r/d.spend).toFixed(2)+'x':'-'; } },
-    { lbl:'CPL', fn:d => d.leads>0 ? '$'+(d.spend/d.leads).toFixed(1) : '-' }
+    { lbl:'CPL', fn:d => d.leads>0 ? fmtMoney(d.spend/d.leads) : '-' }
   ];
   computed.forEach(c => {
     html += `<div class="data-cell label emphasis">${c.lbl}</div>`;
