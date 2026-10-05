@@ -223,7 +223,7 @@
   .btn.danger:hover { background:var(--warn); color:var(--white); }
 
   .period-bar-global {
-    position:sticky; top:74px; z-index:90;
+    position:sticky; top:var(--header-h, 74px); z-index:90;
     background:rgba(15,23,28,0.96); backdrop-filter:blur(8px);
     border-bottom:1px solid rgba(151,178,193,0.12);
     padding:12px 32px;
@@ -956,7 +956,8 @@
   }
 
   /* ===== HEATMAP ===== */
-  .heatmap-grid { display:grid; grid-template-columns:90px repeat(7, 1fr); gap:3px; }
+  .heatmap-grid { display:grid; grid-template-columns:112px repeat(7, minmax(0, 1fr)); gap:3px; }
+  .heatmap-cell { min-width:0; }
   .heatmap-cell {
     aspect-ratio:1.8 / 1; display:flex; align-items:center; justify-content:center;
     font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;
@@ -2003,6 +2004,12 @@ async function onAuthSuccess(data) {
   obsPendAplicar_();
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  ajustarAltoHeader_();
+  // El alto cambia después (textos del encabezado, fuentes web, giro de pantalla)
+  if (window.ResizeObserver && !ajustarAltoHeader_.obs) {
+    ajustarAltoHeader_.obs = new ResizeObserver(ajustarAltoHeader_);
+    ajustarAltoHeader_.obs.observe(document.querySelector('#app header'));
+  }
   // Última fecha con data
   const withData = getSortedDayKeys().filter(k => {
     const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
@@ -2026,6 +2033,17 @@ async function onAuthSuccess(data) {
   centrarPeriodoActivo_();
   renderAll();
 }
+
+// La barra de período se pega justo debajo del encabezado. El alto del
+// encabezado varía (en pantallas medianas se parte en dos filas), así que se mide:
+// con un valor fijo la barra quedaba escondida detrás.
+function ajustarAltoHeader_() {
+  const h = document.querySelector('#app header');
+  if (!h || !h.offsetHeight) return;
+  const fijo = getComputedStyle(h).position === 'sticky';
+  document.documentElement.style.setProperty('--header-h', (fijo ? h.offsetHeight : 0) + 'px');
+}
+window.addEventListener('resize', ajustarAltoHeader_);
 
 // ====== VISTA RECORDADA ======
 // Pestaña y filtros se guardan en sessionStorage (misma vida que la sesión) para
