@@ -71,9 +71,29 @@
   .login-input {
     width:100%; background:#0B1216; border:1px solid var(--hairline);
     color:var(--white); padding:14px 16px; border-radius:7px;
-    font-size:14px; font-weight:400; letter-spacing:1px; transition:border-color 0.15s;
+    font-size:16px; font-weight:400; letter-spacing:1px; transition:border-color 0.15s;
   }
   .login-input:focus { outline:none; border-color:var(--acid); }
+  .login-label {
+    display:block; margin-bottom:8px; font-size:14px; font-weight:600; color:var(--grey-light);
+  }
+  .login-campo { position:relative; }
+  .login-campo .login-input { padding-right:92px; }
+  .login-ver {
+    position:absolute; top:1px; right:1px; bottom:1px; min-width:84px; padding:0 12px;
+    background:transparent; border:none; border-left:1px solid var(--hairline);
+    color:var(--grey-light); font-size:14px; font-weight:600; cursor:pointer; border-radius:0 7px 7px 0;
+  }
+  .login-ver:hover { color:var(--white); }
+  .aviso-carga {
+    display:none; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap;
+    padding:12px 16px; background:rgba(230,103,103,0.12); border-bottom:1px solid var(--warn);
+    color:var(--white); font-size:14px; text-align:center;
+  }
+  .aviso-carga button {
+    background:var(--acid); color:#0A1014; border:none; border-radius:7px;
+    padding:8px 16px; font-weight:700; font-size:14px; cursor:pointer;
+  }
   .login-btn {
     width:100%; margin-top:12px; padding:14px; background:var(--acid);
     color:var(--petrol-dark); border:none; border-radius:7px;
@@ -85,12 +105,12 @@
   .login-error {
     margin-top:12px; padding:10px 14px; background:rgba(230,103,103,0.1);
     border-left:3px solid var(--warn); color:var(--warn);
-    font-size:12px; font-weight:500; text-align:center; display:none;
+    font-size:14px; font-weight:500; text-align:center; display:none; line-height:1.45;
   }
   .login-error.show { display:block; }
   .login-footer {
-    margin-top:28px; text-align:center; font-size:11px; color:var(--grey);
-    line-height:1.6; font-style:italic;
+    margin-top:28px; text-align:center; font-size:13px; color:var(--grey-light);
+    line-height:1.6;
   }
   .login-footer b { color:var(--acid); font-style:normal; font-weight:700; }
 
@@ -1173,11 +1193,15 @@
     </div>
     <div class="login-sub">Funnel Dashboard</div>
     <form id="loginForm" onsubmit="doLogin(event)">
-      <input type="password" id="passwordInput" class="login-input" placeholder="Ingresa tu clave" autocomplete="current-password" autofocus>
+      <label class="login-label" for="passwordInput">Clave de acceso</label>
+      <div class="login-campo">
+        <input type="password" id="passwordInput" class="login-input" placeholder="Ingresa tu clave" autocomplete="current-password" autofocus>
+        <button type="button" class="login-ver" id="loginVerBtn" onclick="togglePasswordVisible()" aria-pressed="false">Mostrar</button>
+      </div>
       <button type="submit" class="login-btn" id="loginBtn">Acceder</button>
-      <div class="login-error" id="loginError">Clave incorrecta</div>
+      <div class="login-error" id="loginError" role="alert">Clave incorrecta</div>
     </form>
-    <div class="login-footer">Encriptado con <b>AES-256</b> &middot; Uso exclusivo de <b>Jota</b></div>
+    <div class="login-footer">Encriptado con <b>AES-256</b> &middot; Uso interno del equipo <b>MENtoreo</b></div>
   </div>
 </div>
 
@@ -1244,6 +1268,11 @@
 </div>
 
 <div id="app" style="display:none">
+
+  <div class="aviso-carga" id="chartAviso" role="alert">
+    <span>No se pudieron cargar las gr&aacute;ficas (fall&oacute; la descarga de la librer&iacute;a). Revisa tu conexi&oacute;n y recarga.</span>
+    <button onclick="reloadFresh()">Recargar</button>
+  </div>
 
   <header>
     <div class="logo">
@@ -1838,7 +1867,15 @@ function reloadFresh() {
 }
 
 // ====== DECRYPTION ======
+// Los errores llevan .code para que la pantalla de clave diga qué pasó:
+// 'clave' = la clave no abre el payload; 'navegador' = falta soporte o el payload no se pudo leer.
+function errorDeAcceso_(code, causa) {
+  const e = new Error(code + (causa && causa.message ? ': ' + causa.message : ''));
+  e.code = code;
+  return e;
+}
 async function decrypt(password, payloadB64) {
+  if (!window.crypto || !crypto.subtle) throw errorDeAcceso_('navegador');
   const raw = Uint8Array.from(atob(payloadB64), c => c.charCodeAt(0));
   const salt = raw.slice(0, 16);
   const iv = raw.slice(16, 28);
@@ -1847,21 +1884,39 @@ async function decrypt(password, payloadB64) {
   const ctWithTag = new Uint8Array(ciphertext.length + authTag.length);
   ctWithTag.set(ciphertext, 0);
   ctWithTag.set(authTag, ciphertext.length);
-  const keyMat = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
-  const key = await crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations: ITERATIONS, hash:'SHA-256' },
-    keyMat, { name:'AES-GCM', length:256 }, false, ['decrypt']
-  );
-  const plaintext = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ctWithTag);
+  let key;
+  try {
+    const keyMat = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+    key = await crypto.subtle.deriveKey(
+      { name:'PBKDF2', salt, iterations: ITERATIONS, hash:'SHA-256' },
+      keyMat, { name:'AES-GCM', length:256 }, false, ['decrypt']
+    );
+  } catch (ex) { throw errorDeAcceso_('navegador', ex); }
+  let plaintext;
+  // AES-GCM autentica: si decrypt falla, la clave no es la correcta
+  try { plaintext = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ctWithTag); }
+  catch (ex) { throw errorDeAcceso_('clave', ex); }
   let bytes = new Uint8Array(plaintext);
   // El build comprime el JSON con gzip ANTES de cifrar (el cifrado no comprime).
   // Detectar magic bytes gzip (1f 8b) y descomprimir; si no, es payload legacy sin comprimir.
-  if (bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
-    const ds = new DecompressionStream('gzip');
-    const stream = new Blob([bytes]).stream().pipeThrough(ds);
-    bytes = new Uint8Array(await new Response(stream).arrayBuffer());
-  }
-  return JSON.parse(new TextDecoder().decode(bytes));
+  try {
+    if (bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      const ds = new DecompressionStream('gzip');
+      const stream = new Blob([bytes]).stream().pipeThrough(ds);
+      bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch (ex) { throw errorDeAcceso_('navegador', ex); }
+}
+
+function togglePasswordVisible() {
+  const inp = document.getElementById('passwordInput');
+  const btn = document.getElementById('loginVerBtn');
+  const ver = inp.type === 'password';
+  inp.type = ver ? 'text' : 'password';
+  btn.textContent = ver ? 'Ocultar' : 'Mostrar';
+  btn.setAttribute('aria-pressed', ver ? 'true' : 'false');
+  inp.focus();
 }
 
 async function doLogin(e) {
@@ -1876,10 +1931,19 @@ async function doLogin(e) {
     sessionStorage.setItem('funnel_pw', pw);
     onAuthSuccess(data);
   } catch (ex) {
-    err.classList.add('show');
+    const inp = document.getElementById('passwordInput');
     btn.disabled = false; btn.textContent = 'Acceder';
-    document.getElementById('passwordInput').value = '';
-    document.getElementById('passwordInput').focus();
+    if (ex && ex.code === 'navegador') {
+      err.textContent = 'No se pudo abrir el tablero en este navegador. Actualízalo (Chrome, Edge o Safari recientes) y vuelve a intentar.';
+    } else if (ex && ex.code === 'clave') {
+      // No se borra lo escrito: casi siempre es un error de tecleo y basta corregirlo
+      err.textContent = 'Clave incorrecta. Revisa mayúsculas y espacios; puedes usar "Mostrar" para verla.';
+      inp.focus(); inp.select();
+    } else {
+      err.textContent = 'No se pudo abrir el tablero. Recarga la página y vuelve a intentar.';
+      console.error('login', ex);
+    }
+    err.classList.add('show');
   }
 }
 
@@ -1890,6 +1954,9 @@ async function onAuthSuccess(data) {
   for (let i = 0; typeof Chart === 'undefined' && i < 60; i++) {
     await new Promise(r => setTimeout(r, 50));
   }
+  // Sin Chart.js el tablero queda sin gráficas: decirlo en vez de fallar en silencio
+  const sinChart = document.getElementById('chartAviso');
+  if (sinChart) sinChart.style.display = typeof Chart === 'undefined' ? 'flex' : 'none';
   APP_DATA = data;
   APP_DATA.annotations = APP_DATA.annotations || [];
   document.getElementById('loginOverlay').style.display = 'none';
