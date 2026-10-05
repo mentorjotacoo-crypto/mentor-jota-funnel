@@ -152,6 +152,24 @@
     font-weight:600; font-size:12px; letter-spacing:1.6px; text-transform:uppercase;
     padding:16px 22px; cursor:pointer; transition:all 0.2s;
   }
+  /* La barra se desliza en cualquier ancho: las 11 pestañas no caben a 1280 px
+     y antes empujaban toda la página hacia la derecha.
+     "Scroll shadows": borde iluminado en el costado cuando hay más tabs
+     fuera de pantalla (se apaga solo al llegar al final del scroll) */
+  .tabs {
+    overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none;
+    background:
+      linear-gradient(90deg, var(--bg-elev) 35%, transparent) left,
+      linear-gradient(270deg, var(--bg-elev) 35%, transparent) right,
+      linear-gradient(90deg, rgba(231,255,42,0.35), transparent) left,
+      linear-gradient(270deg, rgba(231,255,42,0.35), transparent) right;
+    background-repeat:no-repeat;
+    background-size:50px 100%, 50px 100%, 12px 100%, 12px 100%;
+    background-attachment:local, local, scroll, scroll;
+    background-color:var(--bg-elev);  /* el shorthand background resetea el color base */
+  }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab-btn { white-space:nowrap; flex-shrink:0; }
   .tab-btn:hover { color:var(--white); }
   .tab-btn.active { color:var(--acid); border-bottom-color:var(--acid); font-weight:700; }
   .tab-panel { display:none; }
@@ -1008,22 +1026,8 @@
   @media (max-width:1024px) {
     main { padding:24px 18px 40px; }
     header { padding:16px 20px; }
-    .tabs {
-      padding:0 10px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none;
-      /* "Scroll shadows": borde iluminado en el costado cuando hay más tabs
-         fuera de pantalla (se apaga solo al llegar al final del scroll) */
-      background:
-        linear-gradient(90deg, var(--bg-elev) 35%, transparent) left,
-        linear-gradient(270deg, var(--bg-elev) 35%, transparent) right,
-        linear-gradient(90deg, rgba(231,255,42,0.35), transparent) left,
-        linear-gradient(270deg, rgba(231,255,42,0.35), transparent) right;
-      background-repeat:no-repeat;
-      background-size:50px 100%, 50px 100%, 12px 100%, 12px 100%;
-      background-attachment:local, local, scroll, scroll;
-      background-color:var(--bg-elev);  /* el shorthand background resetea el color base */
-    }
-    .tabs::-webkit-scrollbar { display:none; }
-    .tab-btn { white-space:nowrap; flex-shrink:0; padding:14px 14px; }
+    .tabs { padding:0 10px; }
+    .tab-btn { padding:14px 14px; }
     .charts-grid { grid-template-columns:1fr; }
     .kpi-strip, .kpi-strip.cols-8, .kpi-strip.cols-6 { grid-template-columns:repeat(3, 1fr); }
     .kpi-strip.cols-4 { grid-template-columns:repeat(2, 1fr); }
@@ -1293,9 +1297,9 @@
     <button class="tab-btn" onclick="switchTab('pulso', this)">Pulso</button>
     <button class="tab-btn active" onclick="switchTab('resumen', this)">Resumen</button>
     <button class="tab-btn" onclick="switchTab('embudo', this)">Embudo</button>
-    <button class="tab-btn" onclick="switchTab('journey', this)">Customer Journey</button>
+    <button class="tab-btn" onclick="switchTab('journey', this)">Recorrido del cliente</button>
     <button class="tab-btn" onclick="switchTab('trends', this)">Tendencias</button>
-    <button class="tab-btn" onclick="switchTab('revenue', this)">Revenue</button>
+    <button class="tab-btn" onclick="switchTab('revenue', this)">Ingresos</button>
     <button class="tab-btn" onclick="switchTab('ascensos', this)">Ascensos</button>
     <button class="tab-btn" onclick="switchTab('closers', this)">Closers</button>
     <button class="tab-btn" onclick="switchTab('forecast', this)">Proyecci&oacute;n</button>
@@ -1496,7 +1500,7 @@
   <div id="tab-revenue" class="tab-panel">
     <main>
 
-      <div class="section-title">01 &middot; Breakdown <span class="sub">ingresos por producto y unit economics</span></div>
+      <div class="section-title">01 &middot; Desglose <span class="sub">ingresos por producto y unit economics</span></div>
       <div class="revenue-grid" id="revenueGrid"></div>
 
       <div class="section-title">02 &middot; Evoluci&oacute;n <span class="sub">stack de revenue y take rate de bumps</span></div>
@@ -1744,8 +1748,8 @@
       </div>
 
       <div class="panel accent" style="margin-top:18px">
-        <div class="panel-title">Simulador what-if &mdash; &iquest;qu&eacute; pasa si subo o bajo el spend?</div>
-        <p class="hint" style="margin-bottom:14px">Usa CPA y AOV promedio de los &uacute;ltimos 30 d&iacute;as. Sirve para tener una intuici&oacute;n &mdash; cambios de oferta o creativos pueden alterar el resultado.</p>
+        <div class="panel-title">Simulador: &iquest;qu&eacute; pasa si subo o bajo la inversi&oacute;n?</div>
+        <p class="hint" style="margin-bottom:14px">Usa CPA y ticket promedio de los &uacute;ltimos 30 d&iacute;as. Sirve para tener una intuici&oacute;n &mdash; cambios de oferta o creativos pueden alterar el resultado.</p>
         <div class="simulator-grid">
           <div class="simulator-controls">
             <div class="sim-row">
@@ -2722,13 +2726,13 @@ function renderKPIs() {
   }
 
   const kpis = [
-    { id:'spend',    label:'Ad Spend',      value:fmtMoneyCompact(d.spend),      valCls:'', sub:nDays+' d'+(nDays===1?'ía':'ías'), cur:d.spend, prev:prev?prev.spend:0, invert:false, fmt:'money', tip:'Total invertido en Meta Ads en el período seleccionado.' },
-    { id:'revenue',  label:'Revenue',       value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false, fmt:'money', tip:'Revenue total reportado por Meta (LT + Bump 1 + Bump 2).' },
+    { id:'spend',    label:'Inversión en pauta', value:fmtMoneyCompact(d.spend),      valCls:'', sub:nDays+' d'+(nDays===1?'ía':'ías'), cur:d.spend, prev:prev?prev.spend:0, invert:false, fmt:'money', tip:'Total invertido en Meta Ads en el período seleccionado.' },
+    { id:'revenue',  label:'Ingresos',      value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false, fmt:'money', tip:'Revenue total reportado por Meta (LT + Bump 1 + Bump 2).' },
     { id:'profit',   label:'Ganancia',      value:(profit>=0?'+':'')+fmtMoneyCompact(profit).replace('$','$'), valCls: profit>=0?'good':'warn', sub:'Rev - Spend', cur:profit, prev:prevProfit, invert:false, fmt:'money', tip:'Revenue - Spend. Solo considera ad spend, NO incluye costo de producto, fees, etc.' },
     { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo', cur:roas, prev:prevRoas, invert:false, fmt:'roas', tip:'Revenue / Spend. Cuánto generas por cada $1 invertido en ads.' },
-    { id:'cpl',      label:'Cost / Lead',   value:fmtMoney(cpl),                 valCls:umbralCls_(cpl, KPI_UMBRAL.cpl), sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true, fmt:'money', tip:'Spend / Leads. Costo de adquirir un opt-in. Verde <$'+KPI_UMBRAL.cpl.good+' · rojo >$'+KPI_UMBRAL.cpl.warn+'.' },
-    { id:'cpa',      label:'Cost / Compra', value:fmtMoney(cpa),                 valCls:umbralCls_(cpa, KPI_UMBRAL.cpa), sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true, fmt:'money', tip:'Spend / Compras LT. Costo de adquirir un cliente. Verde <$'+KPI_UMBRAL.cpa.good+' · rojo >$'+KPI_UMBRAL.cpa.warn+'.' },
-    { id:'aov',      label:'AOV',           value:fmtMoney(aov),                 valCls:'acid', sub:'Valor orden', cur:aov, prev:prevAov, invert:false, fmt:'money', tip:'Revenue / Compras LT. Valor promedio de cada orden (incluye bumps).' }
+    { id:'cpl',      label:'Costo por lead', value:fmtMoney(cpl),                 valCls:umbralCls_(cpl, KPI_UMBRAL.cpl), sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true, fmt:'money', tip:'Spend / Leads. Costo de adquirir un opt-in. Verde <$'+KPI_UMBRAL.cpl.good+' · rojo >$'+KPI_UMBRAL.cpl.warn+'.' },
+    { id:'cpa',      label:'Costo por compra', value:fmtMoney(cpa),                 valCls:umbralCls_(cpa, KPI_UMBRAL.cpa), sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true, fmt:'money', tip:'Spend / Compras LT. Costo de adquirir un cliente. Verde <$'+KPI_UMBRAL.cpa.good+' · rojo >$'+KPI_UMBRAL.cpa.warn+'.' },
+    { id:'aov',      label:'Ticket promedio', value:fmtMoney(aov),               valCls:'acid', sub:'valor por orden', cur:aov, prev:prevAov, invert:false, fmt:'money', tip:'Revenue / Compras LT. Valor promedio de cada orden (incluye bumps).' }
   ];
 
   // Precompute values for sparklines
@@ -2768,7 +2772,7 @@ function renderKPIs() {
           ${deltaHtml(k.cur, k.prev, k.invert)}
         </div>
         <div class="kpi-value ${k.valCls}">${k.value}</div>
-        <div class="kpi-sub"><span>${k.sub}</span><span style="font-style:italic">vs prev</span></div>
+        <div class="kpi-sub"><span>${k.sub}</span><span>vs período anterior</span></div>
         <div class="kpi-sparkline"><canvas id="spark_${k.id}"></canvas></div>
         <div class="kpi-range-text">
           <span>${firstDay}</span>
@@ -3552,7 +3556,7 @@ function renderRevenue() {
       <div class="panel-title" style="margin-bottom:12px">Unit Economics</div>
       <div class="revenue-item"><span class="revenue-item-label">CPL</span><span class="revenue-item-value" style="color:var(--purple)">${fmtMoney(d.leads>0?d.spend/d.leads:0)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">CPA</span><span class="revenue-item-value" style="color:var(--warn)">${fmtMoney(d.purchases>0?d.spend/d.purchases:0)}</span></div>
-      <div class="revenue-item"><span class="revenue-item-label">AOV</span><span class="revenue-item-value" style="color:var(--acid)">${fmtMoney(aov)}</span></div>
+      <div class="revenue-item"><span class="revenue-item-label">Ticket promedio</span><span class="revenue-item-value" style="color:var(--acid)">${fmtMoney(aov)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">Bump 1 Take Rate</span><span class="revenue-item-value" style="color:var(--good)">${fmtPct(b1Rate)}</span></div>
       <div class="revenue-item"><span class="revenue-item-label">Bump 2 Take Rate</span><span class="revenue-item-value" style="color:#26A97C">${fmtPct(b2Rate)}</span></div>
       <div class="revenue-item" style="margin-top:6px;border-top:2px solid ${ganancia>=0?'var(--good)':'var(--warn)'};padding-top:10px"><span class="revenue-item-label" style="font-weight:700">GANANCIA NETA</span><span class="revenue-item-value" style="color:${ganancia>=0?'var(--good)':'var(--warn)'};font-size:22px">${ganancia>=0?'+':''}${fmtMoney(ganancia)}</span></div>
@@ -4121,7 +4125,7 @@ function renderCompare() {
   html += metric('Bump 2',            aAgg.bump2,    bAgg.bump2,    'num',    false);
   html += metric('CPL',               aCPL,          bCPL,          'money',  true);
   html += metric('CPA',               aCPA,          bCPA,          'money',  true);
-  html += metric('AOV',               aAOV,          bAOV,          'money',  false);
+  html += metric('Ticket promedio',              aAOV,          bAOV,          'money',  false);
   html += metric('Tasa Conv Landing', aTCL,          bTCL,          'pct',    false);
   html += metric('Impresiones',       aAgg.impressions, bAgg.impressions, 'num', false);
   html += metric('LPV',               aAgg.lpv,      bAgg.lpv,      'num',    false);
@@ -4417,7 +4421,7 @@ function renderAscensos() {
                              : 'sin inversión registrada',
       d: (eco.roas !== null && ecoPrev.roas !== null) ? delta(eco.roas, ecoPrev.roas) : '',
       cls: eco.roas === null ? '' : (eco.roas >= 2 ? 'good' : (eco.roas >= 1 ? 'acid' : 'warn')) },
-    { label:'AOV', value: fmtMoneyCompact(aov), sub:'ticket promedio', d:'', cls:'' },
+    { label:'Ticket promedio', value: fmtMoneyCompact(aov), sub:'contratado / ventas', d:'', cls:'' },
     { label:'% Cobro', value: pctCobro.toFixed(0) + '%', sub:'cobrado/contratado', d: deltaPp(pctCobro, pctCobroPrev), cls: pctCobro >= 60 ? 'good' : '' },
     { label:'Ritmo', value: ritmoVal, sub: ritmoSub, d:'', cls:'' },
     { label:'Tasa ascenso', value: ta.pct !== null ? ta.pct.toFixed(1) + '%' : '—',
@@ -4889,7 +4893,7 @@ function renderAscensos() {
       { lbl:'Ventas TOTAL', fn:m => Math.round(ascSeg_(m,'all').ventas), em:true },
       { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,'all').contratado).toLocaleString() },
       { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,'all').cobrado).toLocaleString(), em:true },
-      { lbl:'AOV', fn:m => { const s = ascSeg_(m,'all'); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString() : '-'; } },
+      { lbl:'Ticket prom.', fn:m => { const s = ascSeg_(m,'all'); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString() : '-'; } },
       { lbl:'% Cobro', fn:m => { const s = ascSeg_(m,'all'); return s.contratado > 0 ? Math.round(s.cobrado/s.contratado*100) + '%' : '-'; } }
     ];
   } else {
@@ -4897,7 +4901,7 @@ function renderAscensos() {
       { lbl:'Ventas', fn:m => Math.round(ascSeg_(m,seg).ventas) },
       { lbl:'Contratado', fn:m => '$' + Math.round(ascSeg_(m,seg).contratado).toLocaleString() },
       { lbl:'Cobrado', fn:m => '$' + Math.round(ascSeg_(m,seg).cobrado).toLocaleString(), em:true },
-      { lbl:'AOV', fn:m => { const s = ascSeg_(m,seg); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString() : '-'; } },
+      { lbl:'Ticket prom.', fn:m => { const s = ascSeg_(m,seg); return s.ventas > 0 ? '$' + Math.round(s.contratado/s.ventas).toLocaleString() : '-'; } },
       { lbl:'% Cobro', fn:m => { const s = ascSeg_(m,seg); return s.contratado > 0 ? Math.round(s.cobrado/s.contratado*100) + '%' : '-'; } }
     ];
   }
