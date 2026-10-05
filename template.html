@@ -804,6 +804,11 @@
     display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr));
     gap:16px; margin-bottom:16px;
   }
+  .chart-grid-2 {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+    gap:16px; margin-bottom:16px;
+  }
+  .chart-grid-2 > * { min-width:0; }
   .chart-card {
     background:var(--panel); border:1px solid var(--hairline);
     padding:24px 26px; border-radius:12px;
@@ -939,6 +944,31 @@
   }
   .data-cell.emphasis { color:var(--acid); font-weight:700; }
 
+  /* Tablas HTML (Closers, Canales): el scroll horizontal vive en .table-wrap
+     para que una tabla ancha no empuje toda la página en celular. Selectores
+     acotados a .data-table: .num también existe en .insight-detail. */
+  .table-wrap {
+    overflow-x:auto; background:var(--panel); border:1px solid var(--hairline);
+    border-radius:10px; margin-bottom:22px;
+  }
+  .data-table { width:100%; border-collapse:collapse; font-size:14px; }
+  .data-table th, .data-table td {
+    padding:10px 12px; border-bottom:1px solid var(--hairline);
+    white-space:nowrap; text-align:left; color:var(--white);
+  }
+  .data-table th {
+    background:#0B1216; color:var(--grey-light);
+    font-family:'Clash Display',sans-serif; font-weight:600;
+    font-size:12px; letter-spacing:0.8px; text-transform:uppercase;
+  }
+  .data-table tbody tr:last-child td { border-bottom:none; }
+  .data-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .data-table th:first-child, .data-table td:first-child {
+    position:sticky; left:0; z-index:1; background:var(--panel);
+    box-shadow:1px 0 0 var(--hairline);
+  }
+  .data-table th:first-child { background:#0B1216; }
+
   /* ===== TOAST ===== */
   .toast {
     position:fixed; bottom:24px; right:24px; z-index:2000;
@@ -1073,8 +1103,10 @@
     .modal-actions .btn { flex:1; min-width:90px; }
 
     /* HEATMAP */
-    .heatmap-grid { grid-template-columns:64px repeat(7, 1fr); gap:2px; }
-    .heatmap-cell { font-size:10px; }
+    /* minmax(0,1fr) + alto fijo: con aspect-ratio la etiqueta en dos líneas
+       ensanchaba las 7 columnas y la página se desbordaba a 360-412 px */
+    .heatmap-grid { grid-template-columns:64px repeat(7, minmax(0, 1fr)); gap:2px; }
+    .heatmap-cell { font-size:10px; aspect-ratio:auto; min-height:36px; min-width:0; }
     .heatmap-cell.label { font-size:9px; padding-right:6px; letter-spacing:1px; }
     .heatmap-cell.header { font-size:9px; }
 
@@ -1505,6 +1537,7 @@
 
         <div class="section-title">00 &middot; <span id="cloTitle">Todo el hist&oacute;rico</span> <span class="sub">desempe&ntilde;o de closers &middot; citas agendadas, asistencia y cierre</span></div>
         <div class="kpi-strip cols-8" id="cloKpiStrip"></div>
+        <div class="hint" id="cloDeltaNota"></div>
 
         <div class="section-title">01 &middot; Evoluci&oacute;n en el tiempo <span class="sub">l&iacute;nea mensual de vol&uacute;menes y tasas</span></div>
         <div class="chart-grid-2">
@@ -4806,12 +4839,13 @@ function renderCloCloserPop() {
   const conteo = {};
   d.r.forEach(function (f) { const n = d.closers[f[1]]; conteo[n] = (conteo[n] || 0) + 1; });
   const lista = d.closers.slice().sort(function (a, b) { return (conteo[b] || 0) - (conteo[a] || 0); });
-  let h = '<div class="asc-pop-sec"><div class="asc-pop-tit">Closer</div>';
-  h += '<button class="asc-opt' + (cloCloserSel === 'all' ? ' sel' : '') + '" onclick="setCloCloser(\'all\')">Todos los closers</button>';
+  // Mismo marcado que el popover de Ascensos (.grp / .row / .asc-opt.active)
+  let h = '<div class="grp">Closer</div><div class="row">';
+  h += '<button class="asc-opt' + (cloCloserSel === 'all' ? ' active' : '') + '" onclick="setCloCloser(\'all\')">Todos los closers</button>';
   lista.forEach(function (n) {
-    const esc = n.replace(/'/g, '&#39;');
-    h += '<button class="asc-opt' + (cloCloserSel === n ? ' sel' : '') + '" onclick="setCloCloser(this.dataset.n)" data-n="' + esc + '">' +
-         n + ' <span style="opacity:.5">&middot; ' + conteo[n] + '</span></button>';
+    const esc = escapeHtml(n).replace(/'/g, '&#39;');
+    h += '<button class="asc-opt' + (cloCloserSel === n ? ' active' : '') + '" onclick="setCloCloser(this.dataset.n)" data-n="' + esc + '">' +
+         esc + ' <span style="opacity:.7">&middot; ' + conteo[n] + '</span></button>';
   });
   document.getElementById('cloCloserPop').innerHTML = h + '</div>';
 }
@@ -4821,20 +4855,20 @@ function renderCloPeriodPop() {
   if (!d) return;
   const meses = new Set(), anios = new Set();
   d.r.forEach(function (f) { meses.add(f[0].slice(0, 7)); anios.add(f[0].slice(0, 4)); });
-  let h = '<div class="asc-pop-sec"><div class="asc-pop-tit">Atajos</div>' +
-          '<button class="asc-opt' + (cloPeriodoSel === 'all' ? ' sel' : '') +
+  let h = '<div class="grp">Atajos</div><div class="row">' +
+          '<button class="asc-opt' + (cloPeriodoSel === 'all' ? ' active' : '') +
           '" onclick="setCloPeriodo(\'all\')">Todo el hist&oacute;rico</button></div>';
   Array.from(anios).sort().reverse().forEach(function (a) {
-    h += '<div class="asc-pop-sec"><div class="asc-pop-tit">' + a + '</div>';
-    h += '<button class="asc-opt' + (cloPeriodoSel === a ? ' sel' : '') + '" onclick="setCloPeriodo(\'' + a + '\')">Todo ' + a + '</button>';
-    h += '<div class="asc-pop-grid">';
+    h += '<div class="grp"><span>' + a + '</span>' +
+         '<button class="asc-opt' + (cloPeriodoSel === a ? ' active' : '') + '" onclick="setCloPeriodo(\'' + a + '\')">Todo ' + a + '</button></div>';
+    h += '<div class="row months">';
     for (let m = 1; m <= 12; m++) {
       const k = a + '-' + String(m).padStart(2, '0');
       if (!meses.has(k)) continue;
-      h += '<button class="asc-opt mini' + (cloPeriodoSel === k ? ' sel' : '') +
+      h += '<button class="asc-opt' + (cloPeriodoSel === k ? ' active' : '') +
            '" onclick="setCloPeriodo(\'' + k + '\')">' + CLO_MESES_C[m - 1] + '</button>';
     }
-    h += '</div></div>';
+    h += '</div>';
   });
   document.getElementById('cloPeriodPop').innerHTML = h;
 }
@@ -4956,9 +4990,11 @@ function renderClosers() {
     if (ant === null || ant === undefined || !isFinite(ant) || ant === 0) return '';
     const dif = pp ? (cur - ant) : ((cur - ant) / Math.abs(ant) * 100);
     if (!isFinite(dif)) return '';
-    const cls = Math.abs(dif) < (pp ? 0.5 : 2) ? 'flat' : (dif > 0 ? 'up' : 'down');
-    const fl = cls === 'flat' ? '·' : (dif > 0 ? '▲' : '▼');
-    return '<span class="' + cls + '">' + fl + ' ' + Math.abs(dif).toFixed(1) + (pp ? ' pp' : '%') + '</span>';
+    const cls = Math.abs(dif) < (pp ? 0.5 : 2) ? 'neutral' : (dif > 0 ? 'up' : 'down');
+    const fl = cls === 'neutral' ? '·' : (dif > 0 ? '▲' : '▼');
+    return '<div class="kpi-delta ' + cls + '" style="margin-top:6px" title="vs período anterior (' +
+      escapeHtml(cloEtiquetaPeriodo_(cloPeriodoPrev_())) + ')">' +
+      fl + ' ' + Math.abs(dif).toFixed(1) + (pp ? ' pp' : '%') + '</div>';
   };
 
   const kpis = [
@@ -4977,8 +5013,11 @@ function renderClosers() {
     return '<div class="kpi-cell"><div class="kpi-label">' + k.l + '</div>' +
       '<div class="kpi-value ' + k.c + '">' + k.v + '</div>' +
       '<div class="kpi-sub">' + k.s + '</div>' +
-      (k.d ? '<div class="kpi-delta">' + k.d + '</div>' : '') + '</div>';
+      (k.d || '') + '</div>';
   }).join('');
+  const notaDelta = document.getElementById('cloDeltaNota');
+  if (notaDelta) notaDelta.textContent = prev
+    ? '▲ ▼ variación frente al período anterior (' + cloEtiquetaPeriodo_(cloPeriodoPrev_()) + ')' : '';
 
   // Series del conjunto filtrado: por día si hay un mes seleccionado, si no por mes
   const gr = cloAgrupar_(filas);
@@ -5240,7 +5279,7 @@ function renderClosers() {
     '<th class="num">% s/agenda</th><th class="num">Revenue</th><th class="num">Ticket</th></tr></thead><tbody>' +
     filasT.map(function (x) {
       return '<tr' + (x.n === cloCloserSel ? ' style="background:rgba(231,255,42,0.06)"' : '') + '>' +
-        '<td>' + x.n + '</td><td class="num">' + x.agendas + '</td><td class="num">' + x.asistidas + '</td>' +
+        '<td>' + escapeHtml(x.n) + '</td><td class="num">' + x.agendas + '</td><td class="num">' + x.asistidas + '</td>' +
         '<td class="num">' + x.tAsist.toFixed(1) + '%</td><td class="num">' + x.cierres + '</td>' +
         '<td class="num"><b>' + x.tCierre.toFixed(1) + '%</b></td><td class="num">' + x.tCierreAg.toFixed(1) + '%</td>' +
         '<td class="num">' + fmtMoneyCompact(x.revenue) + '</td><td class="num">' + fmtMoneyCompact(x.ticket) + '</td></tr>';
