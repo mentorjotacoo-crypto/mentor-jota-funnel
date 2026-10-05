@@ -1947,7 +1947,11 @@ async function doLogin(e) {
   }
 }
 
-function doLogout() { sessionStorage.removeItem('funnel_pw'); location.reload(); }
+function doLogout() {
+  sessionStorage.removeItem('funnel_pw');
+  try { sessionStorage.removeItem('funnel_vista'); } catch (e) {}
+  location.reload();
+}
 
 async function onAuthSuccess(data) {
   // Chart.js carga con defer; si el login fue más rápido que el CDN, esperar
@@ -1969,13 +1973,66 @@ async function onAuthSuccess(data) {
   document.getElementById('lastDataHeader').textContent = 'Última data: ' + lastDay +
     (withData.length ? ' ' + dayKeyYear(lastDay) : '');
   document.getElementById('updatedAtHeader').textContent = 'Sincronizado: ' + (data.updatedAt || '-');
+  const vistaTab = restaurarVista_();
   renderPeriodButtons();
+  if (vistaTab && vistaTab !== currentTab) {
+    const btnV = document.querySelector(".tab-btn[onclick*=\"'" + vistaTab + "'\"]");
+    if (btnV) { switchTab(vistaTab, btnV); return; }
+  }
   // En pantallas pequeñas el tab por defecto es Pulso (lectura de 3 segundos)
-  if (window.matchMedia('(max-width:900px)').matches) {
+  if (!vistaTab && window.matchMedia('(max-width:900px)').matches) {
     const btn = document.querySelector("[onclick*=\"'pulso'\"]");
     if (btn) { switchTab('pulso', btn); return; }
   }
+  actualizarEtiquetaPeriodo();
   renderAll();
+}
+
+// ====== VISTA RECORDADA ======
+// Pestaña y filtros se guardan en sessionStorage (misma vida que la sesión) para
+// que F5 o el botón "Recargar" del aviso de versión nueva no devuelvan a Resumen.
+function guardarVista_() {
+  try {
+    sessionStorage.setItem('funnel_vista', JSON.stringify({
+      tab: currentTab, filter: currentFilter,
+      cloPeriodo: cloPeriodoSel, cloCloser: cloCloserSel, ascPeriodo: ascPeriodSel
+    }));
+  } catch (e) { /* almacenamiento bloqueado: se sigue sin recordar */ }
+}
+// Aplica lo guardado solo si sigue existiendo en los datos. Devuelve la pestaña
+// guardada (o null si no había nada válido).
+function restaurarVista_() {
+  let v = null;
+  try { v = JSON.parse(sessionStorage.getItem('funnel_vista') || 'null'); } catch (e) { v = null; }
+  if (!v || typeof v !== 'object') return null;
+  const conDatos = Object.keys(APP_DATA.days).filter(k => {
+    const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
+  });
+  if (['all','last7','last14','last30'].includes(v.filter) ||
+      (typeof v.filter === 'string' && conDatos.some(k => k.split(' ')[0] === v.filter))) {
+    currentFilter = v.filter;
+  }
+  const clo = APP_DATA.closers;
+  if (clo && clo.r && clo.r.length) {
+    if (typeof v.cloPeriodo === 'string' && /^\d{4}(-\d{2})?$/.test(v.cloPeriodo) &&
+        clo.r.some(f => f[0].indexOf(v.cloPeriodo) === 0)) {
+      cloPeriodoSel = v.cloPeriodo;
+      const l = document.getElementById('cloPeriodLabel');
+      if (l) l.textContent = cloEtiquetaPeriodo_(cloPeriodoSel);
+    }
+    if (typeof v.cloCloser === 'string' && (clo.closers || []).includes(v.cloCloser)) {
+      cloCloserSel = v.cloCloser;
+      const l = document.getElementById('cloCloserLabel');
+      if (l) l.textContent = cloCloserSel;
+    }
+  }
+  const asc = APP_DATA.ascensos && APP_DATA.ascensos.days;
+  if (asc && typeof v.ascPeriodo === 'string' &&
+      (/^last(7|14|30)$/.test(v.ascPeriodo) ||
+       (/^\d{4}(-\d{2})?$/.test(v.ascPeriodo) && Object.keys(asc).some(k => k.indexOf(v.ascPeriodo) === 0)))) {
+    ascPeriodSel = v.ascPeriodo;
+  }
+  return (typeof v.tab === 'string' && /^[a-z]+$/.test(v.tab) && document.getElementById('tab-' + v.tab)) ? v.tab : null;
 }
 
 // Genera los botones del filtro de período según los meses presentes en los datos.
@@ -2227,6 +2284,7 @@ function setFilter(f, btn) {
     if (match && match[1] === f) b.classList.add('active');
   });
   actualizarEtiquetaPeriodo();
+  guardarVista_();
   renderAll();
 }
 
@@ -2269,6 +2327,7 @@ function switchTab(tab, btn) {
     document.getElementById('tab-'+tab).classList.add('active');
     if (btn) btn.classList.add('active');
     actualizarEtiquetaPeriodo();
+    guardarVista_();
     destroyCharts();
     renderAll();
     if (loader) setTimeout(() => loader.classList.remove('active'), 180);
@@ -4183,6 +4242,7 @@ function setAscPeriodo(v) {
   ascPeriodSel = v;
   cerrarAscPeriodPop();
   actualizarEtiquetaPeriodo();
+  guardarVista_();
   renderAscensos();
 }
 
@@ -5001,6 +5061,7 @@ function setCloCloser(v) {
   cloCloserSel = v;
   document.getElementById('cloCloserLabel').textContent = v === 'all' ? 'Todos' : v;
   document.getElementById('cloCloserPop').classList.remove('open');
+  guardarVista_();
   renderClosers();
 }
 function setCloPeriodo(v) {
@@ -5008,6 +5069,7 @@ function setCloPeriodo(v) {
   document.getElementById('cloPeriodLabel').textContent = cloEtiquetaPeriodo_(v);
   document.getElementById('cloPeriodPop').classList.remove('open');
   actualizarEtiquetaPeriodo();
+  guardarVista_();
   renderClosers();
 }
 function setCloOrigen(v, btn) {
