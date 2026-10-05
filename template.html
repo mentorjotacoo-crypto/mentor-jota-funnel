@@ -994,6 +994,18 @@
     justify-content:center; color:var(--white);
   }
   .data-cell.emphasis { color:var(--acid); font-weight:700; }
+  /* Primera columna fija: al deslizar la tabla no se pierde qué métrica es cada fila.
+     La sombra izquierda tapa el padding del contenedor para que nada asome por detrás. */
+  .data-cell.label, .data-cell.header.esquina {
+    position:sticky; left:0; z-index:1;
+    box-shadow:-24px 0 0 var(--panel), 1px 0 0 var(--hairline);
+  }
+  /* La grilla debe medir lo que mide su contenido: una celda sticky solo se
+     desplaza dentro de la caja de su grilla */
+  .data-grid { width:max-content; min-width:100%; }
+  .data-cell.computed { white-space:nowrap; }
+  .data-vista { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .data-vista .nota { font-size:13px; color:var(--grey-light); }
 
   /* Tablas HTML (Closers, Canales): el scroll horizontal vive en .table-wrap
      para que una tabla ancha no empuje toda la página en celular. Selectores
@@ -4995,7 +5007,7 @@ function renderAscensos() {
 
   // --- Tabla mensual (segmentada) ---
   let html = `<div class="data-grid" style="grid-template-columns: 130px repeat(${mkeysView.length}, minmax(72px, 1fr));">`;
-  html += `<div class="data-cell header">Mes</div>`;
+  html += `<div class="data-cell header esquina">Mes</div>`;
   mkeysView.forEach(mk => html += `<div class="data-cell header">${ascMesLabel_(mk)}</div>`);
   let filas;
   if (seg === 'all') {
@@ -5782,32 +5794,55 @@ function exportCSV(tipo) {
   csvDescargar_(`mentoreo_resumen_mensual_${hoy}.csv`, filas);
 }
 
+// Vista de la tabla de Datos: 'auto' agrupa por mes cuando el período pasa de
+// 31 días (239 columnas de un día eran más de 14.000 px de scroll horizontal).
+let dataVista = 'auto';
+function setDataVista(v) { dataVista = v; renderDataGrid(); }
+
 function renderDataGrid() {
   const days = getFilteredDays();
   const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
   const labels = ['Impresiones','Alcance','Clicks','LPV','Leads','Checkouts','Compras','Bump 1','Bump 2','Spend'];
-  const P = APP_DATA.prices;
 
-  let html = `<div class="data-grid" style="grid-template-columns: 130px repeat(${days.length}, minmax(60px, 1fr));">`;
-  html += `<div class="data-cell header">Metrica</div>`;
-  days.forEach(p => html += `<div class="data-cell header">${p.replace(' 0',' ')}</div>`);
+  const porMes = dataVista === 'mes' || (dataVista === 'auto' && days.length > 31);
+  // Columnas {titulo, d}: un día, o un mes con la suma de sus días. La más reciente primero.
+  let cols;
+  if (porMes) {
+    const grupos = {};
+    days.forEach(k => { const mk = dayKeyToISO(k).slice(0, 7); (grupos[mk] = grupos[mk] || []).push(k); });
+    cols = Object.keys(grupos).sort().map(mk => ({
+      titulo: MONTH_NAMES[parseInt(mk.slice(5), 10) - 1] + ' ' + mk.slice(0, 4),
+      d: getAggregated(grupos[mk])
+    }));
+  } else {
+    cols = days.map(k => ({ titulo: k.replace(' 0', ' '), d: APP_DATA.days[k] || {} }));
+  }
+  cols.reverse();
+
+  let html = '<div class="data-vista">' +
+    `<button class="btn${porMes ? ' active' : ''}" onclick="setDataVista('mes')">Por mes</button>` +
+    `<button class="btn${porMes ? '' : ' active'}" onclick="setDataVista('dia')">Por día</button>` +
+    `<span class="nota">${porMes ? 'Cada columna suma los días del mes dentro del período' : days.length + ' días'} · de lo más reciente a lo más antiguo</span></div>`;
+  html += `<div class="data-grid" style="grid-template-columns: 130px repeat(${cols.length}, minmax(${porMes ? 104 : 84}px, 1fr));">`;
+  html += `<div class="data-cell header esquina">Métrica</div>`;
+  cols.forEach(c => html += `<div class="data-cell header">${c.titulo}</div>`);
 
   fields.forEach((f, fi) => {
     html += `<div class="data-cell label">${labels[fi]}</div>`;
-    days.forEach(p => {
-      const v = APP_DATA.days[p][f] || 0;
+    cols.forEach(c => {
+      const v = c.d[f] || 0;
       html += `<div class="data-cell computed">${f==='spend'?fmtMoneyCompact(parseFloat(v)):formatNum(v)}</div>`;
     });
   });
 
   const computed = [
-    { lbl:'Revenue', fn:d => '$' + Math.round(d.revenue||0).toLocaleString('es-CO') },
+    { lbl:'Revenue', fn:d => fmtMoneyCompact(d.revenue||0) },
     { lbl:'ROAS', fn:d => { const r=d.revenue||0; return d.spend>0?(r/d.spend).toFixed(2)+'x':'-'; } },
     { lbl:'CPL', fn:d => d.leads>0 ? fmtMoney(d.spend/d.leads) : '-' }
   ];
   computed.forEach(c => {
     html += `<div class="data-cell label emphasis">${c.lbl}</div>`;
-    days.forEach(p => html += `<div class="data-cell computed emphasis">${c.fn(APP_DATA.days[p])}</div>`);
+    cols.forEach(col => html += `<div class="data-cell computed emphasis">${c.fn(col.d)}</div>`);
   });
   html += '</div>';
   document.getElementById('dataGrid').innerHTML = html;
