@@ -46,6 +46,8 @@
     -webkit-font-smoothing:antialiased;
   }
   button, input, select, textarea { font-family:inherit; }
+  /* Foco visible solo con teclado (no al tocar o hacer clic) */
+  :focus-visible { outline:2px solid var(--acid); outline-offset:2px; }
   .mono { font-family:'JetBrains Mono',monospace; }
 
   /* ===== LOGIN ===== */
@@ -288,8 +290,13 @@
   .asc-opt:hover { border-color:var(--grey-faint); color:var(--white); background:var(--panel-hover); }
   .asc-opt.active { background:var(--acid); border-color:var(--acid); color:#0A0F14; font-weight:700; }
   @media (max-width:720px) {
-    .asc-period-pop { min-width:0; width:min(88vw, 330px); }
+    /* En celular el popover se ancla a la barra de filtros (no al botón): anclado
+       a un botón que no está en el borde izquierdo se salía de la pantalla */
+    .period-bar { position:relative; }
+    .asc-period { position:static; }
+    .asc-period-pop { min-width:0; width:min(100%, 330px); }
   }
+  .asc-period-pop { max-height:70vh; overflow-y:auto; }
   .compare-vs {
     font-family:'Clash Display',sans-serif; font-weight:700; font-size:18px;
     color:var(--acid); padding-bottom:10px; letter-spacing:2px;
@@ -452,13 +459,15 @@
   .kpi-cell[data-tip] { cursor:help; }
   .kpi-cell[data-tip]::after {
     content:'?'; position:absolute; top:8px; right:8px;
-    width:14px; height:14px; border-radius:50%;
+    width:18px; height:18px; border-radius:50%;
     background:rgba(231,255,42,0.12); color:var(--acid);
-    font-size:10px; font-weight:700; line-height:14px; text-align:center;
+    font-size:12px; font-weight:700; line-height:18px; text-align:center;
     font-family:'Clash Display',sans-serif;
     opacity:0; transition:opacity 0.2s;
   }
-  .kpi-cell[data-tip]:hover::after { opacity:1; }
+  .kpi-cell[data-tip]:hover::after, .kpi-cell[data-tip]:focus-visible::after { opacity:1; }
+  /* En táctil no hay hover: el "?" queda a la vista para anunciar que hay detalle */
+  @media (hover:none) { .kpi-cell[data-tip]::after { opacity:1; } }
   .tooltip-overlay {
     display:none; position:fixed; inset:0; z-index:9000;
     background:rgba(8,46,56,0.7); backdrop-filter:blur(4px);
@@ -1059,9 +1068,14 @@
 
     .tab-btn { padding:12px 14px; font-size:11px; letter-spacing:1.2px; }
 
-    .period-bar { gap:3px; margin-bottom:4px; }
+    /* Objetivos táctiles de 44 px y 8 px de separación: con 34 px y 3 px era
+       fácil tocar el mes equivocado */
+    .period-bar { gap:8px; margin-bottom:4px; }
+    .period-bar-inner { gap:8px; }
     .period-bar-label { display:none; }
-    .btn { padding:8px 12px; font-size:11px; letter-spacing:1px; min-height:34px; }
+    .btn { padding:8px 12px; font-size:11px; letter-spacing:1px; min-height:44px; }
+    .asc-period-btn, .asc-opt, .tab-btn { min-height:44px; }
+    .asc-period-pop .row, .asc-period-pop .row.months { gap:8px; }
     .hint { font-size:10px; margin-top:4px; }
 
     .kpi-strip, .kpi-strip.cols-8, .kpi-strip.cols-6, .kpi-strip.cols-4 { grid-template-columns:repeat(2, 1fr); gap:2px; }
@@ -2259,6 +2273,12 @@ function closeInfoPopover() {
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeInfoPopover();
+  // Los div con role="button" (indicadores, nodos del recorrido) se activan con Enter o Espacio
+  if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.matches &&
+      e.target.matches('div[role="button"][tabindex]')) {
+    e.preventDefault();
+    e.target.click();
+  }
 });
 function getFilteredDays() {
   const all = getSortedDayKeys();
@@ -2786,7 +2806,7 @@ function renderKPIs() {
     const minV = vals.length ? Math.min(...vals) : 0;
     const maxV = vals.length ? Math.max(...vals) : 0;
     return `
-      <div class="kpi-cell" ${k.tip ? `data-tip="${k.tip.replace(/"/g, '&quot;')}" onclick="openInfoPopover(this, '${k.label}', '${k.id}')"` : ''}>
+      <div class="kpi-cell" ${k.tip ? `role="button" tabindex="0" aria-label="${k.label}: ver detalle" data-tip="${k.tip.replace(/"/g, '&quot;')}" onclick="openInfoPopover(this, '${k.label}', '${k.id}')"` : ''}>
         <div class="kpi-head">
           <span class="kpi-label">${k.label}</span>
           ${deltaHtml(k.cur, k.prev, k.invert)}
@@ -2935,7 +2955,7 @@ function renderJourney() {
       if (baseVal > 0) nextRate = (nextVal/baseVal*100).toFixed(1)+'%';
     }
     html += `<div class="journey-step">
-      <div class="journey-node" style="background:${s.color};" onclick="openAnnModal({stage:'${s.key}'})" title="Click para agregar observacion">
+      <div class="journey-node" style="background:${s.color};" role="button" tabindex="0" onclick="openAnnModal({stage:'${s.key}'})" title="Clic para agregar una observación">
         <div class="journey-node-value">${s.val}</div>
         ${annCount > 0 ? `<div class="journey-ann-count">${annCount}</div>` : ''}
       </div>
