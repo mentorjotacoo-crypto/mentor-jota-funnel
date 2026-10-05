@@ -1971,7 +1971,8 @@ async function onAuthSuccess(data) {
   const sinChart = document.getElementById('chartAviso');
   if (sinChart) sinChart.style.display = typeof Chart === 'undefined' ? 'flex' : 'none';
   APP_DATA = data;
-  APP_DATA.annotations = APP_DATA.annotations || [];
+  APP_DATA.annotations = Array.isArray(APP_DATA.annotations) ? APP_DATA.annotations : [];
+  obsPendAplicar_();
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   // Última fecha con data
@@ -3038,14 +3039,14 @@ function openAnnModal(ann) {
   const title = document.getElementById('annModalTitle');
   const delBtn = document.getElementById('annDeleteBtn');
   if (ann && ann.id) {
-    title.textContent = 'Editar observacion';
+    title.textContent = 'Editar observación';
     document.getElementById('annId').value = ann.id;
     document.getElementById('annDate').value = ann.date;
     document.getElementById('annStage').value = ann.stage;
     document.getElementById('annText').value = ann.text;
     delBtn.style.display = 'inline-block';
   } else {
-    title.textContent = 'Nueva observacion';
+    title.textContent = 'Nueva observación';
     document.getElementById('annId').value = '';
     document.getElementById('annDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('annStage').value = (ann && ann.stage) || 'general';
@@ -3057,9 +3058,21 @@ function openAnnModal(ann) {
 
 function closeAnnModal() { document.getElementById('annModal').classList.remove('show'); }
 
+// Bloquea el modal mientras se envía (evita el doble envío)
+let _annEnviando = false;
+function annOcupado_(ocupado, textoBtn) {
+  _annEnviando = ocupado;
+  document.querySelectorAll('#annForm button').forEach(b => { b.disabled = ocupado; });
+  const g = document.querySelector('#annForm button[type="submit"]');
+  if (g) g.textContent = ocupado ? textoBtn : 'Guardar';
+}
+
 async function saveAnnotation(e) {
   e.preventDefault();
-  const id = document.getElementById('annId').value || ('ann_' + Date.now() + '_' + Math.random().toString(36).slice(2,7));
+  if (_annEnviando) return;
+  const idInp = document.getElementById('annId');
+  const id = idInp.value || ('ann_' + Date.now() + '_' + Math.random().toString(36).slice(2,7));
+  idInp.value = id;   // un reintento reusa el id: el servidor actualiza en vez de duplicar
   const ann = {
     id,
     date: document.getElementById('annDate').value,
@@ -3067,47 +3080,108 @@ async function saveAnnotation(e) {
     text: document.getElementById('annText').value.trim(),
     createdAt: new Date().toISOString()
   };
+  annOcupado_(true, 'Guardando...');
+  const r = await syncAnnotation('upsert', ann);
+  annOcupado_(false);
+  if (!r.ok && !r.sinSync) {
+    // El modal queda abierto con lo escrito para reintentar
+    console.error('No se guardó la observación:', r.error);
+    showToast('No se pudo guardar; vuelve a intentar', 'error', 6000);
+    return;
+  }
   const existingIdx = (APP_DATA.annotations || []).findIndex(a => a.id === id);
   if (existingIdx >= 0) APP_DATA.annotations[existingIdx] = ann;
   else APP_DATA.annotations = [...(APP_DATA.annotations || []), ann];
+  if (r.ok) obsPendRegistrar_('upsert', ann);
   closeAnnModal();
   renderAll();
-  showToast('Guardado localmente', 'success');
-  await syncAnnotation('upsert', ann);
+  if (r.ok) showToast('Observación guardada. Los demás la verán en la próxima actualización', 'success', 6000);
+  else showToast('Guardada solo en esta sesión: la sincronización no está configurada', 'error', 6000);
 }
 
 async function deleteAnnotationConfirm() {
   const id = document.getElementById('annId').value;
-  if (!id || !confirm('Eliminar esta observacion?')) return;
-  APP_DATA.annotations = (APP_DATA.annotations || []).filter(a => a.id !== id);
-  closeAnnModal();
-  renderAll();
-  showToast('Eliminada localmente', 'success');
-  await syncAnnotation('delete', { id });
-}
-
-async function syncAnnotation(action, annotation) {
-  if (!APP_DATA.webAppUrl || !APP_DATA.annotationSecret) {
-    showToast('Sync remoto deshabilitado', 'error');
+  if (_annEnviando || !id || !confirm('¿Eliminar esta observación?')) return;
+  annOcupado_(true, 'Eliminando...');
+  const r = await syncAnnotation('delete', { id });
+  annOcupado_(false);
+  if (!r.ok && !r.sinSync) {
+    console.error('No se eliminó la observación:', r.error);
+    showToast('No se pudo eliminar; vuelve a intentar', 'error', 6000);
     return;
   }
+  APP_DATA.annotations = (APP_DATA.annotations || []).filter(a => a.id !== id);
+  if (r.ok) obsPendRegistrar_('delete', { id });
+  closeAnnModal();
+  renderAll();
+  if (r.ok) showToast('Observación eliminada', 'success');
+  else showToast('Eliminada solo en esta sesión: la sincronización no está configurada', 'error', 6000);
+}
+
+// Devuelve {ok:true}, {ok:false, error} o {ok:false, sinSync:true}. El Apps
+// Script responde HTTP 200 también cuando rechaza (clave inválida, pestaña
+// inexistente): el resultado real viene en el cuerpo, por eso se lee.
+async function syncAnnotation(action, annotation) {
+  if (!APP_DATA.webAppUrl || !APP_DATA.annotationSecret) return { ok:false, sinSync:true };
   try {
     const formData = new FormData();
     formData.append('action', action);
     formData.append('secret', APP_DATA.annotationSecret);
     formData.append('annotation', JSON.stringify(annotation));
-    await fetch(APP_DATA.webAppUrl, { method:'POST', body: formData });
-    showToast('Sync a Sheet OK', 'success');
+    const resp = await fetch(APP_DATA.webAppUrl, { method:'POST', body: formData });
+    let r = null;
+    try { r = await resp.json(); } catch (e) { r = null; }
+    if (!resp.ok || !r || r.ok !== true) {
+      return { ok:false, error:(r && r.error) || ('respuesta ' + resp.status + ' sin confirmación') };
+    }
+    return { ok:true };
   } catch (e) {
-    showToast('Error de sync: ' + e.message, 'error');
+    return { ok:false, error:e.message };
   }
 }
 
-function showToast(msg, type) {
+// Observaciones ya aceptadas por el servidor pero que el build aún no trae:
+// se guardan en este navegador y se reaplican al entrar, para que no
+// "desaparezcan" al recargar. Se descartan cuando el build las alcanza o a las 48 h.
+const OBS_PEND_KEY = 'funnel_obs_pend';
+function obsPendLeer_() {
+  try {
+    const l = JSON.parse(localStorage.getItem(OBS_PEND_KEY) || '[]');
+    return Array.isArray(l) ? l.filter(p => p && p.ann && typeof p.ann.id === 'string' && (p.op === 'upsert' || p.op === 'delete')) : [];
+  } catch (e) { return []; }
+}
+function obsPendEscribir_(lista) {
+  try { localStorage.setItem(OBS_PEND_KEY, JSON.stringify(lista)); } catch (e) { /* almacenamiento bloqueado */ }
+}
+function obsPendRegistrar_(op, ann) {
+  const lista = obsPendLeer_().filter(p => p.ann.id !== ann.id);
+  lista.push({ op, ann, ts: Date.now() });
+  obsPendEscribir_(lista);
+}
+function obsPendAplicar_() {
+  const quedan = [];
+  obsPendLeer_().forEach(p => {
+    if (!(Date.now() - p.ts < 48 * 3600 * 1000)) return;
+    const i = APP_DATA.annotations.findIndex(a => a.id === p.ann.id);
+    if (p.op === 'delete') {
+      if (i < 0) return;                       // el build ya no la trae
+      APP_DATA.annotations.splice(i, 1);
+    } else {
+      const b = i >= 0 ? APP_DATA.annotations[i] : null;
+      if (b && b.date === p.ann.date && b.stage === p.ann.stage && b.text === p.ann.text) return;  // el build ya la trae
+      if (b) APP_DATA.annotations[i] = p.ann; else APP_DATA.annotations.push(p.ann);
+    }
+    quedan.push(p);
+  });
+  obsPendEscribir_(quedan);
+}
+
+function showToast(msg, type, ms) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast ' + (type||'') + ' show';
-  setTimeout(() => t.classList.remove('show'), 3000);
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), ms || 3000);
 }
 
 // ====== CHARTS ======
