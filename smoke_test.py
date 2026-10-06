@@ -98,7 +98,20 @@ def prueba_navegador(html, clave):
     sonda = """
 <script>
 const esperar = ms => new Promise(r => setTimeout(r, ms));
+// Bajo --virtual-time-budget los timers avanzan más rápido que el descifrado
+// (WebCrypto corre en otro hilo): un timer fijo de 2,8 s disparaba con APP_DATA
+// aún null y daba "0 charts" aunque el tablero estuviera sano (pasaba también
+// con builds viejos). Se espera a que termine el login con ticks cortos que
+// consumen CPU real (hasta ~20 s virtuales).
+async function esperarLogin() {
+  for (let i = 0; i < 4000 && !window.APP_DATA; i++) {
+    let x = 0; for (let j = 0; j < 1000000; j++) x = (x * 31 + j) | 0;
+    await esperar(5);
+  }
+  await esperar(800);
+}
 setTimeout(async () => {
+  await esperarLogin();
   const out = [];
   for (const t of %s) {
     try {
@@ -117,7 +130,7 @@ setTimeout(async () => {
     } catch (e) { out.push(t + '=EXCEPCION:' + e.message); }
   }
   document.title = 'SMOKE|' + out.join(' ') + '|ERR:' + (window.__err.join(' ;; ') || 'ninguno');
-}, 2800);
+}, 200);
 </script>""" % json.dumps(TABS)
 
     doc = html.replace('<script>', inject + '<script>', 1)

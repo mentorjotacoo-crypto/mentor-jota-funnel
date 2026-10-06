@@ -2474,7 +2474,8 @@ function botonDeTab_(tab) {
   return document.querySelector("[onclick=\"switchTab('" + tab + "', this)\"]");
 }
 function switchTab(tab, btn) {
-  if (!document.getElementById('tab-' + tab)) return;
+  // Antes del descifrado no hay datos: no pintar nada (ni reventar)
+  if (!APP_DATA || !document.getElementById('tab-' + tab)) return;
   if (!btn) btn = botonDeTab_(tab);
   cerrarTabMas_();
   // En móvil la barra de tabs scrollea: asegurar que el tab elegido quede visible
@@ -2744,6 +2745,7 @@ function setupChartDefaults_() {
 }
 
 function renderAll() {
+  if (!APP_DATA) return;
   setupChartDefaults_();
   destroyCharts();
   renderInsights();
