@@ -33,11 +33,11 @@ GitHub Pages redespliega automáticamente en ~30s.
 
 ## Enlaces directos
 
-La URL refleja la pestaña abierta y, cuando aplica la barra de período, el período: `#canales`, `#embudo/Sep`, `#trends/last30`. Compartir ese enlace abre esa pestaña. Al recargar, el enlace manda sobre la vista recordada en `sessionStorage`.
+La URL refleja la pestaña abierta y, cuando aplica la barra de período, el período: `#canales`, `#embudo/2026-09`, `#trends/last30`. Compartir ese enlace abre esa pestaña. Al recargar, el enlace manda sobre la vista recordada en `sessionStorage`. El formato viejo `#embudo/Sep` sigue funcionando (toma el septiembre más reciente).
 
 ## Llaves de día
 
-Cada día del Low Ticket llega en `data.json` bajo `days`. El Apps Script emitía `"Sep 27"` (sin año) y desde 2026-10-05 emite ISO `"2026-09-27"`. `build.js` y `template.html` aceptan ambos: las ISO se normalizan a `"Mes DD"` (formato interno de gráficas y filtros) y el año queda en `dayYears`. Si dos fechas de distinto año caen en el mismo `"Mes DD"`, se conserva la más reciente y el build lo avisa.
+Cada día del Low Ticket llega en `data.json` bajo `days`. El Apps Script emitía `"Sep 27"` (sin año) y desde 2026-10-05 emite ISO `"2026-09-27"`. La llave interna del tablero es ISO en todo (filtros, gráficas, tablas, cruces con ascensos/closers/atribución), así que el historial puede abarcar varios años: los filtros de mes son `YYYY-MM` y, cuando hay más de un año, las etiquetas llevan el año (`Feb 2026` / `Feb 2027`). `build.js` y `template.html` aceptan también las llaves viejas `"Mes DD"`: se pasan a ISO deduciendo el año por la fecha de sincronización (válido mientras el historial sin año sea menor a 12 meses).
 
 ## Seguridad
 

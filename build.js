@@ -22,34 +22,47 @@ const IV_LEN = 12;
 
 const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
 
-// Llaves de día. El Apps Script emitía 'Sep 27' (sin año) y desde 2026-10-05
-// emite ISO '2026-09-27'. El tablero trabaja internamente con 'Mes DD' (es lo
-// que muestran gráficas y filtros), así que aquí se aceptan AMBOS formatos:
-// las ISO se pasan a 'Mes DD' y su año queda en data.dayYears['Mes DD'], que
-// template.html usa en vez de deducir el año por la fecha de sincronización.
-// Si dos fechas ISO caen en el mismo 'Mes DD' (histórico > 12 meses) gana la
-// más reciente y se avisa: el modelo interno del tablero aún es de 12 meses.
+// Llaves de día: ISO 'YYYY-MM-DD' en todo el tablero. El Apps Script emitía
+// 'Sep 27' (sin año) y desde 2026-10-05 emite ISO. Aquí se aceptan AMBOS:
+// las llaves viejas se pasan a ISO con el año de data.dayYears (si viene) o
+// deducido de la fecha de sincronización: un mes posterior al sincronizado es
+// del año anterior (en enero, 'Dic 20' es del año pasado) y nada cae antes de
+// LT_INICIO. La deducción solo sirve con menos de 12 meses de historial; con
+// llaves ISO del origen no hace falta. template.html repite esta normalización
+// (idempotente) por si recibe un payload viejo.
 const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const LT_INICIO = '2026-02-01';
+const ISO_DIA_RE = /^\d{4}-\d{2}-\d{2}$/;
 function normalizarDias(d) {
   if (!d || !d.days || typeof d.days !== 'object') return;
   const llaves = Object.keys(d.days);
-  const iso = llaves.filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
-  if (!iso.length) return;                       // formato viejo: nada que hacer
-  const dias = {}, anios = Object.assign({}, d.dayYears || {});
-  llaves.filter(k => !/^\d{4}-\d{2}-\d{2}$/.test(k)).forEach(k => { dias[k] = d.days[k]; });
-  let colisiones = 0;
-  iso.sort().forEach(k => {
-    const y = parseInt(k.slice(0, 4), 10), m = parseInt(k.slice(5, 7), 10), dd = k.slice(8, 10);
-    if (!(m >= 1 && m <= 12)) { dias[k] = d.days[k]; return; }   // raro: se deja tal cual
-    const corta = MESES_ABR[m - 1] + ' ' + dd;
-    if (dias[corta] !== undefined && anios[corta] !== undefined && anios[corta] !== y) colisiones++;
-    dias[corta] = d.days[k];
-    anios[corta] = y;
+  const viejas = llaves.filter(k => !ISO_DIA_RE.test(k));
+  if (!viejas.length) { delete d.dayYears; return; }
+  const m = /^(\d{4})-(\d{2})/.exec(d.updatedAt || '');
+  const hoy = new Date();
+  const ref = m ? { y: parseInt(m[1], 10), m: parseInt(m[2], 10) - 1 } : { y: hoy.getFullYear(), m: hoy.getMonth() };
+  const dy = d.dayYears || {};
+  const dias = {};
+  let colisiones = 0, descartadas = 0;
+  llaves.forEach(k => {
+    let iso = k;
+    if (!ISO_DIA_RE.test(k)) {
+      const partes = k.split(' ');
+      const mi = MESES_ABR.indexOf(partes[0]);
+      const dd = parseInt(partes[1], 10);
+      if (mi < 0 || !(dd >= 1 && dd <= 31)) { descartadas++; return; }
+      let y = dy[k] !== undefined ? dy[k] : (mi > ref.m ? ref.y - 1 : ref.y);
+      const isoDe = yy => yy + '-' + String(mi + 1).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+      if (dy[k] === undefined && isoDe(y) < LT_INICIO) y++;
+      iso = isoDe(y);
+    }
+    if (dias[iso] !== undefined) colisiones++;
+    dias[iso] = d.days[k];
   });
   d.days = dias;
-  d.dayYears = anios;
-  console.log('[OK] ' + iso.length + ' llaves ISO normalizadas a "Mes DD" (año en dayYears)' +
-              (colisiones ? ' — AVISO: ' + colisiones + ' día(s) de distinto año con la misma llave; se conservó el más reciente' : ''));
+  delete d.dayYears;
+  console.log('[OK] ' + viejas.length + ' llaves "Mes DD" pasadas a ISO (año de referencia ' + ref.y + '-' + String(ref.m + 1).padStart(2, '0') + ')' +
+              (colisiones ? ' — AVISO: ' + colisiones + ' repetidas' : '') + (descartadas ? ' — ' + descartadas + ' irreconocibles descartadas' : ''));
 }
 normalizarDias(data);
 

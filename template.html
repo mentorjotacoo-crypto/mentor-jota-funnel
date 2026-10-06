@@ -2048,15 +2048,15 @@ async function onAuthSuccess(data) {
     const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
   });
   const lastDay = withData[withData.length - 1] || '-';
-  document.getElementById('lastDataHeader').textContent = 'Última data: ' + lastDay +
-    (withData.length ? ' ' + dayKeyYear(lastDay) : '');
+  document.getElementById('lastDataHeader').textContent = 'Última data: ' + (withData.length ? dayLabel(lastDay, true) : '-');
   document.getElementById('updatedAtHeader').textContent = 'Sincronizado: ' + (data.updatedAt || '-');
   let vistaTab = restaurarVista_();
   // Un enlace directo (#pestaña o #pestaña/período) manda sobre la vista recordada
   const enlace = leerHash_();
   if (enlace) {
     vistaTab = enlace.tab;
-    if (enlace.filter && filtroValido_(enlace.filter) && !TABS_SIN_PERIODO.includes(enlace.tab)) currentFilter = enlace.filter;
+    const fe = normalizarFiltro_(enlace.filter);
+    if (fe && !TABS_SIN_PERIODO.includes(enlace.tab)) currentFilter = fe;
   }
   renderPeriodButtons();
   if (vistaTab && vistaTab !== currentTab) {
@@ -2103,13 +2103,8 @@ function restaurarVista_() {
   let v = null;
   try { v = JSON.parse(sessionStorage.getItem('funnel_vista') || 'null'); } catch (e) { v = null; }
   if (!v || typeof v !== 'object') return null;
-  const conDatos = Object.keys(APP_DATA.days).filter(k => {
-    const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
-  });
-  if (['all','last7','last14','last30'].includes(v.filter) ||
-      (typeof v.filter === 'string' && conDatos.some(k => k.split(' ')[0] === v.filter))) {
-    currentFilter = v.filter;
-  }
+  const fv = normalizarFiltro_(v.filter);
+  if (fv) currentFilter = fv;
   const clo = APP_DATA.closers;
   if (clo && clo.r && clo.r.length) {
     if (typeof v.cloPeriodo === 'string' && /^\d{4}(-\d{2})?$/.test(v.cloPeriodo) &&
@@ -2144,9 +2139,9 @@ function renderPeriodButtons() {
   const withData = getSortedDayKeys().filter(k => {
     const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
   });
-  const months = [...new Set(withData.map(k => k.split(' ')[0]))];
+  const months = [...new Set(withData.map(monthOfKey))];   // 'YYYY-MM', en orden
   const defs = [{id:'all', label:'Todo'}];
-  months.forEach(m => defs.push({id:m, label:m}));
+  months.forEach(m => defs.push({id:m, label:monthLabel(m)}));
   defs.push({id:'last7',  label:'Últimos 7'});
   defs.push({id:'last14', label:'Últimos 14'});
   defs.push({id:'last30', label:'Últimos 30'});
@@ -2195,86 +2190,90 @@ const STAGE_NAMES = {
 const MONTHS = {Ene:0,Feb:1,Mar:2,Abr:3,May:4,Jun:5,Jul:6,Ago:7,Sep:8,Oct:9,Nov:10,Dic:11};
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 function getSortedDayKeys() { return Object.keys(APP_DATA.days).sort(parseDayKey); }
-// Los días del Low Ticket llegan como 'Mes DD', sin año. El año se deduce de la
-// fecha de sincronización: un mes posterior al mes sincronizado pertenece al año
-// anterior (en enero, 'Dic 20' es del año pasado). Como el Low Ticket arranca en
-// LT_INICIO, nada puede caer antes: así un mes futuro pre-creado en el tracker
-// no se va al año anterior. Sirve mientras el histórico sea menor a 12 meses;
-// después el origen (apps-script-sync.js) debe emitir el año en la llave.
+// ====== LLAVES DE DÍA ======
+// Llave interna de cada día del Low Ticket: ISO 'YYYY-MM-DD' (en todo el tablero:
+// filtros, gráficas, tablas, cruces con ascensos/closers/atribución, que ya eran
+// ISO). Lo que se MUESTRA sale de dayLabel / monthLabel.
+//
+// El origen (apps-script-sync.js) emitía 'Sep 27' sin año y desde 2026-10-05 emite
+// ISO. build.js ya normaliza a ISO; normalizarDias_ repite aquí (idempotente) por
+// si el payload llega viejo: 'Mes DD' con año en dayYears (build.js intermedio) o
+// sin año, caso en que el año se deduce de la fecha de sincronización: un mes
+// posterior al sincronizado pertenece al año anterior (en enero, 'Dic 20' es del
+// año pasado) y nada cae antes de LT_INICIO. Esa deducción solo sirve con menos
+// de 12 meses de historial; con llaves ISO del origen no hace falta.
 const LT_INICIO = '2026-02-01';
-// Llaves de día en AMBOS formatos. El origen (apps-script-sync.js) emitía 'Sep 27'
-// y desde 2026-10-05 emite ISO '2026-09-27'. build.js ya normaliza, pero se repite
-// aquí (idempotente) por si el payload llega con ISO: las ISO pasan a 'Mes DD' y
-// el año exacto queda en APP_DATA.dayYears['Mes DD'], que dayKeyYear prefiere a
-// la deducción. Con llaves viejas no cambia nada.
+const ISO_DIA_RE = /^\d{4}-\d{2}-\d{2}$/;
 function normalizarDias_(d) {
   if (!d || !d.days || typeof d.days !== 'object') return;
-  const esISO = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
   const llaves = Object.keys(d.days);
-  const iso = llaves.filter(esISO);
-  if (!iso.length) return;
-  const dias = {}, anios = Object.assign({}, d.dayYears || {});
-  llaves.filter(k => !esISO(k)).forEach(k => { dias[k] = d.days[k]; });
+  if (llaves.every(k => ISO_DIA_RE.test(k))) { delete d.dayYears; return; }
+  const dy = d.dayYears || {};
+  const dias = {};
   let colisiones = 0;
-  iso.sort().forEach(k => {
-    const y = parseInt(k.slice(0, 4), 10), m = parseInt(k.slice(5, 7), 10);
-    if (!(m >= 1 && m <= 12)) { dias[k] = d.days[k]; return; }
-    const corta = MONTH_NAMES[m - 1] + ' ' + k.slice(8, 10);
-    if (dias[corta] !== undefined && anios[corta] !== undefined && anios[corta] !== y) colisiones++;
-    dias[corta] = d.days[k];
-    anios[corta] = y;
+  llaves.forEach(k => {
+    let iso = k;
+    if (!ISO_DIA_RE.test(k)) {
+      const partes = k.split(' ');
+      const mi = MONTHS[partes[0]];
+      const dd = parseInt(partes[1], 10);
+      if (mi === undefined || !(dd >= 1 && dd <= 31)) return;   // llave irreconocible: se descarta
+      const y = dy[k] !== undefined ? dy[k] : anioDeducido_(mi, dd, d);
+      iso = y + '-' + String(mi + 1).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+    }
+    if (dias[iso] !== undefined) colisiones++;
+    dias[iso] = d.days[k];
   });
   d.days = dias;
-  d.dayYears = anios;
-  if (colisiones) console.warn('Días de distinto año con la misma llave: ' + colisiones + ' (se muestra el más reciente)');
+  delete d.dayYears;
+  if (colisiones) console.warn('Días repetidos al normalizar llaves: ' + colisiones);
 }
-function dataRefDate_() {
-  if (dataRefDate_.d && dataRefDate_.src === APP_DATA) return dataRefDate_.d;
-  const m = /^(\d{4})-(\d{2})/.exec((APP_DATA && APP_DATA.updatedAt) || '') || /^(\d{4})-(\d{2})/.exec(BUILD_DATE);
+function dataRefDate_(d) {
+  d = d || APP_DATA;
+  const m = /^(\d{4})-(\d{2})/.exec((d && d.updatedAt) || '') || /^(\d{4})-(\d{2})/.exec(BUILD_DATE);
   const hoy = new Date();
-  dataRefDate_.d = m ? { y: parseInt(m[1], 10), m: parseInt(m[2], 10) - 1 } : { y: hoy.getFullYear(), m: hoy.getMonth() };
-  dataRefDate_.src = APP_DATA;
-  return dataRefDate_.d;
+  return m ? { y: parseInt(m[1], 10), m: parseInt(m[2], 10) - 1 } : { y: hoy.getFullYear(), m: hoy.getMonth() };
 }
-function dayKeyYear(k) {
-  // Año exacto si el origen lo envió (llaves ISO normalizadas); si no, se deduce
-  const dy = APP_DATA && APP_DATA.dayYears;
-  if (dy && dy[k] !== undefined) return dy[k];
-  const partes = k.split(' ');
-  const mi = MONTHS[partes[0]] || 0;
-  const ref = dataRefDate_();
+function anioDeducido_(mi, dd, d) {
+  const ref = dataRefDate_(d);
   let y = mi > ref.m ? ref.y - 1 : ref.y;
-  const iso = () => y + '-' + String(mi + 1).padStart(2, '0') + '-' + String(parseInt(partes[1] || '1', 10)).padStart(2, '0');
-  if (iso() < LT_INICIO) y++;
+  const iso = y + '-' + String(mi + 1).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+  if (iso < LT_INICIO) y++;
   return y;
 }
-function dayKeyToISO(k) {
-  const partes = k.split(' ');
-  return dayKeyYear(k) + '-' + String((MONTHS[partes[0]] || 0) + 1).padStart(2, '0') + '-' + String(parseInt(partes[1], 10)).padStart(2, '0');
+function dayKeyYear(k) { return parseInt(k.slice(0, 4), 10); }
+function dayKeyToISO(k) { return k; }
+function monthOfKey(k) { return k.slice(0, 7); }              // 'YYYY-MM'
+function monthKeyYear(mk) { return parseInt(mk.slice(0, 4), 10); }
+function monthAbr_(mk) { return MONTH_NAMES[parseInt(mk.slice(5, 7), 10) - 1] || mk; }
+// ¿El historial cargado abarca más de un año? Entonces las etiquetas llevan el año.
+function multiAnio_() {
+  if (multiAnio_.src !== APP_DATA) {
+    const ys = new Set(Object.keys(APP_DATA.days).map(k => k.slice(0, 4)));
+    multiAnio_.v = ys.size > 1; multiAnio_.src = APP_DATA;
+  }
+  return multiAnio_.v;
 }
-function monthKeyYear(m) {
-  // Con año explícito: el de cualquier día del mes (el 01 puede no tener datos)
-  const dy = APP_DATA && APP_DATA.dayYears;
-  if (dy) { const k = Object.keys(dy).find(x => x.split(' ')[0] === m); if (k) return dy[k]; }
-  return dayKeyYear(m + ' 01');
+// 'Sep 27' (un solo año en los datos) · "Sep 27 '26" (varios años) · conAnio=true fuerza 'Sep 27 2026'
+function dayLabel(k, conAnio) {
+  if (!ISO_DIA_RE.test(k)) return k;
+  const base = monthAbr_(k) + ' ' + k.slice(8, 10);
+  if (conAnio) return base + ' ' + k.slice(0, 4);
+  return multiAnio_() ? base + " '" + k.slice(2, 4) : base;
 }
-// Día del Low Ticket que corresponde a una fecha ISO (o undefined). Compara el
-// año deducido: sin eso, un día de otro año haría match falso con el mismo 'Mes DD'.
-function ltDayOfISO(iso) {
-  const k = MONTH_NAMES[parseInt(iso.slice(5, 7), 10) - 1] + ' ' + iso.slice(8, 10);
-  const d = APP_DATA.days[k];
-  return d && dayKeyToISO(k) === iso ? d : undefined;
+// 'Sep' (un solo año) · 'Sep 2026' (varios) · conAnio=true fuerza el año
+function monthLabel(mk, conAnio) {
+  return monthAbr_(mk) + ((conAnio || multiAnio_()) ? ' ' + mk.slice(0, 4) : '');
 }
-function parseDayKey(a, b) {
-  const ia = dayKeyToISO(a), ib = dayKeyToISO(b);
-  return ia < ib ? -1 : (ia > ib ? 1 : 0);
+function monthFullLabel(mk) { return (MONTH_FULL[monthAbr_(mk)] || mk) + ' ' + mk.slice(0, 4); }
+// Día del Low Ticket de una fecha ISO (o undefined): la llave ya es la fecha
+function ltDayOfISO(iso) { return APP_DATA.days[iso]; }
+function parseDayKey(a, b) { return a < b ? -1 : (a > b ? 1 : 0); }
+function dayKeyToDate(k) { return new Date(parseInt(k.slice(0, 4), 10), parseInt(k.slice(5, 7), 10) - 1, parseInt(k.slice(8, 10), 10)); }
+function dateToDayKey(date) {
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
 }
-/* dayKeyToDate / dateToDayKey viven en la seccion FORECAST (definicion unica;
-   antes habia un duplicado aqui que el hoisting anulaba). */
-function isoDateToDayKey(iso) {
-  const parts = iso.split('-');
-  return dateToDayKey(new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2])));
-}
+function isoDateToDayKey(iso) { return iso; }
 function formatNum(n) {
   if (n == null || isNaN(n)) return '0';
   if (Math.abs(n) >= 1000000) return (n/1000000).toFixed(1).replace('.', ',')+'M';
@@ -2461,7 +2460,7 @@ function actualizarEtiquetaPeriodo() {
   else {
     const f = currentFilter;
     const labelMap = {all:'Acumulado total', last7:'Últimos 7 días', last14:'Últimas 2 semanas', last30:'Último mes'};
-    txt = labelMap[f] || (MONTH_FULL[f] ? MONTH_FULL[f] + ' ' + monthKeyYear(f) : f);
+    txt = labelMap[f] || (/^\d{4}-\d{2}$/.test(f) ? monthFullLabel(f) : f);
   }
   el.textContent = txt;
 }
@@ -2552,7 +2551,7 @@ window.addEventListener('scroll', cerrarTabMas_, { passive: true });
 function leerHash_() {
   const h = (location.hash || '').replace(/^#/, '');
   if (!h) return null;
-  const m = /^([a-z]+)(?:\/([A-Za-z0-9]+))?$/.exec(h);
+  const m = /^([a-z]+)(?:\/([A-Za-z0-9-]+))?$/.exec(h);
   if (!m || !document.getElementById('tab-' + m[1])) return null;
   return { tab: m[1], filter: m[2] || null };
 }
@@ -2563,23 +2562,33 @@ function escribirHash_() {
   if (location.hash === h) return;
   try { history.replaceState(null, '', location.pathname + location.search + h); } catch (e) { /* file:// u origen raro */ }
 }
-// Filtro global válido: atajo o mes abreviado presente en los datos
-function filtroValido_(f) {
-  if (typeof f !== 'string') return false;
-  if (['all', 'last7', 'last14', 'last30'].includes(f)) return true;
-  if (!APP_DATA || !MONTHS.hasOwnProperty(f)) return false;
-  return Object.keys(APP_DATA.days).some(k => {
-    const d = APP_DATA.days[k]; return k.split(' ')[0] === f && d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
+// Filtro global válido: atajo ('all', 'last7'...) o mes 'YYYY-MM' con datos.
+// Devuelve el filtro normalizado o null. Acepta el formato viejo 'Sep' (hash o
+// sessionStorage de antes): se toma el mes más reciente con esa abreviatura.
+function normalizarFiltro_(f) {
+  if (typeof f !== 'string' || !APP_DATA) return null;
+  if (['all', 'last7', 'last14', 'last30'].includes(f)) return f;
+  const conDatos = Object.keys(APP_DATA.days).filter(k => {
+    const d = APP_DATA.days[k]; return d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
   });
+  if (/^\d{4}-\d{2}$/.test(f)) return conDatos.some(k => k.startsWith(f)) ? f : null;
+  if (MONTHS.hasOwnProperty(f)) {
+    const mm = String(MONTHS[f] + 1).padStart(2, '0');
+    const meses = [...new Set(conDatos.map(monthOfKey))].filter(mk => mk.slice(5) === mm).sort();
+    return meses.length ? meses[meses.length - 1] : null;
+  }
+  return null;
 }
+function filtroValido_(f) { return normalizarFiltro_(f) !== null; }
 // Si alguien edita el hash a mano o usa Atrás/Adelante con un hash distinto
 window.addEventListener('hashchange', () => {
   if (!APP_DATA) return;
   const h = leerHash_();
   if (!h) return;
   let cambioFiltro = false;
-  if (h.filter && filtroValido_(h.filter) && h.filter !== currentFilter && !TABS_SIN_PERIODO.includes(h.tab)) {
-    currentFilter = h.filter;
+  const fh = normalizarFiltro_(h.filter);
+  if (fh && fh !== currentFilter && !TABS_SIN_PERIODO.includes(h.tab)) {
+    currentFilter = fh;
     renderPeriodButtons();
     cambioFiltro = true;
   }
@@ -2742,6 +2751,17 @@ function setupChartDefaults_() {
   tt.boxPadding = 4;
   Chart.defaults.plugins.legend.labels.usePointStyle = true;
   Chart.defaults.plugins.legend.labels.boxWidth = 8;
+  // Las etiquetas de día son llaves ISO: en el eje se ven como 'Sep 27' (con
+  // año si el historial abarca varios) y en el tooltip como 'Sep 27 2026'.
+  Chart.defaults.scales.category.ticks.callback = function (v) {
+    const l = this.getLabelForValue(v);
+    return typeof l === 'string' && ISO_DIA_RE.test(l) ? dayLabel(l) : l;
+  };
+  const tituloOriginal = tt.callbacks.title;
+  tt.callbacks.title = function (items) {
+    const l = items.length && items[0].label;
+    return typeof l === 'string' && ISO_DIA_RE.test(l) ? dayLabel(l, true) : tituloOriginal.call(this, items);
+  };
 }
 
 function renderAll() {
@@ -2790,7 +2810,7 @@ function renderInsights() {
     insights.push({
       type:'record', icon:'★',
       title:'Mejor día de compras',
-      detail:`<span class="num">${maxP.val}</span> compras LT el <strong>${maxP.key}</strong>`
+      detail:`<span class="num">${maxP.val}</span> compras LT el <strong>${dayLabel(maxP.key, true)}</strong>`
     });
   }
 
@@ -2820,8 +2840,7 @@ function renderInsights() {
   const dowSum = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[]};
   const dowNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   withData.slice(-30).forEach(k => {
-    const [m, d] = k.split(' ');
-    const date = new Date(dayKeyYear(k), MONTHS[m], parseInt(d, 10));
+    const date = dayKeyToDate(k);
     dowSum[date.getDay()].push(APP_DATA.days[k].purchases || 0);
   });
   let bestDow = -1, bestAvg = 0, worstDow = -1, worstAvg = Infinity;
@@ -2850,7 +2869,7 @@ function renderInsights() {
     insights.push({
       type:'good', icon:'🔥',
       title:`Racha de ${streak} días con ventas`,
-      detail:`Vendiendo todos los días desde <strong>${withData[withData.length - streak]}</strong>`
+      detail:`Vendiendo todos los días desde <strong>${dayLabel(withData[withData.length - streak], true)}</strong>`
     });
   }
 
@@ -2882,7 +2901,7 @@ function renderInsights() {
       insights.push({
         type:'warn', icon:'⚠',
         title:'Día anómalo (bajo)',
-        detail:`<strong>${outlierDay}</strong>: solo <span class="num warn">${APP_DATA.days[outlierDay].purchases}</span> compras (promedio: ${mean.toFixed(1)})`
+        detail:`<strong>${dayLabel(outlierDay, true)}</strong>: solo <span class="num warn">${APP_DATA.days[outlierDay].purchases}</span> compras (promedio: ${mean.toFixed(1)})`
       });
     }
   }
@@ -3026,9 +3045,9 @@ function renderKPIs() {
         <div class="kpi-sub"><span>${k.sub}</span><span>vs período anterior</span></div>
         <div class="kpi-sparkline"><canvas id="spark_${k.id}"></canvas></div>
         <div class="kpi-range-text">
-          <span>${firstDay}</span>
+          <span>${dayLabel(firstDay)}</span>
           <span class="minmax">min ${fmtVal(minV, k.fmt)} · max ${fmtVal(maxV, k.fmt)}</span>
-          <span>${lastDay}</span>
+          <span>${dayLabel(lastDay)}</span>
         </div>
       </div>
     `;
@@ -3072,7 +3091,7 @@ function drawSparkline(canvasId, values, color, labels, fmt) {
           titleFont:{family:'Clash Display', size:12, weight:'700'},
           bodyFont:{family:'JetBrains Mono', size:12},
           callbacks: {
-            title: (items) => items[0].label,
+            title: (items) => dayLabel(items[0].label, true),
             label: (ctx) => formatVal(ctx.parsed.y)
           }
         }
@@ -3509,7 +3528,7 @@ function computeSeriesStats(values, labels, fmt) {
   return {
     total, avg, nDays,
     max: maxV > -Infinity ? maxV : 0,
-    maxLabel: maxIdx >= 0 ? labels[maxIdx] : '-',
+    maxLabel: maxIdx >= 0 ? dayLabel(labels[maxIdx]) : '-',
     last: lastVal || 0,
     lastLabel: lastLabel || '-',
     fmt
@@ -3578,7 +3597,7 @@ function renderFunnelDailyChart() {
           titleFont:{family:'Clash Display', size:13, weight:'700'},
           bodyFont:{family:'JetBrains Mono', size:12},
           callbacks: {
-            title: (items) => items[0].label + ' ' + weekdayLabel(items[0].label),
+            title: (items) => dayLabel(items[0].label, true) + ' ' + weekdayLabel(items[0].label),
             label: (ctx) => {
               const v = ctx.parsed.y;
               const idx = ctx.dataIndex;
@@ -3644,7 +3663,7 @@ function renderConversionsChart() {
           titleFont:{family:'Clash Display', size:13, weight:'700'},
           bodyFont:{family:'JetBrains Mono', size:12},
           callbacks: {
-            title: (items) => items[0].label + ' ' + weekdayLabel(items[0].label),
+            title: (items) => dayLabel(items[0].label, true) + ' ' + weekdayLabel(items[0].label),
             label: (ctx) => `  ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`
           }
         }
@@ -3662,7 +3681,7 @@ function getLast3MonthsWithData() {
   const sorted = getSortedDayKeys();
   const monthsInOrder = [];
   sorted.forEach(k => {
-    const m = k.split(' ')[0];
+    const m = monthOfKey(k);
     if (!monthsInOrder.includes(m) && (APP_DATA.days[k].purchases > 0 || APP_DATA.days[k].bump1 > 0 || APP_DATA.days[k].bump2 > 0 || APP_DATA.days[k].leads > 0)) {
       monthsInOrder.push(m);
     }
@@ -3677,7 +3696,7 @@ function buildAccumulatedSeries(metric, month) {
   let cum = 0;
   let hasAnyData = false;
   monthKeys.forEach(k => {
-    const day = parseInt(k.split(' ')[1], 10);
+    const day = parseInt(k.slice(8, 10), 10);
     const v = APP_DATA.days[k][metric] || 0;
     cum += v;
     if (v > 0) hasAnyData = true;
@@ -3706,7 +3725,7 @@ function renderAccumulatedMonthCharts() {
     return months.map((m, i) => {
       const colorIdx = months.length - 1 - (months.length - 1 - i);  // i directly
       return {
-        label: MONTH_FULL_NAMES[m] || m,
+        label: monthFullLabel(m),
         data: buildAccumulatedSeries(metric, m),
         borderColor: monthColors[i + (3 - months.length)],
         backgroundColor: monthBgs[i + (3 - months.length)],
@@ -3966,13 +3985,8 @@ function canalColor_(c) {
   if (/_organico$|organic/.test(c)) return '#26A97C';
   return '#D55181';
 }
-// El filtro global usa llaves 'Ago 05'; la atribución, fechas ISO.
-function isoDelPeriodo_() {
-  return getFilteredDays().map(k => {
-    const d = dayKeyToDate(k);
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  });
-}
+// Días del filtro global como fechas ISO (la llave ya lo es; la atribución usa el mismo formato)
+function isoDelPeriodo_() { return getFilteredDays().slice(); }
 
 function renderCanales() {
   const cont = document.getElementById('canalesContent');
@@ -4097,14 +4111,7 @@ function renderCanales() {
     '</tbody>';
 }
 
-function dayKeyToDate(k) {
-  const [m, d] = k.split(' ');
-  const monthIdx = MONTHS[m] || 0;
-  return new Date(dayKeyYear(k), monthIdx, parseInt(d, 10));
-}
-function dateToDayKey(date) {
-  return MONTH_NAMES[date.getMonth()] + ' ' + String(date.getDate()).padStart(2, '0');
-}
+/* dayKeyToDate / dateToDayKey viven en LLAVES DE DÍA (llave ISO) */
 function linearRegression(values) {
   const n = values.length;
   if (n < 2) return { slope: 0, intercept: values[0] || 0 };
@@ -4345,13 +4352,12 @@ function runSimulator() {
 function getComparePresets() {
   const all = getSortedDayKeys();
   const withData = all.filter(k => { const d=APP_DATA.days[k]; return d && (d.impressions>0 || d.spend>0 || d.purchases>0); });
-  const monthsAvail = [...new Set(withData.map(k => k.split(' ')[0]))];
-  const monthFull = {Feb:'Febrero',Mar:'Marzo',Abr:'Abril',May:'Mayo',Jun:'Junio',Jul:'Julio',Ago:'Agosto',Sep:'Septiembre',Oct:'Octubre',Nov:'Noviembre',Dic:'Diciembre',Ene:'Enero'};
+  const monthsAvail = [...new Set(withData.map(monthOfKey))];   // 'YYYY-MM'
   const presets = [];
   // Meses
   monthsAvail.forEach(m => {
     const days = withData.filter(k => k.startsWith(m));
-    presets.push({ id:'month:'+m, label:monthFull[m]+' '+monthKeyYear(m), keys:days });
+    presets.push({ id:'month:'+m, label:monthFullLabel(m), keys:days });
   });
   // Últimas semanas
   presets.push({ id:'last7',    label:'Últimos 7 días',  keys:withData.slice(-7) });
@@ -4716,8 +4722,7 @@ function renderAscensos() {
   function roasEcoDe(ks) {
     let sp = 0, cash = 0, hayLT = false;
     ks.forEach(k => {
-      // Las llaves de LT ('Jun 15') NO llevan año: sin este guard, un día de
-      // 2025 haría match falso con el mismo día de 2026 e inflaría el cálculo.
+      // Solo la era del ecosistema actual (las llaves LT ya son ISO con año)
       if (k >= '2026-01-01') {
         const dLT = ltDayOfISO(k);
         if (dLT) {
@@ -4968,7 +4973,7 @@ function renderAscensos() {
     const c4 = document.getElementById('chartAscEco');
     if (c4) {
       if (chartInstances.ascEco) chartInstances.ascEco.destroy();
-      // LT mensual desde APP_DATA.days (keys 'Jul 09', año 2026 implícito)
+      // LT mensual desde APP_DATA.days (llaves ISO)
       const lt = {};
       getSortedDayKeys().forEach(k => {
         const d = APP_DATA.days[k];
@@ -5825,9 +5830,9 @@ function renderPulso() {
   const cashPrev = prev ? (prev.revenue || 0) + (htPrev ? htPrev.cobrado : 0) : 0;
   const roasPrev = spendPrev > 0 ? cashPrev / spendPrev : 0;
 
-  document.getElementById('pulsoTitulo').textContent = 'Pulso · ' + hoyK;
+  document.getElementById('pulsoTitulo').textContent = 'Pulso · ' + dayLabel(hoyK, true);
   document.getElementById('pulsoSub').textContent =
-    'último día con datos' + (ayerK ? ' · comparado contra ' + ayerK : '');
+    'último día con datos' + (ayerK ? ' · comparado contra ' + dayLabel(ayerK, true) : '');
 
   const dl = (cur, ant, invertir) => {
     if (!ant) return '<span class="flat">sin comparativo</span>';
@@ -5854,15 +5859,15 @@ function renderPulso() {
     </div>`).join('');
 
   // Cómo va el mes + proyección al cierre según el ritmo
-  const mesK = hoyK.split(' ')[0];
+  const mesK = monthOfKey(hoyK);
   const delMes = dias.filter(k => k.startsWith(mesK));
   const mSpend = delMes.reduce((a,k) => a + (APP_DATA.days[k].spend||0) + (APP_DATA.days[k].spend_google||0), 0);
   const mCash  = delMes.reduce((a,k) => a + (APP_DATA.days[k].revenue||0) + htDia(k).cobrado, 0);
   const mPur   = delMes.reduce((a,k) => a + (APP_DATA.days[k].purchases||0), 0);
-  const diasMes = new Date(dayKeyYear(hoyK), MONTHS[mesK] + 1, 0).getDate();
+  const diasMes = new Date(dayKeyYear(hoyK), parseInt(mesK.slice(5), 10), 0).getDate();
   const proy = delMes.length ? mCash / delMes.length * diasMes : 0;
   document.getElementById('pulsoMes').innerHTML =
-    `${MONTH_FULL[mesK] || mesK} · día ${delMes.length}/${diasMes}<br>` +
+    `${monthFullLabel(mesK)} · día ${delMes.length}/${diasMes}<br>` +
     `Cash <b>${fmtMoneyCompact(mCash)}</b> · Compras <b>${mPur}</b> · ROAS <b>${mSpend > 0 ? (mCash/mSpend).toFixed(2)+'x' : '-'}</b><br>` +
     `<span style="color:var(--grey)">proyección de cierre: ${fmtMoneyCompact(proy)}</span>`;
 
@@ -5873,7 +5878,7 @@ function renderPulso() {
     if (chartInstances.pulso) chartInstances.pulso.destroy();
     const ult = dias.slice(-14);
     chartInstances.pulso = new Chart(c, {
-      data:{ labels: ult.map(k => k.split(' ')[1]), datasets:[
+      data:{ labels: ult.map(k => k.slice(8, 10)), datasets:[
         { type:'bar', label:'Compras LT', data: ult.map(k => APP_DATA.days[k].purchases || 0),
           backgroundColor:'rgba(57,135,229,0.55)', borderRadius:3, yAxisID:'y' },
         { type:'line', label:'Cash', data: ult.map(k => Math.round((APP_DATA.days[k].revenue||0) + htDia(k).cobrado)),
@@ -6014,7 +6019,7 @@ function renderDataGrid() {
       d: getAggregated(grupos[mk])
     }));
   } else {
-    cols = days.map(k => ({ titulo: k.replace(' 0', ' '), d: APP_DATA.days[k] || {} }));
+    cols = days.map(k => ({ titulo: dayLabel(k).replace(/ 0(\d)/, ' $1'), d: APP_DATA.days[k] || {} }));
   }
   cols.reverse();
 
