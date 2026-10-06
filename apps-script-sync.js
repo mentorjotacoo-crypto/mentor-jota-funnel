@@ -14,6 +14,23 @@
  *    - Who has access: Anyone
  *    - Copy the URL -> pegar en Script Properties como WEB_APP_URL
  * 4. Ejecutar syncDashboard()
+ *
+ * ------------------------------------------------------------
+ * CAMBIO 2026-10-05: LLAVES DE DIA CON ANO (hay que REPEGAR este archivo)
+ * ------------------------------------------------------------
+ * Antes cada dia salia como "Sep 27" (sin ano). Desde febrero de 2027 esas
+ * llaves chocarian con las de 2026 y un dia pisaria al otro. Ahora
+ * formatDayKey_() emite ISO "2026-09-27". El dashboard (build.js y
+ * template.html) acepta AMBOS formatos, asi que no importa el orden en que se
+ * actualicen las piezas, pero el choque solo se evita cuando este script este
+ * pegado en el Apps Script del Sheet del tracker:
+ *   1. Abrir el Sheet del tracker > Extensiones > Apps Script.
+ *   2. Abrir dashboardSync.gs, reemplazar TODO su contenido con este archivo y Guardar.
+ *   3. No hace falta nuevo deployment de la Web App (doPost no cambio) ni tocar
+ *      los triggers: el codigo guardado es el que corre.
+ *   4. Ejecutar previsualizarData(): el Log debe mostrar llaves "2026-..." .
+ *   5. Ejecutar syncDashboard() y revisar que el dashboard siga igual.
+ * Este archivo es la copia local; la verdad es lo que esta pegado en Google.
  */
 
 // ============================================================
@@ -413,9 +430,11 @@ function formatAnnDate_(v) {
   return String(v);
 }
 
+// Llave de dia con ano, ISO "YYYY-MM-DD" (antes "Sep 27": chocaba al cruzar
+// 12 meses de historico). La fecha ya viene construida a mediodia a partir del
+// texto visible del Sheet, asi que getFullYear/getMonth/getDate son estables.
 function formatDayKey_(d) {
-  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  return months[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 function parseNumeric_(v) {

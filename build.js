@@ -22,6 +22,37 @@ const IV_LEN = 12;
 
 const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
 
+// Llaves de día. El Apps Script emitía 'Sep 27' (sin año) y desde 2026-10-05
+// emite ISO '2026-09-27'. El tablero trabaja internamente con 'Mes DD' (es lo
+// que muestran gráficas y filtros), así que aquí se aceptan AMBOS formatos:
+// las ISO se pasan a 'Mes DD' y su año queda en data.dayYears['Mes DD'], que
+// template.html usa en vez de deducir el año por la fecha de sincronización.
+// Si dos fechas ISO caen en el mismo 'Mes DD' (histórico > 12 meses) gana la
+// más reciente y se avisa: el modelo interno del tablero aún es de 12 meses.
+const MESES_ABR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+function normalizarDias(d) {
+  if (!d || !d.days || typeof d.days !== 'object') return;
+  const llaves = Object.keys(d.days);
+  const iso = llaves.filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
+  if (!iso.length) return;                       // formato viejo: nada que hacer
+  const dias = {}, anios = Object.assign({}, d.dayYears || {});
+  llaves.filter(k => !/^\d{4}-\d{2}-\d{2}$/.test(k)).forEach(k => { dias[k] = d.days[k]; });
+  let colisiones = 0;
+  iso.sort().forEach(k => {
+    const y = parseInt(k.slice(0, 4), 10), m = parseInt(k.slice(5, 7), 10), dd = k.slice(8, 10);
+    if (!(m >= 1 && m <= 12)) { dias[k] = d.days[k]; return; }   // raro: se deja tal cual
+    const corta = MESES_ABR[m - 1] + ' ' + dd;
+    if (dias[corta] !== undefined && anios[corta] !== undefined && anios[corta] !== y) colisiones++;
+    dias[corta] = d.days[k];
+    anios[corta] = y;
+  });
+  d.days = dias;
+  d.dayYears = anios;
+  console.log('[OK] ' + iso.length + ' llaves ISO normalizadas a "Mes DD" (año en dayYears)' +
+              (colisiones ? ' — AVISO: ' + colisiones + ' día(s) de distinto año con la misma llave; se conservó el más reciente' : ''));
+}
+normalizarDias(data);
+
 // Fusiona un blob .enc del repo (mismo formato salt|iv|tag|ct que el payload,
 // gzip opcional) dentro de `data` bajo la llave indicada.
 function fusionarEnc(archivo, llave, describir) {

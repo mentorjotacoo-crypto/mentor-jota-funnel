@@ -178,6 +178,24 @@
   .tab-btn { white-space:nowrap; flex-shrink:0; }
   .tab-btn:hover { color:var(--white); }
   .tab-btn.active { color:var(--acid); border-bottom-color:var(--acid); font-weight:700; }
+  /* Menú "Más" (Proyección, Comparar, Datos). Se posiciona fijo bajo el botón al
+     abrirlo (ver toggleTabMas): dentro de .tabs lo recortaría el overflow-x. */
+  .tab-mas-btn .chev { font-size:11px; opacity:0.8; margin-left:2px; }
+  .tab-mas-btn[aria-expanded="true"] .chev { transform:rotate(180deg); display:inline-block; }
+  .tab-mas-pop {
+    display:none; position:fixed; z-index:1200; min-width:200px;
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    padding:8px; box-shadow:0 12px 34px rgba(0,0,0,0.55);
+  }
+  .tab-mas-pop.open { display:flex; flex-direction:column; gap:4px; }
+  .tab-mas-item {
+    background:transparent; border:1px solid transparent; color:var(--grey-light);
+    font-family:'Clash Display',sans-serif; font-weight:600; font-size:12px;
+    letter-spacing:1.6px; text-transform:uppercase; text-align:left;
+    padding:12px 14px; min-height:44px; border-radius:8px; cursor:pointer; transition:all 0.15s;
+  }
+  .tab-mas-item:hover { color:var(--white); background:var(--panel-hover); border-color:var(--hairline); }
+  .tab-mas-item.active { color:var(--acid); background:rgba(231,255,42,0.08); border-color:rgba(231,255,42,0.35); font-weight:700; }
   .tab-panel { display:none; }
   .tab-panel.active { display:block; animation:fadeIn 0.22s ease-out; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
@@ -1334,11 +1352,19 @@
     <button class="tab-btn" onclick="switchTab('journey', this)">Recorrido del cliente</button>
     <button class="tab-btn" onclick="switchTab('trends', this)">Tendencias</button>
     <button class="tab-btn" onclick="switchTab('revenue', this)">Ingresos</button>
+    <button class="tab-btn" onclick="switchTab('canales', this)">Canales</button>
     <button class="tab-btn" onclick="switchTab('ascensos', this)">Ascensos</button>
     <button class="tab-btn" onclick="switchTab('closers', this)">Closers</button>
-    <button class="tab-btn" onclick="switchTab('forecast', this)">Proyecci&oacute;n</button>
-    <button class="tab-btn" onclick="switchTab('compare', this)">Comparar</button>
-    <button class="tab-btn" onclick="switchTab('data', this)">Datos</button>
+    <button class="tab-btn tab-mas-btn" id="tabMasBtn" onclick="toggleTabMas(event)"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="tabMasPop">M&aacute;s <span class="chev">&#9662;</span></button>
+  </div>
+  <!-- Menú "Más": vive fuera de .tabs porque esa barra recorta (overflow-x) lo que
+       se salga de ella. Los botones conservan onclick="switchTab('x', this)", que es
+       lo que usan smoke_test.py y la restauración de vista para encontrarlos. -->
+  <div class="tab-mas-pop" id="tabMasPop" role="menu" aria-label="M&aacute;s pesta&ntilde;as">
+    <button class="tab-mas-item" role="menuitem" onclick="switchTab('forecast', this)">Proyecci&oacute;n</button>
+    <button class="tab-mas-item" role="menuitem" onclick="switchTab('compare', this)">Comparar</button>
+    <button class="tab-mas-item" role="menuitem" onclick="switchTab('data', this)">Datos</button>
   </div>
 
   <!-- GLOBAL PERIOD FILTER -->
@@ -1550,8 +1576,13 @@
           <div class="chart-wrap"><canvas id="chartBumps"></canvas></div>
         </div>
       </div>
+    </main>
+  </div>
 
-      <div class="section-title">03 &middot; Canales <span class="sub">de d&oacute;nde vino cada peso &middot; triangulaci&oacute;n por &uacute;ltimo clic</span></div>
+  <!-- TAB: CANALES (antes secciones 03 y 04 de Ingresos; mismos ids, misma renderCanales) -->
+  <div id="tab-canales" class="tab-panel">
+    <main>
+      <div class="section-title">01 &middot; Canales <span class="sub">de d&oacute;nde vino cada peso &middot; triangulaci&oacute;n por &uacute;ltimo clic</span></div>
       <div id="canalesEmpty" style="display:none; padding:14px 0 4px; color:var(--grey); font-size:13px;">
         Sin datos de atribuci&oacute;n en este build. Se cargan con <code>sync_atribucion.py</code>.
       </div>
@@ -1565,7 +1596,7 @@
         </div>
         <div class="table-wrap" style="margin-top:12px"><table class="data-table" id="canalesTabla"></table></div>
 
-        <div class="section-title" style="margin-top:22px">04 &middot; Valor por canal de adquisici&oacute;n <span class="sub">lo que termin&oacute; rindiendo cada canal, incluidos los ascensos</span></div>
+        <div class="section-title" style="margin-top:22px">02 &middot; Valor por canal de adquisici&oacute;n <span class="sub">lo que termin&oacute; rindiendo cada canal, incluidos los ascensos</span></div>
         <div class="chart-subtitle" id="canalesLtvNota" style="margin:-4px 0 10px"></div>
         <div class="table-wrap"><table class="data-table" id="canalesLtv"></table></div>
       </div>
@@ -1901,7 +1932,8 @@ document.addEventListener('visibilitychange', () => {
 setTimeout(checkForUpdate, 90 * 1000);  // primer chequeo a los 90s de abrir
 
 function reloadFresh() {
-  location.href = location.pathname + '?v=' + Date.now();
+  // Se conserva el hash (#pestaña/período) para volver a la misma vista
+  location.href = location.pathname + '?v=' + Date.now() + location.hash;
 }
 
 // ====== DECRYPTION ======
@@ -2000,6 +2032,7 @@ async function onAuthSuccess(data) {
   const sinChart = document.getElementById('chartAviso');
   if (sinChart) sinChart.style.display = typeof Chart === 'undefined' ? 'flex' : 'none';
   APP_DATA = data;
+  normalizarDias_(APP_DATA);
   APP_DATA.annotations = Array.isArray(APP_DATA.annotations) ? APP_DATA.annotations : [];
   obsPendAplicar_();
   document.getElementById('loginOverlay').style.display = 'none';
@@ -2018,10 +2051,16 @@ async function onAuthSuccess(data) {
   document.getElementById('lastDataHeader').textContent = 'Última data: ' + lastDay +
     (withData.length ? ' ' + dayKeyYear(lastDay) : '');
   document.getElementById('updatedAtHeader').textContent = 'Sincronizado: ' + (data.updatedAt || '-');
-  const vistaTab = restaurarVista_();
+  let vistaTab = restaurarVista_();
+  // Un enlace directo (#pestaña o #pestaña/período) manda sobre la vista recordada
+  const enlace = leerHash_();
+  if (enlace) {
+    vistaTab = enlace.tab;
+    if (enlace.filter && filtroValido_(enlace.filter) && !TABS_SIN_PERIODO.includes(enlace.tab)) currentFilter = enlace.filter;
+  }
   renderPeriodButtons();
   if (vistaTab && vistaTab !== currentTab) {
-    const btnV = document.querySelector(".tab-btn[onclick*=\"'" + vistaTab + "'\"]");
+    const btnV = botonDeTab_(vistaTab);
     if (btnV) { switchTab(vistaTab, btnV); return; }
   }
   // En pantallas pequeñas el tab por defecto es Pulso (lectura de 3 segundos)
@@ -2030,6 +2069,7 @@ async function onAuthSuccess(data) {
     if (btn) { switchTab('pulso', btn); return; }
   }
   actualizarEtiquetaPeriodo();
+  guardarVista_();   // deja la URL (#pestaña/período) acorde con lo que se ve
   centrarPeriodoActivo_();
   renderAll();
 }
@@ -2055,6 +2095,7 @@ function guardarVista_() {
       cloPeriodo: cloPeriodoSel, cloCloser: cloCloserSel, ascPeriodo: ascPeriodSel
     }));
   } catch (e) { /* almacenamiento bloqueado: se sigue sin recordar */ }
+  escribirHash_();
 }
 // Aplica lo guardado solo si sigue existiendo en los datos. Devuelve la pestaña
 // guardada (o null si no había nada válido).
@@ -2161,6 +2202,32 @@ function getSortedDayKeys() { return Object.keys(APP_DATA.days).sort(parseDayKey
 // no se va al año anterior. Sirve mientras el histórico sea menor a 12 meses;
 // después el origen (apps-script-sync.js) debe emitir el año en la llave.
 const LT_INICIO = '2026-02-01';
+// Llaves de día en AMBOS formatos. El origen (apps-script-sync.js) emitía 'Sep 27'
+// y desde 2026-10-05 emite ISO '2026-09-27'. build.js ya normaliza, pero se repite
+// aquí (idempotente) por si el payload llega con ISO: las ISO pasan a 'Mes DD' y
+// el año exacto queda en APP_DATA.dayYears['Mes DD'], que dayKeyYear prefiere a
+// la deducción. Con llaves viejas no cambia nada.
+function normalizarDias_(d) {
+  if (!d || !d.days || typeof d.days !== 'object') return;
+  const esISO = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
+  const llaves = Object.keys(d.days);
+  const iso = llaves.filter(esISO);
+  if (!iso.length) return;
+  const dias = {}, anios = Object.assign({}, d.dayYears || {});
+  llaves.filter(k => !esISO(k)).forEach(k => { dias[k] = d.days[k]; });
+  let colisiones = 0;
+  iso.sort().forEach(k => {
+    const y = parseInt(k.slice(0, 4), 10), m = parseInt(k.slice(5, 7), 10);
+    if (!(m >= 1 && m <= 12)) { dias[k] = d.days[k]; return; }
+    const corta = MONTH_NAMES[m - 1] + ' ' + k.slice(8, 10);
+    if (dias[corta] !== undefined && anios[corta] !== undefined && anios[corta] !== y) colisiones++;
+    dias[corta] = d.days[k];
+    anios[corta] = y;
+  });
+  d.days = dias;
+  d.dayYears = anios;
+  if (colisiones) console.warn('Días de distinto año con la misma llave: ' + colisiones + ' (se muestra el más reciente)');
+}
 function dataRefDate_() {
   if (dataRefDate_.d && dataRefDate_.src === APP_DATA) return dataRefDate_.d;
   const m = /^(\d{4})-(\d{2})/.exec((APP_DATA && APP_DATA.updatedAt) || '') || /^(\d{4})-(\d{2})/.exec(BUILD_DATE);
@@ -2170,6 +2237,9 @@ function dataRefDate_() {
   return dataRefDate_.d;
 }
 function dayKeyYear(k) {
+  // Año exacto si el origen lo envió (llaves ISO normalizadas); si no, se deduce
+  const dy = APP_DATA && APP_DATA.dayYears;
+  if (dy && dy[k] !== undefined) return dy[k];
   const partes = k.split(' ');
   const mi = MONTHS[partes[0]] || 0;
   const ref = dataRefDate_();
@@ -2182,7 +2252,12 @@ function dayKeyToISO(k) {
   const partes = k.split(' ');
   return dayKeyYear(k) + '-' + String((MONTHS[partes[0]] || 0) + 1).padStart(2, '0') + '-' + String(parseInt(partes[1], 10)).padStart(2, '0');
 }
-function monthKeyYear(m) { return dayKeyYear(m + ' 01'); }
+function monthKeyYear(m) {
+  // Con año explícito: el de cualquier día del mes (el 01 puede no tener datos)
+  const dy = APP_DATA && APP_DATA.dayYears;
+  if (dy) { const k = Object.keys(dy).find(x => x.split(' ')[0] === m); if (k) return dy[k]; }
+  return dayKeyYear(m + ' 01');
+}
 // Día del Low Ticket que corresponde a una fecha ISO (o undefined). Compara el
 // año deducido: sin eso, un día de otro año haría match falso con el mismo 'Mes DD'.
 function ltDayOfISO(iso) {
@@ -2392,13 +2467,23 @@ function actualizarEtiquetaPeriodo() {
 }
 
 // ====== TABS ======
+// Pestañas que no usan la barra de período global (tienen filtro propio o lo ignoran)
+const TABS_SIN_PERIODO = ['ascensos', 'pulso', 'closers'];
+// Botón (de la barra o del menú "Más") que abre una pestaña, por su onclick
+function botonDeTab_(tab) {
+  return document.querySelector("[onclick=\"switchTab('" + tab + "', this)\"]");
+}
 function switchTab(tab, btn) {
+  if (!document.getElementById('tab-' + tab)) return;
+  if (!btn) btn = botonDeTab_(tab);
+  cerrarTabMas_();
   // En móvil la barra de tabs scrollea: asegurar que el tab elegido quede visible
-  if (btn && btn.scrollIntoView) btn.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+  // (solo para botones de la barra; los del menú "Más" no viven en ella)
+  if (btn && btn.scrollIntoView && btn.closest('.tabs')) btn.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
   // Ascensos tiene su propio selector de período (histórico distinto al LT):
   // ocultar la barra global evita dos controles compitiendo.
   const pbar = document.querySelector('.period-bar-global');
-  if (pbar) pbar.style.display = (tab === 'ascensos' || tab === 'pulso' || tab === 'closers') ? 'none' : '';
+  if (pbar) pbar.style.display = TABS_SIN_PERIODO.includes(tab) ? 'none' : '';
   const loader = document.getElementById('tabLoader');
   if (loader) loader.classList.add('active');
   // Fade out current
@@ -2409,9 +2494,10 @@ function switchTab(tab, btn) {
   setTimeout(() => {
     currentTab = tab;
     document.querySelectorAll('.tab-panel').forEach(p => { p.classList.remove('active'); p.classList.remove('loading'); });
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn, .tab-mas-item').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     if (btn) btn.classList.add('active');
+    actualizarTabMas_(btn);
     actualizarEtiquetaPeriodo();
     guardarVista_();
     destroyCharts();
@@ -2419,6 +2505,86 @@ function switchTab(tab, btn) {
     if (loader) setTimeout(() => loader.classList.remove('active'), 180);
   }, 50);
 }
+
+// --- Menú "Más" (Proyección, Comparar, Datos) ---
+// El botón "Más" se marca activo y muestra cuál de sus pestañas está abierta.
+function actualizarTabMas_(btn) {
+  const mas = document.getElementById('tabMasBtn');
+  if (!mas) return;
+  const enMas = !!(btn && btn.classList.contains('tab-mas-item'));
+  mas.classList.toggle('active', enMas);
+  mas.innerHTML = (enMas ? 'M&aacute;s &middot; ' + btn.textContent.trim() : 'M&aacute;s') + ' <span class="chev">&#9662;</span>';
+}
+function toggleTabMas(e) {
+  if (e) e.stopPropagation();
+  const pop = document.getElementById('tabMasPop');
+  const mas = document.getElementById('tabMasBtn');
+  if (!pop || !mas) return;
+  if (pop.classList.contains('open')) { cerrarTabMas_(); return; }
+  // Posición fija bajo el botón, sin salirse del borde derecho de la pantalla
+  const r = mas.getBoundingClientRect();
+  pop.classList.add('open');
+  const ancho = pop.offsetWidth || 200;
+  pop.style.top = Math.round(r.bottom + 4) + 'px';
+  pop.style.left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - ancho - 8))) + 'px';
+  mas.setAttribute('aria-expanded', 'true');
+}
+function cerrarTabMas_() {
+  const pop = document.getElementById('tabMasPop');
+  const mas = document.getElementById('tabMasBtn');
+  if (pop) pop.classList.remove('open');
+  if (mas) mas.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', e => {
+  const pop = document.getElementById('tabMasPop');
+  if (pop && pop.classList.contains('open') && !e.target.closest('#tabMasPop, #tabMasBtn')) cerrarTabMas_();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarTabMas_(); });
+window.addEventListener('resize', cerrarTabMas_);
+window.addEventListener('scroll', cerrarTabMas_, { passive: true });
+
+// ====== ENLACE DIRECTO POR HASH ======
+// La URL refleja la pestaña y, cuando aplica la barra global, el período:
+//   #revenue  ·  #embudo/Sep  ·  #trends/last30
+// Se escribe con replaceState (no crea historial ni recarga). No toca pathname ni
+// query, que son lo que usan el detector de versión nueva y reloadFresh.
+function leerHash_() {
+  const h = (location.hash || '').replace(/^#/, '');
+  if (!h) return null;
+  const m = /^([a-z]+)(?:\/([A-Za-z0-9]+))?$/.exec(h);
+  if (!m || !document.getElementById('tab-' + m[1])) return null;
+  return { tab: m[1], filter: m[2] || null };
+}
+function escribirHash_() {
+  if (!currentTab || !history.replaceState) return;
+  let h = '#' + currentTab;
+  if (!TABS_SIN_PERIODO.includes(currentTab) && currentFilter && currentFilter !== 'all') h += '/' + currentFilter;
+  if (location.hash === h) return;
+  try { history.replaceState(null, '', location.pathname + location.search + h); } catch (e) { /* file:// u origen raro */ }
+}
+// Filtro global válido: atajo o mes abreviado presente en los datos
+function filtroValido_(f) {
+  if (typeof f !== 'string') return false;
+  if (['all', 'last7', 'last14', 'last30'].includes(f)) return true;
+  if (!APP_DATA || !MONTHS.hasOwnProperty(f)) return false;
+  return Object.keys(APP_DATA.days).some(k => {
+    const d = APP_DATA.days[k]; return k.split(' ')[0] === f && d && (d.impressions > 0 || d.spend > 0 || d.purchases > 0);
+  });
+}
+// Si alguien edita el hash a mano o usa Atrás/Adelante con un hash distinto
+window.addEventListener('hashchange', () => {
+  if (!APP_DATA) return;
+  const h = leerHash_();
+  if (!h) return;
+  let cambioFiltro = false;
+  if (h.filter && filtroValido_(h.filter) && h.filter !== currentFilter && !TABS_SIN_PERIODO.includes(h.tab)) {
+    currentFilter = h.filter;
+    renderPeriodButtons();
+    cambioFiltro = true;
+  }
+  if (h.tab !== currentTab) switchTab(h.tab, botonDeTab_(h.tab));
+  else if (cambioFiltro) { actualizarEtiquetaPeriodo(); guardarVista_(); centrarPeriodoActivo_(); renderAll(); }
+});
 
 function destroyCharts() {
   Object.values(chartInstances).forEach(c => { if (c && c.destroy) c.destroy(); });
@@ -2588,7 +2754,8 @@ function renderAll() {
   if (currentTab === 'embudo') { renderFunnelVisual(); setTimeout(()=>{ renderFunnelDailyChart(); renderConversionsChart(); }, 30); }
   if (currentTab === 'journey') { renderJourney(); renderAnnotations(); }
   if (currentTab === 'trends')  { setTimeout(()=>{ renderTrendCharts(); renderAccumulatedMonthCharts(); renderHeatmap(); }, 30); }
-  if (currentTab === 'revenue') { renderRevenue(); setTimeout(()=>{ renderRevenueCharts(); renderCanales(); }, 30); }
+  if (currentTab === 'revenue') { renderRevenue(); setTimeout(()=>{ renderRevenueCharts(); }, 30); }
+  if (currentTab === 'canales') { setTimeout(()=>{ renderCanales(); }, 30); }
   if (currentTab === 'ascensos'){ renderAscensos(); }
   if (currentTab === 'forecast'){ renderForecast(); runSimulator(); setTimeout(()=>{ renderForecastCharts(); }, 30); }
   if (currentTab === 'compare') { populateCompareSelectors(); renderCompare(); }
