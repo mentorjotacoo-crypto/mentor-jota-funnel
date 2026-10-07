@@ -461,8 +461,13 @@
   .hero-mini-value.warn { color:var(--warn); }
   .hero-mini-value.acid { color:var(--acid); }
   .hero-mini-sub {
-    font-size:12px; color:var(--grey); margin-top:4px;
+    font-size:13px; color:var(--grey); margin-top:4px; line-height:1.4;
   }
+  /* ROAS front · ecosistema en el mismo valor, cada uno con su color */
+  .hero-mini-value .good { color:var(--good); }
+  .hero-mini-value .warn { color:var(--warn); }
+  .hero-mini-value .acid { color:var(--acid); }
+  .hero-roas-sep { color:var(--grey); font-weight:400; }
   @media (max-width:900px) {
     .hero-grid { grid-template-columns:1fr; }
     .hero-side { flex-direction:row; }
@@ -903,7 +908,9 @@
     font-family:'Clash Display',sans-serif; font-weight:700; font-size:clamp(20px,3vw,26px);
     letter-spacing:1px; text-transform:uppercase; color:var(--white);
   }
-  .pulso-sub { font-size:12px; color:var(--grey); margin-top:3px; }
+  .pulso-sub { font-size:13px; color:var(--grey); margin-top:3px; }
+  .pulso-sub .parcial, .pulso-delta .parcial { color:var(--acid); }
+  .pulso-label.wrap { white-space:normal; line-height:1.35; }
   .pulso-mes {
     font-size:12px; color:var(--grey-light); text-align:right; line-height:1.7;
     font-variant-numeric:tabular-nums;
@@ -1389,7 +1396,7 @@
       <div class="pulso-grid" id="pulsoGrid"></div>
       <div class="chart-card" style="margin-top:14px">
         <div class="chart-title">&Uacute;ltimos 14 d&iacute;as</div>
-        <div class="chart-subtitle">compras del desaf&iacute;o y cash total por d&iacute;a</div>
+        <div class="chart-subtitle">compras del desaf&iacute;o e ingresos por d&iacute;a (LT seg&uacute;n p&iacute;xel + HT cobrado)</div>
         <div class="chart-wrap" style="height:200px"><canvas id="chartPulso"></canvas></div>
       </div>
     </main>
@@ -2301,6 +2308,58 @@ function fmtMoneyAxis(v) {
   return Math.abs(v) < 1000 && Math.round(v) !== v ? fmtMoney(v) : fmtMoneyCompact(v);
 }
 function fmtPct(n) { return (n || 0).toFixed(1) + '%'; }
+// Valor con signo explícito para los textos "pasó de −X a +Y"
+function fmtConSigno_(v, fmt) {
+  const s = v > 0 ? '+' : '';
+  if (fmt === 'roas') return s + v.toFixed(2) + 'x';
+  if (fmt === 'money') return s + fmtMoneyCompact(v);
+  return s + Math.round(v).toLocaleString('es-CO');
+}
+// Cuando el valor actual y el previo tienen signos distintos, un porcentaje no
+// significa nada (de −$1.400 a +$5.808 no es "▼ 514%"): devuelve el texto
+// "pasó de −X a +Y" con el color según mejoró o empeoró. Si no hay cambio de
+// signo devuelve '' y el llamador calcula el porcentaje normal.
+function cambioSignoHtml_(cur, prev, invertGood, fmt) {
+  if (!isFinite(cur) || !isFinite(prev) || prev === 0 || cur === 0) return '';
+  if ((cur > 0) === (prev > 0)) return '';
+  const mejora = invertGood ? cur < prev : cur > prev;
+  return '<span class="kpi-delta ' + (mejora ? 'up' : 'down') + '" title="cambió de signo: el porcentaje no aplica">' +
+         'pasó de ' + fmtConSigno_(prev, fmt) + ' a ' + fmtConSigno_(cur, fmt) + '</span>';
+}
+// Fecha de HOY en la zona del navegador (Bogotá para el equipo). Antes se usaba
+// toISOString(), que es UTC: después de las 7 pm en Colombia ya era "mañana"
+// (una observación de las 8 pm quedaba fechada al día siguiente y el CSV
+// descargado el 6 se llamaba _2026-10-07).
+function fechaLocalISO() { return dateToDayKey(new Date()); }
+// Día de ascensos "pendiente de cargar": el Excel se llena al día siguiente, y
+// sync_ascensos.py incluye la fila de hoy con ceros si ya existe. Un día es
+// pendiente cuando no trae ventas ni cobros y es posterior o igual a la fecha
+// de la última sincronización de ascensos (todavía no lo han llenado).
+function ascDiaPendiente_(k) {
+  const asc = APP_DATA.ascensos;
+  if (!asc || !asc.days) return true;
+  const d = asc.days[k];
+  const vacio = !d || !(ascSeg_(d, 'all').ventas || ascSeg_(d, 'all').cobrado || ascSeg_(d, 'all').contratado);
+  if (!vacio) return false;
+  const fechaSync = String(asc.updatedAt || '').slice(0, 10);
+  return !fechaSync || k >= fechaSync;
+}
+// ROAS del ecosistema sobre un conjunto de días LT (llaves ISO): (revenue LT +
+// cobrado HT de todas las modalidades) / (spend Meta + Google + spend HT).
+// Misma fórmula que roasEcoDe() en Ascensos, pero recorriendo los días del
+// período de Resumen. roas null cuando no hay datos de ascensos cargados.
+function roasEcoPeriodo_(ks) {
+  const asc = APP_DATA.ascensos && APP_DATA.ascensos.days;
+  if (!asc || !Object.keys(asc).length) return { roas: null, spend: 0, cash: 0 };
+  let sp = 0, cash = 0;
+  (ks || []).forEach(k => {
+    const dLT = APP_DATA.days[k];
+    if (dLT) { sp += spendTotal_(dLT); cash += dLT.revenue || 0; }
+    const dHT = asc[k];
+    if (dHT) { sp += dHT.spend || 0; cash += ascSeg_(dHT, 'all').cobrado; }
+  });
+  return { roas: sp > 0 ? cash / sp : null, spend: sp, cash: cash };
+}
 
 // ====== INFO POPOVER (click-to-expand) ======
 let _popoverChart = null;
@@ -2401,7 +2460,7 @@ function getFilteredDays() {
 }
 function getAggregated(days) {
   days = days || getFilteredDays();
-  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend','revenue','revenue_lt','revenue_b1','revenue_b2'];
+  const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend','spend_google','revenue','revenue_lt','revenue_b1','revenue_b2'];
   const agg = {};
   for (let i = 0; i < fields.length; i++) agg[fields[i]] = 0;
   days.forEach(k => {
@@ -2413,13 +2472,17 @@ function getAggregated(days) {
 function computeRevenue(d) {
   return d.revenue || 0;
 }
+// Inversión total del día: Meta + Google. Pulso, Tendencias y Ascensos ya la
+// sumaban; Resumen y las métricas diarias solo contaban Meta y daban otro ROAS.
+function spendTotal_(d) { return (d.spend || 0) + (d.spend_google || 0); }
 function dayMetric(key, metric) {
   const d = APP_DATA.days[key]; if (!d) return 0;
+  const sp = spendTotal_(d);
   if (metric === 'revenue') return computeRevenue(d);
-  if (metric === 'profit')  return computeRevenue(d) - (d.spend||0);
-  if (metric === 'roas')    return d.spend > 0 ? computeRevenue(d)/d.spend : 0;
-  if (metric === 'cpl')     return d.leads > 0 ? d.spend/d.leads : 0;
-  if (metric === 'cpa')     return d.purchases > 0 ? d.spend/d.purchases : 0;
+  if (metric === 'profit')  return computeRevenue(d) - sp;
+  if (metric === 'roas')    return sp > 0 ? computeRevenue(d)/sp : 0;
+  if (metric === 'cpl')     return d.leads > 0 ? sp/d.leads : 0;
+  if (metric === 'cpa')     return d.purchases > 0 ? sp/d.purchases : 0;
   return d[metric] || 0;
 }
 
@@ -2650,7 +2713,9 @@ function renderResumen() {
   try { d = getAggregated() || {}; } catch(e) { console.error('getAggregated fail', e); }
 
   const purchases = (d.purchases || 0);
-  const spend = (d.spend || 0);
+  const spendMeta = (d.spend || 0);
+  const spendGoogle = (d.spend_google || 0);
+  const spend = spendMeta + spendGoogle;   // misma inversión que Pulso, Tendencias y Ascensos
   const bump1 = (d.bump1 || 0);
   const bump2 = (d.bump2 || 0);
   const revenue = (d.revenue || 0);
@@ -2659,25 +2724,41 @@ function renderResumen() {
   const cpa = purchases > 0 ? spend/purchases : 0;
   const periodLabel = ((document.getElementById('activePeriodLabel') || {}).textContent) || 'Acumulado';
 
-  // Hero revenue
+  // Hero revenue. El revenue del Low Ticket es el valor de conversión que
+  // atribuye el píxel de Meta (ventana de 7 días), no el cobro de Stripe:
+  // históricamente sale ~2% por encima. Se dice en el sub para no confundirlo
+  // con el "cobrado" de ascensos.
   _safeSet('#heroRevenue', 'text', fmtMoneyCompact(revenue));
   _safeSet('#heroRevenueMeta', 'html',
     `<span class="accent">${periodLabel}</span> · ${filtered.length} d&iacute;a${filtered.length===1?'':'s'} · ` +
     `<span class="accent">${purchases.toLocaleString('es-CO')}</span> compras LT, ` +
-    `<span class="accent">${(bump1+bump2).toLocaleString('es-CO')}</span> bumps`);
+    `<span class="accent">${(bump1+bump2).toLocaleString('es-CO')}</span> bumps · seg&uacute;n p&iacute;xel de Meta`);
 
   // Profit mini
   const profitCls = profit >= 0 ? 'good' : 'warn';
   const profitSign = profit >= 0 ? '+' : '';
   _safeSet('#heroProfit .hero-mini-value', 'text', profitSign + fmtMoneyCompact(profit));
   _safeSet('#heroProfit .hero-mini-value', 'class', 'hero-mini-value ' + profitCls);
-  _safeSet('#heroProfit .hero-mini-sub', 'text', `Revenue − Spend (${fmtMoneyCompact(spend)})`);
+  _safeSet('#heroProfit .hero-mini-sub', 'text', spendGoogle > 0
+    ? `Revenue − Spend Meta ${fmtMoneyCompact(spendMeta)} + Google ${fmtMoneyCompact(spendGoogle)}`
+    : `Revenue − Spend (${fmtMoneyCompact(spend)})`);
 
-  // ROAS mini
+  // ROAS: el front (solo Low Ticket) y el del ecosistema juntos. El Low Ticket
+  // es la puerta de entrada y se paga con los ascensos; mostrar solo el front
+  // ("0.97x Perdiendo") contradecía el 2.50x de Ascensos y pintaba en rojo un
+  // negocio que no lo está. Estado del front: "Front bajo 1x" en vez de "Perdiendo".
+  const eco = roasEcoPeriodo_(filtered);
   const roasCls = roas >= 1.5 ? 'good' : (roas >= 1 ? 'acid' : 'warn');
-  _safeSet('#heroRoas .hero-mini-value', 'text', roas.toFixed(2) + 'x');
-  _safeSet('#heroRoas .hero-mini-value', 'class', 'hero-mini-value ' + roasCls);
-  _safeSet('#heroRoas .hero-mini-sub', 'text', roas >= 1.5 ? 'Rentable' : roas >= 1 ? 'Break-even' : 'Perdiendo');
+  const ecoCls = eco.roas === null ? '' : (eco.roas >= 2 ? 'good' : (eco.roas >= 1 ? 'acid' : 'warn'));
+  const estadoFront = roas >= 1.5 ? 'Front rentable' : roas >= 1 ? 'Front en break-even' : 'Front bajo 1x';
+  _safeSet('#heroRoas .hero-mini-label', 'text', eco.roas !== null ? 'ROAS front · ecosistema' : 'ROAS front (LT)');
+  _safeSet('#heroRoas .hero-mini-value', 'html',
+    `<span class="${roasCls}">${roas.toFixed(2)}x</span>` +
+    (eco.roas !== null ? ` <span class="hero-roas-sep">·</span> <span class="${ecoCls}">${eco.roas.toFixed(2)}x</span>` : ''));
+  _safeSet('#heroRoas .hero-mini-value', 'class', 'hero-mini-value');
+  _safeSet('#heroRoas .hero-mini-sub', 'text', eco.roas !== null
+    ? `${estadoFront} · el Low Ticket se financia con los ascensos (cash ${fmtMoneyCompact(eco.cash)} / inv ${fmtMoneyCompact(eco.spend)})`
+    : estadoFront);
 
   // Purchases mini
   _safeSet('#heroPurchases .hero-mini-value', 'text', purchases.toLocaleString('es-CO'));
@@ -2984,22 +3065,28 @@ function renderKPIs() {
   const prevRoas = (prev && prev.spend > 0) ? prevRev/prev.spend : 0;
   const prevAov = (prev && prev.purchases > 0) ? prevRev/prev.purchases : 0;
 
-  function deltaHtml(cur, prev, invertGood) {
+  // Variaci\u00F3n vs per\u00EDodo anterior. Se divide entre |prev|: con base negativa
+  // (ganancia en p\u00E9rdida, el caso normal con ROAS LT cerca de 1x) la f\u00F3rmula
+  // sin valor absoluto invert\u00EDa el signo ("\u25BC 60%" para una MEJORA). Si cambia
+  // el signo, un porcentaje no dice nada: se muestra "pas\u00F3 de \u2212X a +Y".
+  function deltaHtml(cur, prev, invertGood, fmt) {
     if (!prev || prev === 0 || !isFinite(cur)) return '';
-    const pct = ((cur - prev)/prev*100);
-    if (!isFinite(pct) || isNaN(pct)) return '';
-    const isUp = pct > 0;
-    const good = invertGood ? !isUp : isUp;
-    const cls = Math.abs(pct) < 1 ? 'neutral' : (good ? 'up' : 'down');
-    const arrow = Math.abs(pct) < 1 ? '\u2192' : (isUp ? '\u25B2' : '\u25BC');
-    return '<span class="kpi-delta '+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</span>';
+    return cambioSignoHtml_(cur, prev, invertGood, fmt) || (function () {
+      const pct = ((cur - prev)/Math.abs(prev)*100);
+      if (!isFinite(pct) || isNaN(pct)) return '';
+      const isUp = pct > 0;
+      const good = invertGood ? !isUp : isUp;
+      const cls = Math.abs(pct) < 1 ? 'neutral' : (good ? 'up' : 'down');
+      const arrow = Math.abs(pct) < 1 ? '\u2192' : (isUp ? '\u25B2' : '\u25BC');
+      return '<span class="kpi-delta '+cls+'">'+arrow+' '+Math.abs(pct).toFixed(0)+'%</span>';
+    })();
   }
 
   const kpis = [
     { id:'spend',    label:'Inversión en pauta', value:fmtMoneyCompact(d.spend),      valCls:'', sub:nDays+' d'+(nDays===1?'ía':'ías'), cur:d.spend, prev:prev?prev.spend:0, invert:false, fmt:'money', tip:'Total invertido en Meta Ads en el período seleccionado.' },
     { id:'revenue',  label:'Ingresos',      value:fmtMoneyCompact(revenue),      valCls:'acid', sub:d.purchases+' ventas', cur:revenue, prev:prevRev, invert:false, fmt:'money', tip:'Revenue total reportado por Meta (LT + Bump 1 + Bump 2).' },
     { id:'profit',   label:'Ganancia',      value:(profit>=0?'+':'')+fmtMoneyCompact(profit).replace('$','$'), valCls: profit>=0?'good':'warn', sub:'Rev - Spend', cur:profit, prev:prevProfit, invert:false, fmt:'money', tip:'Revenue - Spend. Solo considera ad spend, NO incluye costo de producto, fees, etc.' },
-    { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Perdiendo', cur:roas, prev:prevRoas, invert:false, fmt:'roas', tip:'Revenue / Spend. Cuánto generas por cada $1 invertido en ads.' },
+    { id:'roas',     label:'ROAS',          value:roas.toFixed(2)+'x',           valCls: roas>=2?'good':roas>=1?'mid':'warn', sub:roas>=2?'Rentable':roas>=1?'Break-even':'Front bajo 1x', cur:roas, prev:prevRoas, invert:false, fmt:'roas', tip:'Revenue / Spend Meta, solo Low Ticket (front). El ecosistema completo (con ascensos) está en Resumen y Ascensos.' },
     { id:'cpl',      label:'Costo por lead', value:fmtMoney(cpl),                 valCls:umbralCls_(cpl, KPI_UMBRAL.cpl), sub:d.leads+' leads', cur:cpl, prev:prevCpl, invert:true, fmt:'money', tip:'Spend / Leads. Costo de adquirir un opt-in. Verde <$'+KPI_UMBRAL.cpl.good+' · rojo >$'+KPI_UMBRAL.cpl.warn+'.' },
     { id:'cpa',      label:'Costo por compra', value:fmtMoney(cpa),                 valCls:umbralCls_(cpa, KPI_UMBRAL.cpa), sub:d.purchases+' compras', cur:cpa, prev:prevCpa, invert:true, fmt:'money', tip:'Spend / Compras LT. Costo de adquirir un cliente. Verde <$'+KPI_UMBRAL.cpa.good+' · rojo >$'+KPI_UMBRAL.cpa.warn+'.' },
     { id:'aov',      label:'Ticket promedio', value:fmtMoney(aov),               valCls:'acid', sub:'valor por orden', cur:aov, prev:prevAov, invert:false, fmt:'money', tip:'Revenue / Compras LT. Valor promedio de cada orden (incluye bumps).' }
@@ -3039,7 +3126,7 @@ function renderKPIs() {
       <div class="kpi-cell" ${k.tip ? `role="button" tabindex="0" aria-label="${k.label}: ver detalle" data-tip="${k.tip.replace(/"/g, '&quot;')}" onclick="openInfoPopover(this, '${k.label}', '${k.id}')"` : ''}>
         <div class="kpi-head">
           <span class="kpi-label">${k.label}</span>
-          ${deltaHtml(k.cur, k.prev, k.invert)}
+          ${deltaHtml(k.cur, k.prev, k.invert, k.fmt)}
         </div>
         <div class="kpi-value ${k.valCls}">${k.value}</div>
         <div class="kpi-sub"><span>${k.sub}</span><span>vs período anterior</span></div>
@@ -3298,7 +3385,7 @@ function openAnnModal(ann) {
   } else {
     title.textContent = 'Nueva observación';
     document.getElementById('annId').value = '';
-    document.getElementById('annDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('annDate').value = fechaLocalISO();
     document.getElementById('annStage').value = (ann && ann.stage) || 'general';
     document.getElementById('annText').value = '';
     delBtn.style.display = 'none';
@@ -3346,7 +3433,7 @@ async function saveAnnotation(e) {
   closeAnnModal();
   renderAll();
   if (r.ok) showToast('Observación guardada. Los demás la verán en la próxima actualización', 'success', 6000);
-  else showToast('Guardada solo en esta sesión: la sincronización no está configurada', 'error', 6000);
+  else showToast('Guardada solo en esta sesión: la sincronización con el Sheet está apagada', 'error', 6000);
 }
 
 async function deleteAnnotationConfirm() {
@@ -3365,7 +3452,7 @@ async function deleteAnnotationConfirm() {
   closeAnnModal();
   renderAll();
   if (r.ok) showToast('Observación eliminada', 'success');
-  else showToast('Eliminada solo en esta sesión: la sincronización no está configurada', 'error', 6000);
+  else showToast('Eliminada solo en esta sesión: la sincronización con el Sheet está apagada', 'error', 6000);
 }
 
 // Devuelve {ok:true}, {ok:false, error} o {ok:false, sinSync:true}. El Apps
@@ -4208,9 +4295,13 @@ function renderForecast() {
   const rPrev = sumLast28(revenueFc);
   const proPrev = sumLast28(profitFc);
   const lPrev = sumLast28(leadsFc);
-  function delta(cur, prev) {
-    if (!prev) return '';
-    const pct = (cur - prev) / prev * 100;
+  // Entre |prev|: con ganancia previa negativa el porcentaje salía con el signo
+  // al revés ("▼ 514%" para una ganancia que mejora). Cambio de signo → texto.
+  function delta(cur, prev, fmt) {
+    if (!prev || !isFinite(cur)) return '';
+    const texto = cambioSignoHtml_(cur, prev, false, fmt);
+    if (texto) return texto;
+    const pct = (cur - prev) / Math.abs(prev) * 100;
     if (!isFinite(pct)) return '';
     const cls = Math.abs(pct) < 1 ? 'neutral' : (pct > 0 ? 'up' : 'down');
     const arrow = Math.abs(pct) < 1 ? '→' : (pct > 0 ? '▲' : '▼');
@@ -4224,7 +4315,7 @@ function renderForecast() {
   ];
   document.getElementById('forecastSummary').innerHTML = cards.map(c => `
     <div class="kpi-cell">
-      <div class="kpi-head"><span class="kpi-label">${c.lbl}</span>${delta(c.cur||c.val, c.prev)}</div>
+      <div class="kpi-head"><span class="kpi-label">${c.lbl}</span>${delta(c.cur||c.val, c.prev, c.fmt)}</div>
       <div class="kpi-value ${c.cls}">${c.val}</div>
       <div class="kpi-sub"><span>pr&oacute;ximas 4 sem</span><span>vs &uacute;ltimas 4</span></div>
       <div class="kpi-range-text"><span style="color:var(--grey-light);white-space:normal">${c.range}</span></div>
@@ -4337,7 +4428,7 @@ function runSimulator() {
     { label:'Leads', value:Math.round(totLeads).toLocaleString('es-CO'), sub:`~${projDailyLeads.toFixed(1)}/d&iacute;a`, cls:'' },
     { label:'Revenue', value:fmtMoneyCompact(totRev), sub:`~${fmtMoneyCompact(projDailyRevenue)}/d&iacute;a${deltaTxt(deltaRev)}`, cls:'acid' },
     { label:'Ganancia', value:(totProfit>=0?'+':'')+fmtMoneyCompact(totProfit), sub:`~${fmtMoneyCompact(projDailyProfit)}/d&iacute;a`, cls:totProfit>=0?'good':'warn' },
-    { label:'ROAS', value:projRoas.toFixed(2)+'x', sub:projRoas>=1.5?'Rentable':projRoas>=1?'Break-even':'Perdiendo', cls:projRoas>=1.5?'good':projRoas>=1?'':'warn' }
+    { label:'ROAS', value:projRoas.toFixed(2)+'x', sub:projRoas>=1.5?'Rentable':projRoas>=1?'Break-even':'Front bajo 1x', cls:projRoas>=1.5?'good':projRoas>=1?'':'warn' }
   ];
   document.getElementById('simulatorOutput').innerHTML = cards.map(c => `
     <div class="sim-out-card">
@@ -4708,8 +4799,12 @@ function renderAscensos() {
   let ritmoVal, ritmoSub;
   if (esMesEnCurso) {
     const diasTotales = new Date(parseInt(mesActual.slice(0,4)), parseInt(mesActual.slice(5,7)), 0).getDate();
-    ritmoVal = per.dias.length > 0 ? Math.round((act.ventas / per.dias.length) * diasTotales) : 0;
-    ritmoSub = 'proy. fin de mes';
+    // Los días del mes que aún no tienen HT cargado (hoy, a veces ayer) no
+    // cuentan en el promedio: dividían entre un día en cero y bajaban el ritmo.
+    const cargados = per.dias.filter(k => !ascDiaPendiente_(k));
+    const nBase = cargados.length || per.dias.length;
+    ritmoVal = nBase > 0 ? Math.round((act.ventas / nBase) * diasTotales) : 0;
+    ritmoSub = 'proy. fin de mes' + (cargados.length && cargados.length < per.dias.length ? ' (' + cargados.length + ' días cargados)' : '');
   } else {
     ritmoVal = per.dias.length > 0 ? (act.ventas / per.dias.length).toFixed(1) : 0;
     ritmoSub = 'ventas por día';
@@ -5822,19 +5917,38 @@ function renderPulso() {
   const iso = dayKeyToISO;
   const htDia = k => { const a = asc[iso(k)]; return a ? ascSeg_(a, 'all') : { ventas:0, cobrado:0 }; };
 
+  // El último día casi siempre es HOY a medias: el tracker se refresca a las
+  // 6:45, 13:00 y 19:00, y los ascensos del día se cargan al día siguiente.
+  // Antes se comparaba ese medio día contra el día previo completo y cada tarde
+  // salía "Ventas HT 0 ▼100%" y "cash ▼75%". Ahora: el día en curso se marca
+  // "parcial" y en vez de flechas se muestra el valor de ayer como referencia;
+  // si el HT del día no está cargado, se dice "pendiente" y los ingresos se
+  // comparan LT contra LT.
+  const hoyLocal = fechaLocalISO();
+  const esParcial = hoyK >= hoyLocal;
+  const htPend = ascDiaPendiente_(hoyK);
+  const htPrevPend = ayerK ? ascDiaPendiente_(ayerK) : true;
   const ht = htDia(hoyK), htPrev = ayerK ? htDia(ayerK) : null;
   const spend = (d.spend || 0) + (d.spend_google || 0);
-  const cash = (d.revenue || 0) + ht.cobrado;
+  const cash = (d.revenue || 0) + (htPend ? 0 : ht.cobrado);
   const roas = spend > 0 ? cash / spend : 0;
   const spendPrev = prev ? (prev.spend || 0) + (prev.spend_google || 0) : 0;
-  const cashPrev = prev ? (prev.revenue || 0) + (htPrev ? htPrev.cobrado : 0) : 0;
+  // Misma base en los dos lados: si hoy no tiene HT, ayer se compara solo con su LT
+  const cashPrev = prev ? (prev.revenue || 0) + ((htPend || !htPrev) ? 0 : htPrev.cobrado) : 0;
   const roasPrev = spendPrev > 0 ? cashPrev / spendPrev : 0;
 
   document.getElementById('pulsoTitulo').textContent = 'Pulso · ' + dayLabel(hoyK, true);
-  document.getElementById('pulsoSub').textContent =
-    'último día con datos' + (ayerK ? ' · comparado contra ' + dayLabel(ayerK, true) : '');
+  document.getElementById('pulsoSub').innerHTML =
+    (esParcial ? '<span class="parcial">día en curso (parcial)</span>' : 'último día completo') +
+    (htPend ? ' · <span class="parcial">HT pendiente</span> (se carga al día siguiente)' : '') +
+    (ayerK ? ' · referencia: ' + dayLabel(ayerK, true) : '');
 
-  const dl = (cur, ant, invertir) => {
+  const dl = (cur, ant, invertir, fmt) => {
+    if (!ant && ant !== 0) return '<span class="flat">sin comparativo</span>';
+    if (esParcial) {
+      const ref = fmt === 'money' ? fmtMoneyCompact(ant) : fmt === 'roas' ? ant.toFixed(2) + 'x' : Math.round(ant);
+      return `<span class="flat"><span class="parcial">parcial</span> · ayer ${ref}</span>`;
+    }
     if (!ant) return '<span class="flat">sin comparativo</span>';
     const pct = (cur - ant) / Math.abs(ant) * 100;
     const bueno = invertir ? pct < 0 : pct > 0;
@@ -5844,32 +5958,43 @@ function renderPulso() {
   };
 
   const cards = [
-    { l:'Cash del día',  v: fmtMoneyCompact(cash),        c:'acid', d: dl(cash, cashPrev) },
+    // "Ingresos", no "cash": el LT es el valor que atribuye el píxel de Meta;
+    // solo el HT es dinero cobrado.
+    { l: htPend ? 'Ingresos (LT píxel · HT pendiente)' : 'Ingresos (LT píxel + HT cobrado)', wrap: true,
+      v: fmtMoneyCompact(cash), c:'acid', d: dl(cash, cashPrev, false, 'money') },
     { l:'Compras LT',    v: Math.round(d.purchases || 0), c:'',     d: dl(d.purchases || 0, prev ? prev.purchases : 0) },
-    { l:'Ventas HT',     v: Math.round(ht.ventas),        c:'',     d: dl(ht.ventas, htPrev ? htPrev.ventas : 0) },
-    { l:'Inversión',     v: fmtMoneyCompact(spend),       c:'',     d: dl(spend, spendPrev, true) },
-    { l:'ROAS del día',  v: roas.toFixed(2) + 'x',
-      c: roas >= 2 ? 'good' : (roas >= 1 ? '' : 'warn'), d: dl(roas, roasPrev) }
+    htPend
+      ? { l:'Ventas HT', v:'—', c:'', d:'<span class="flat"><span class="parcial">HT pendiente</span> · se carga mañana</span>' }
+      : { l:'Ventas HT', v: Math.round(ht.ventas), c:'', d: (htPrevPend ? '<span class="flat">sin comparativo</span>' : dl(ht.ventas, htPrev ? htPrev.ventas : 0)) },
+    { l:'Inversión',     v: fmtMoneyCompact(spend),       c:'',     d: dl(spend, spendPrev, true, 'money') },
+    { l: htPend ? 'ROAS del día (solo LT)' : 'ROAS del día', wrap: htPend, v: roas.toFixed(2) + 'x',
+      c: roas >= 2 ? 'good' : (roas >= 1 ? '' : 'warn'), d: dl(roas, roasPrev, false, 'roas') }
   ];
   document.getElementById('pulsoGrid').innerHTML = cards.map(k => `
     <div class="pulso-card">
-      <div class="pulso-label">${k.l}</div>
+      <div class="pulso-label${k.wrap ? ' wrap' : ''}">${k.l}</div>
       <div class="pulso-valor ${k.c}">${k.v}</div>
       <div class="pulso-delta">${k.d}</div>
     </div>`).join('');
 
-  // Cómo va el mes + proyección al cierre según el ritmo
+  // Cómo va el mes + proyección al cierre según el ritmo. El promedio diario
+  // excluye el día en curso y los días sin HT cargado: dividían entre un día
+  // a medias y bajaban la proyección cada tarde.
   const mesK = monthOfKey(hoyK);
   const delMes = dias.filter(k => k.startsWith(mesK));
   const mSpend = delMes.reduce((a,k) => a + (APP_DATA.days[k].spend||0) + (APP_DATA.days[k].spend_google||0), 0);
   const mCash  = delMes.reduce((a,k) => a + (APP_DATA.days[k].revenue||0) + htDia(k).cobrado, 0);
   const mPur   = delMes.reduce((a,k) => a + (APP_DATA.days[k].purchases||0), 0);
   const diasMes = new Date(dayKeyYear(hoyK), parseInt(mesK.slice(5), 10), 0).getDate();
-  const proy = delMes.length ? mCash / delMes.length * diasMes : 0;
+  const completos = delMes.filter(k => k < hoyLocal && !ascDiaPendiente_(k));
+  const baseProy = completos.length ? completos : delMes;
+  const cashBase = baseProy.reduce((a,k) => a + (APP_DATA.days[k].revenue||0) + htDia(k).cobrado, 0);
+  const proy = baseProy.length ? cashBase / baseProy.length * diasMes : 0;
   document.getElementById('pulsoMes').innerHTML =
     `${monthFullLabel(mesK)} · día ${delMes.length}/${diasMes}<br>` +
-    `Cash <b>${fmtMoneyCompact(mCash)}</b> · Compras <b>${mPur}</b> · ROAS <b>${mSpend > 0 ? (mCash/mSpend).toFixed(2)+'x' : '-'}</b><br>` +
-    `<span style="color:var(--grey)">proyección de cierre: ${fmtMoneyCompact(proy)}</span>`;
+    `Ingresos <b>${fmtMoneyCompact(mCash)}</b> · Compras <b>${mPur}</b> · ROAS <b>${mSpend > 0 ? (mCash/mSpend).toFixed(2)+'x' : '-'}</b><br>` +
+    `<span style="color:var(--grey)">proyección de cierre: ${fmtMoneyCompact(proy)}` +
+    (completos.length && completos.length < delMes.length ? ` (sobre ${completos.length} días completos)` : '') + `</span>`;
 
   // Últimos 14 días: barras de compras + línea de cash
   setTimeout(() => {
@@ -5881,7 +6006,7 @@ function renderPulso() {
       data:{ labels: ult.map(k => k.slice(8, 10)), datasets:[
         { type:'bar', label:'Compras LT', data: ult.map(k => APP_DATA.days[k].purchases || 0),
           backgroundColor:'rgba(57,135,229,0.55)', borderRadius:3, yAxisID:'y' },
-        { type:'line', label:'Cash', data: ult.map(k => Math.round((APP_DATA.days[k].revenue||0) + htDia(k).cobrado)),
+        { type:'line', label:'Ingresos', data: ult.map(k => Math.round((APP_DATA.days[k].revenue||0) + htDia(k).cobrado)),
           borderColor:'#E7FF2A', borderWidth:2.5, tension:0.3, pointRadius:0, yAxisID:'y2' }
       ]},
       options:{ responsive:true, maintainAspectRatio:false,
@@ -5926,7 +6051,7 @@ function csvDescargar_(nombre, filas) {
 }
 
 function exportCSV(tipo) {
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaLocalISO();
   const dLT = APP_DATA.days;
   const asc = (APP_DATA.ascensos && APP_DATA.ascensos.days) || {};
   const ymd = dayKeyToISO;
