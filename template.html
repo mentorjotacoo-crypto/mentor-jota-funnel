@@ -2768,9 +2768,13 @@ function renderResumen() {
     `<span class="${roasCls}">${roas.toFixed(2)}x</span>` +
     (eco.roas !== null ? ` <span class="hero-roas-sep">·</span> <span class="${ecoCls}">${eco.roas.toFixed(2)}x</span>` : ''));
   _safeSet('#heroRoas .hero-mini-value', 'class', 'hero-mini-value');
-  _safeSet('#heroRoas .hero-mini-sub', 'text', eco.roas !== null
-    ? `${estadoFront} · el Low Ticket se financia con los ascensos (cash ${fmtMoneyCompact(eco.cash)} / inv ${fmtMoneyCompact(eco.spend)})`
-    : estadoFront);
+  // La frase "se financia con los ascensos" solo cuando el ecosistema de verdad
+  // da 1x o más: en un período corto con el HT sin cargar salía junto a un
+  // 0.67x en rojo. "Ingresos", no "cash": el LT es valor del píxel, no cobro.
+  const ecoCifras = `(ingresos ${fmtMoneyCompact(eco.cash)} / inv ${fmtMoneyCompact(eco.spend)})`;
+  _safeSet('#heroRoas .hero-mini-sub', 'text', eco.roas === null ? estadoFront
+    : eco.roas >= 1 ? `${estadoFront} · el Low Ticket se financia con los ascensos ${ecoCifras}`
+    : `${estadoFront} · ecosistema bajo 1x en este período${filtered.some(k => ascDiaPendiente_(k)) ? ' · HT aún sin cargar' : ''} ${ecoCifras}`);
 
   // Purchases mini
   _safeSet('#heroPurchases .hero-mini-value', 'text', purchases.toLocaleString('es-CO'));
@@ -5952,7 +5956,7 @@ function renderPulso() {
   document.getElementById('pulsoTitulo').textContent = 'Pulso · ' + dayLabel(hoyK, true);
   document.getElementById('pulsoSub').innerHTML =
     (esParcial ? '<span class="parcial">día en curso (parcial)</span>' : 'último día completo') +
-    (htPend ? ' · <span class="parcial">HT pendiente</span> (se carga al día siguiente)' : '') +
+    (htPend ? ' · <span class="parcial">HT pendiente</span> (aún sin cargar)' : '') +
     (ayerK ? ' · referencia: ' + dayLabel(ayerK, true) : '');
 
   const dl = (cur, ant, invertir, fmt) => {
@@ -5976,7 +5980,7 @@ function renderPulso() {
       v: fmtMoneyCompact(cash), c:'acid', d: dl(cash, cashPrev, false, 'money') },
     { l:'Compras LT',    v: Math.round(d.purchases || 0), c:'',     d: dl(d.purchases || 0, prev ? prev.purchases : 0) },
     htPend
-      ? { l:'Ventas HT', v:'—', c:'', d:'<span class="flat"><span class="parcial">HT pendiente</span> · se carga mañana</span>' }
+      ? { l:'Ventas HT', v:'—', c:'', d:'<span class="flat"><span class="parcial">HT pendiente</span> · aún sin cargar</span>' }
       : { l:'Ventas HT', v: Math.round(ht.ventas), c:'', d: (htPrevPend ? '<span class="flat">sin comparativo</span>' : dl(ht.ventas, htPrev ? htPrev.ventas : 0)) },
     { l:'Inversión',     v: fmtMoneyCompact(spend),       c:'',     d: dl(spend, spendPrev, true, 'money') },
     { l: htPend ? 'ROAS del día (solo LT)' : 'ROAS del día', wrap: htPend, v: roas.toFixed(2) + 'x',
