@@ -14,3 +14,5 @@ smoke_daily.log
 closers.json
 atribucion.json
 __pycache__/
+# Copia del index con la clave inyectada que usa smoke_test.py (va a %TEMP%)
+smoke_dash*.html

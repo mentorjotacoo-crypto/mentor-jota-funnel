@@ -135,26 +135,35 @@ setTimeout(async () => {
 
     doc = html.replace('<script>', inject + '<script>', 1)
     doc = doc.replace('</body>', sonda + '</body>') if '</body>' in doc else doc + sonda
-    ruta = os.path.join(tempfile.gettempdir(), 'smoke_dash.html')
-    with open(ruta, 'w', encoding='utf-8') as f:
+    # La copia lleva la clave en texto plano: nombre aleatorio y se borra al
+    # terminar pase lo que pase (antes quedaba smoke_dash.html en %TEMP% para
+    # siempre, reescrito cada mañana).
+    fd, ruta = tempfile.mkstemp(prefix='smoke_dash_', suffix='.html')
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
         f.write(doc)
 
     # Un headless roto devuelve DOM vacío sin código de error, así que se
     # recorren navegador × modo hasta que uno responda.
     salida = ''
-    for nav in navegadores:
-        for modo in ('--headless=new', '--headless'):
-            try:
-                salida = subprocess.run(
-                    [nav, modo, '--disable-gpu',
-                     '--virtual-time-budget=30000', '--dump-dom', 'file:///' + ruta.replace('\\', '/')],
-                    capture_output=True, text=True, timeout=180, encoding='utf-8', errors='replace').stdout or ''
-            except subprocess.TimeoutExpired:
-                continue
+    try:
+        for nav in navegadores:
+            for modo in ('--headless=new', '--headless'):
+                try:
+                    salida = subprocess.run(
+                        [nav, modo, '--disable-gpu',
+                         '--virtual-time-budget=30000', '--dump-dom', 'file:///' + ruta.replace('\\', '/')],
+                        capture_output=True, text=True, timeout=180, encoding='utf-8', errors='replace').stdout or ''
+                except subprocess.TimeoutExpired:
+                    continue
+                if salida.strip():
+                    break
             if salida.strip():
                 break
-        if salida.strip():
-            break
+    finally:
+        try:
+            os.remove(ruta)
+        except OSError:
+            pass
     if not salida.strip():
         return None, 'ningun navegador headless devolvio contenido'
     t = re.search(r'<title>SMOKE\|(.*?)</title>', salida or '', re.S)
@@ -186,22 +195,52 @@ def main():
     if datos:
         dias = datos.get('days', {})
         asc = datos.get('ascensos', {}).get('days', {})
+        closers = (datos.get('closers') or {}).get('r') or []
+        atrib = (datos.get('atribucion') or {}).get('dias') or {}
         check('el payload descifra', True, f'{len(dias)} días LT · {len(asc)} días ascensos')
         check('hay datos de Low Ticket', len(dias) > 0)
-        check('hay datos de ascensos', len(asc) > 0, critico=False)
+        # Antes era aviso: un .enc que no descifra dejaba Ascensos/Closers en
+        # blanco con el chequeo en verde. Atribución sigue como aviso porque
+        # depende del servicio de tracking, que puede estar apagado a propósito.
+        check('hay datos de ascensos', len(asc) > 0)
+        check('hay datos de closers', len(closers) > 0, f'{len(closers)} citas')
+        check('hay datos de atribución (canales)', len(atrib) > 0, f'{len(atrib)} días', critico=False)
         # los totales no deberían ser cero
         spend = sum(d.get('spend', 0) for d in dias.values())
         check('el spend acumulado es > 0', spend > 0, f'${spend:,.0f}')
-        # frescura: el último día no debería tener más de 2 días de rezago
+        # Frescura. Si el Apps Script deja de disparar (token vencido, trigger
+        # borrado, payload demasiado grande) el tablero sigue mostrando datos
+        # viejos con cara de actuales; estos dos checks son críticos para que
+        # el runner mande el WhatsApp. Hora Bogotá (UTC-5, sin horario de verano).
+        from datetime import date, datetime, timedelta, timezone
+        ahora_bog = datetime.now(timezone(timedelta(hours=-5))).replace(tzinfo=None)
+        hoy_bog = ahora_bog.date()
+        upd = str(datos.get('updatedAt') or '')
         try:
-            from datetime import date
+            edad_h = (ahora_bog - datetime.strptime(upd[:16], '%Y-%m-%d %H:%M')).total_seconds() / 3600
+            check('tracker sincronizado hace menos de 24 h', edad_h <= 24,
+                  f'sincronizado {upd} ({edad_h:.0f} h)')
+        except ValueError:
+            check('tracker sincronizado hace menos de 24 h', False, f'updatedAt ilegible: {upd!r}')
+        dias_iso = [k for k in dias if re.match(r'^\d{4}-\d{2}-\d{2}$', k)]
+        ayer = (hoy_bog - timedelta(days=1)).isoformat()
+        ult_lt = max(dias_iso) if dias_iso else None
+        check('último día Low Ticket es de ayer o de hoy', bool(ult_lt) and ult_lt >= ayer,
+              f'último día {ult_lt} · ayer {ayer}')
+        # Ascensos: el Excel se llena al día siguiente y no los fines de semana,
+        # así que el rezago se mide en días hábiles. Más de 2 hábiles = crítico
+        # (la tarea del PC dejó de correr o el Excel no sincroniza).
+        try:
             ult = max(asc) if asc else None
             if ult:
-                rezago = (date.today() - date.fromisoformat(ult)).days
-                check('ascensos con menos de 3 días de rezago', rezago <= 2,
-                      f'último día {ult} ({rezago} días)', critico=False)
-        except Exception:
-            pass
+                d_ult = date.fromisoformat(ult)
+                rezago = (hoy_bog - d_ult).days
+                habiles = sum(1 for i in range(1, max(rezago, 0) + 1)
+                              if (d_ult + timedelta(days=i)).weekday() < 5)
+                check('ascensos con menos de 3 días hábiles de rezago', habiles <= 2,
+                      f'último día {ult} ({rezago} días, {habiles} hábiles)')
+        except Exception as e:
+            check('ascensos con menos de 3 días hábiles de rezago', False, f'llave de día ilegible: {e}')
 
     # 3. Runtime real en navegador (lo que node --check NO puede ver)
     res, err = prueba_navegador(html, clave)
