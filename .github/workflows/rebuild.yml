@@ -4,9 +4,25 @@ on:
   repository_dispatch:
     types: [update-funnel]
   workflow_dispatch:
+  # La tarea del PC commitea ascensos.enc/closers.enc varias veces al día; antes
+  # el tablero solo los incorporaba en los 3 dispatch del tracker (hasta 6 h de
+  # rezago). atribucion.enc queda fuera a propósito: cambia cada 2 horas y
+  # multiplicaría los builds; la recoge el siguiente rebuild. El commit del
+  # index.html no toca estos archivos, así que no se dispara a sí mismo.
+  push:
+    branches: [main]
+    paths:
+      - 'ascensos.enc'
+      - 'closers.enc'
 
 permissions:
   contents: write
+
+# Un solo build a la vez, en cola (no se cancela el que va): un rebuild por push
+# que coincida con el dispatch del tracker no debe chocar en el push final.
+concurrency:
+  group: rebuild-funnel
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -65,6 +81,18 @@ jobs:
           if git diff --staged --quiet; then
             echo "Sin cambios en index.html"
           else
-            git commit -m "auto: sync funnel data desde tracker ($(date +%Y-%m-%d))"
-            git push
+            case "${{ github.event_name }}" in
+              repository_dispatch) MSG="auto: sync funnel data desde tracker ($(date +%Y-%m-%d))" ;;
+              push)                MSG="auto: rebuild por sync de ascensos/closers ($(date +%Y-%m-%d))" ;;
+              *)                   MSG="auto: rebuild manual del tablero ($(date +%Y-%m-%d))" ;;
+            esac
+            git commit -m "$MSG"
+            # Si entre el checkout y el push llegó otro commit (la tarea del PC
+            # publica .enc cada 2 h), se re-integra y se reintenta.
+            for intento in 1 2 3; do
+              if git push; then break; fi
+              echo "push rechazado (intento $intento): re-integrando cambios remotos"
+              git pull --rebase || exit 1
+              sleep 5
+            done
           fi
