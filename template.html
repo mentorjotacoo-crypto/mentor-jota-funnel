@@ -436,7 +436,7 @@
     color:var(--acid); margin-bottom:18px;
   }
   .hero-meta {
-    font-family:'Inter',sans-serif; font-size:14px; color:var(--grey-light);
+    font-family:'Inter',sans-serif; font-size:15px; color:var(--grey-light);
   }
   .hero-meta .accent { color:var(--white); font-weight:600; }
   .hero-side {
@@ -460,8 +460,10 @@
   .hero-mini-value.good { color:var(--good); }
   .hero-mini-value.warn { color:var(--warn); }
   .hero-mini-value.acid { color:var(--acid); }
+  /* 15 px mínimo: aquí va la lectura clave ("Front bajo 1x · el Low Ticket se
+     financia con los ascensos") y la lee gente de 45+ */
   .hero-mini-sub {
-    font-size:13px; color:var(--grey); margin-top:4px; line-height:1.4;
+    font-size:15px; color:var(--grey-light); margin-top:6px; line-height:1.4;
   }
   /* ROAS front · ecosistema en el mismo valor, cada uno con su color */
   .hero-mini-value .good { color:var(--good); }
@@ -606,19 +608,24 @@
   .kpi-cell:hover { background:var(--panel-hover); }
   .kpi-head {
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:10px;
+    flex-wrap:wrap; column-gap:8px; row-gap:4px; margin-bottom:10px;
   }
   .kpi-label {
     font-family:'Clash Display',sans-serif; font-weight:600;
     font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--grey-light);
   }
+  /* La variación ya no es solo "▲ 12%": puede ser la frase "pasó de −$1.766 a
+     +$6.649", así que se lee a 15 px y se parte en dos líneas si no cabe. */
   .kpi-delta {
-    font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;
-    padding:2px 6px; border-radius:7px; display:inline-flex; align-items:center; gap:3px;
+    font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600;
+    padding:2px 7px; border-radius:7px; display:inline-flex; align-items:center; gap:3px;
+    white-space:normal; line-height:1.35; max-width:100%;
   }
-  .kpi-delta.up { color:var(--good); background:rgba(38,169,124,0.10); }
-  .kpi-delta.down { color:var(--warn); background:rgba(230,103,103,0.10); }
-  .kpi-delta.neutral { color:var(--grey); background:rgba(126,140,150,0.08); }
+  /* Verde y rojo aclarados SOLO para el texto de la variación: con --good y
+     --warn la frase quedaba en 5:1; así pasa de 7:1 sobre la tarjeta. */
+  .kpi-delta.up { color:#5AD3A6; background:rgba(38,169,124,0.10); }
+  .kpi-delta.down { color:#F5A6A6; background:rgba(230,103,103,0.10); }
+  .kpi-delta.neutral { color:var(--grey-light); background:rgba(126,140,150,0.08); }
   .kpi-value {
     font-family:'Inter',sans-serif; font-weight:600;
     font-variant-numeric:tabular-nums;
@@ -908,11 +915,14 @@
     font-family:'Clash Display',sans-serif; font-weight:700; font-size:clamp(20px,3vw,26px);
     letter-spacing:1px; text-transform:uppercase; color:var(--white);
   }
-  .pulso-sub { font-size:13px; color:var(--grey); margin-top:3px; }
+  /* Subtítulo, referencia de ayer y resumen del mes: mínimo 15 px (usuarios 45+).
+     Aquí vive lo nuevo de Pulso: "día en curso (parcial)", "HT pendiente",
+     "parcial · ayer $X", "proyección de cierre (sobre N días completos)". */
+  .pulso-sub { font-size:15px; color:var(--grey-light); margin-top:4px; line-height:1.4; }
   .pulso-sub .parcial, .pulso-delta .parcial { color:var(--acid); }
   .pulso-label.wrap { white-space:normal; line-height:1.35; }
   .pulso-mes {
-    font-size:12px; color:var(--grey-light); text-align:right; line-height:1.7;
+    font-size:15px; color:var(--grey-light); text-align:right; line-height:1.5;
     font-variant-numeric:tabular-nums;
   }
   .pulso-mes b { color:var(--acid); font-weight:600; }
@@ -923,10 +933,12 @@
     background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
     padding:20px 18px; min-width:0;
   }
+  /* 15 px, gris claro (contraste 9:1) y con salto de línea: "Ingresos (LT píxel · HT pendiente)" no cabe
+     en una línea de tarjeta y antes se cortaba con "…" */
   .pulso-label {
-    font-family:'Clash Display',sans-serif; font-weight:600; font-size:12px;
-    letter-spacing:1.6px; text-transform:uppercase; color:var(--grey);
-    margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-family:'Clash Display',sans-serif; font-weight:600; font-size:15px;
+    letter-spacing:1px; text-transform:uppercase; color:var(--grey-light);
+    margin-bottom:10px; white-space:normal; line-height:1.35; overflow-wrap:anywhere;
   }
   .pulso-valor {
     font-family:'Inter',sans-serif; font-weight:600; font-variant-numeric:tabular-nums;
@@ -935,7 +947,7 @@
   .pulso-valor.acid { color:var(--acid); }
   .pulso-valor.good { color:var(--good); }
   .pulso-valor.warn { color:var(--warn); }
-  .pulso-delta { margin-top:9px; font-size:13px; font-variant-numeric:tabular-nums; }
+  .pulso-delta { margin-top:9px; font-size:15px; line-height:1.4; font-variant-numeric:tabular-nums; }
   .pulso-delta .up { color:var(--good); }
   .pulso-delta .down { color:var(--warn); }
   .pulso-delta .flat { color:var(--grey-light); }
@@ -5993,7 +6005,7 @@ function renderPulso() {
   document.getElementById('pulsoMes').innerHTML =
     `${monthFullLabel(mesK)} · día ${delMes.length}/${diasMes}<br>` +
     `Ingresos <b>${fmtMoneyCompact(mCash)}</b> · Compras <b>${mPur}</b> · ROAS <b>${mSpend > 0 ? (mCash/mSpend).toFixed(2)+'x' : '-'}</b><br>` +
-    `<span style="color:var(--grey)">proyección de cierre: ${fmtMoneyCompact(proy)}` +
+    `<span style="color:var(--grey-light)">proyección de cierre: ${fmtMoneyCompact(proy)}` +
     (completos.length && completos.length < delMes.length ? ` (sobre ${completos.length} días completos)` : '') + `</span>`;
 
   // Últimos 14 días: barras de compras + línea de cash
