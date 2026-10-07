@@ -35,39 +35,54 @@ function descifrarBlob(b64) {
 // Fuente del bloque del tracker (Low Ticket):
 //   1. data.json, que escribe el workflow desde el dispatch del Apps Script
 //      (o se genera a mano; esta en .gitignore).
-//   2. Si no existe, el payload del index.html publicado: se descifra y se
-//      toma solo lo que viene del tracker. Asi el rebuild que dispara un push
-//      de ascensos.enc/closers.enc (o un workflow_dispatch manual) conserva el
+//   2. El payload del index.html publicado: se descifra y se toma solo lo que
+//      viene del tracker. Asi el rebuild que dispara un push de
+//      ascensos.enc/closers.enc (o un workflow_dispatch manual) conserva el
 //      ultimo Low Ticket sincronizado en vez de fallar por falta de data.json.
+// Si existen los dos gana el de updatedAt MAS RECIENTE (empate: data.json).
+// Antes data.json ganaba siempre: un data.json viejo olvidado en la carpeta
+// del clon hacia que el siguiente build local publicara, en verde y sin
+// aviso, un Low Ticket congelado a la hora de ese archivo.
 const LLAVES_ENC = ['ascensos', 'closers', 'atribucion'];
-function cargarDatosBase() {
-  const pData = path.join(__dirname, 'data.json');
-  if (fs.existsSync(pData)) return JSON.parse(fs.readFileSync(pData, 'utf8'));
+function trackerDelIndex() {
   const pIndex = path.join(__dirname, 'index.html');
-  if (!fs.existsSync(pIndex)) {
-    console.error('[ERROR] No hay data.json ni index.html del que recuperar el tracker.');
-    process.exit(1);
-  }
+  if (!fs.existsSync(pIndex)) return { error: 'no hay index.html' };
   const m = /const ENC_PAYLOAD = '([A-Za-z0-9+/=]+)'/.exec(fs.readFileSync(pIndex, 'utf8'));
-  if (!m) {
-    console.error('[ERROR] No hay data.json y el index.html no trae ENC_PAYLOAD.');
-    process.exit(1);
-  }
+  if (!m) return { error: 'el index.html no trae ENC_PAYLOAD' };
   let previo;
   try {
     previo = descifrarBlob(m[1]);
   } catch (e) {
-    console.error('[ERROR] No hay data.json y el payload del index.html no descifra con esta clave: ' + e.message);
-    process.exit(1);
+    return { error: 'el payload del index.html no descifra con esta clave: ' + e.message };
   }
   LLAVES_ENC.forEach(k => delete previo[k]);
-  if (!previo.days || !Object.keys(previo.days).length) {
-    console.error('[ERROR] El index.html anterior no trae dias del tracker.');
-    process.exit(1);
+  if (!previo.days || !Object.keys(previo.days).length) return { error: 'el index.html anterior no trae dias del tracker' };
+  return { datos: previo };
+}
+function cargarDatosBase() {
+  const pData = path.join(__dirname, 'data.json');
+  const delIndex = trackerDelIndex();
+  if (!fs.existsSync(pData)) {
+    if (!delIndex.datos) {
+      console.error('[ERROR] No hay data.json y ' + delIndex.error + '.');
+      process.exit(1);
+    }
+    console.log('[OK] Sin data.json: tracker recuperado del index.html anterior (' +
+                Object.keys(delIndex.datos.days).length + ' dias, sincronizado ' + delIndex.datos.updatedAt + ')');
+    return delIndex.datos;
   }
-  console.log('[OK] Sin data.json: tracker recuperado del index.html anterior (' +
-              Object.keys(previo.days).length + ' dias, sincronizado ' + previo.updatedAt + ')');
-  return previo;
+  const deArchivo = JSON.parse(fs.readFileSync(pData, 'utf8'));
+  // updatedAt es 'YYYY-MM-DD HH:MM' (hora Bogota) en los dos lados: se compara como texto.
+  const fArchivo = String(deArchivo.updatedAt || ''), fIndex = delIndex.datos ? String(delIndex.datos.updatedAt || '') : '';
+  if (delIndex.datos && fIndex > fArchivo) {
+    console.log('[AVISO] data.json (sincronizado ' + (fArchivo || 'sin fecha') + ') es MAS VIEJO que el index.html publicado (' +
+                fIndex + '): se usa el tracker del index.html (' + Object.keys(delIndex.datos.days).length +
+                ' dias). Borra data.json si ya no hace falta.');
+    return delIndex.datos;
+  }
+  console.log('[OK] Tracker de data.json (sincronizado ' + (fArchivo || 'sin fecha') + ')' +
+              (delIndex.datos ? '; el index.html publicado trae ' + fIndex : '; index.html no comparable: ' + delIndex.error));
+  return deArchivo;
 }
 const data = cargarDatosBase();
 
