@@ -104,7 +104,9 @@ const esperar = ms => new Promise(r => setTimeout(r, ms));
 // con builds viejos). Se espera a que termine el login con ticks cortos que
 // consumen CPU real (hasta ~20 s virtuales).
 async function esperarLogin() {
-  for (let i = 0; i < 4000 && !window.APP_DATA; i++) {
+  // APP_DATA es un let del tablero: no cuelga de window (window.APP_DATA era
+  // siempre undefined y la espera corría completa en cada prueba).
+  for (let i = 0; i < 4000 && (typeof APP_DATA === 'undefined' || !APP_DATA); i++) {
     let x = 0; for (let j = 0; j < 1000000; j++) x = (x * 31 + j) | 0;
     await esperar(5);
   }
