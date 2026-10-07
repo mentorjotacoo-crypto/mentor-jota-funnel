@@ -20,13 +20,32 @@ jobs:
         with:
           node-version: '20'
 
+      # El Apps Script manda el tracker de dos formas y aquí se aceptan ambas:
+      #   · comprimido (desde 2026-10-07): { formato:'gzip-base64', gz:'<base64>' }
+      #   · plano (versión anterior): el JSON del tracker tal cual
+      # Así no importa cuál copia del script esté pegada en Google.
       - name: Write data.json from dispatch payload
         if: github.event_name == 'repository_dispatch'
         env:
           PAYLOAD: ${{ toJson(github.event.client_payload) }}
         run: |
-          echo "$PAYLOAD" > data.json
-          echo "Payload size: $(wc -c < data.json) bytes"
+          node -e '
+            const zlib = require("zlib"), fs = require("fs");
+            const p = JSON.parse(process.env.PAYLOAD || "null");
+            if (!p || typeof p !== "object") { console.error("client_payload vacio"); process.exit(1); }
+            let json;
+            if (typeof p.gz === "string" && !p.days) {
+              json = zlib.gunzipSync(Buffer.from(p.gz, "base64")).toString("utf8");
+              console.log("Payload comprimido: " + p.gz.length + " chars base64 -> " + json.length + " bytes de JSON");
+            } else {
+              json = JSON.stringify(p);
+              console.log("Payload plano: " + json.length + " bytes");
+            }
+            const d = JSON.parse(json);
+            if (!d.days || !Object.keys(d.days).length) { console.error("El payload no trae dias"); process.exit(1); }
+            fs.writeFileSync("data.json", json);
+            console.log("data.json: " + Object.keys(d.days).length + " dias, sincronizado " + d.updatedAt);
+          '
 
       - name: Build encrypted index.html
         env:

@@ -31,6 +31,16 @@
  *   4. Ejecutar previsualizarData(): el Log debe mostrar llaves "2026-..." .
  *   5. Ejecutar syncDashboard() y revisar que el dashboard siga igual.
  * Este archivo es la copia local; la verdad es lo que esta pegado en Google.
+ *
+ * ------------------------------------------------------------
+ * CAMBIO 2026-10-07: PAYLOAD COMPRIMIDO (hay que REPEGAR este archivo)
+ * ------------------------------------------------------------
+ * El JSON que se manda a GitHub estaba a 48 dias del tope de 64 KB. Ahora
+ * triggerGitHubDispatch_() lo manda gzip+base64 (~6 KB). El workflow de GitHub
+ * ya acepta los dos formatos, asi que el orden no importa, pero el tope solo
+ * se evita cuando este archivo este pegado en Google (mismos pasos 1-5 de
+ * arriba). Ademas el payload ya no lleva la llave de escritura de las
+ * observaciones (INCLUIR_SYNC_OBSERVACIONES = false).
  */
 
 // ============================================================
@@ -265,6 +275,10 @@ function columnToLetter_(col) {
 // ============================================================
 // PARSER DEL SHEET -> data.json
 // ============================================================
+// Si el tablero debe poder escribir observaciones en el Sheet (manda la URL
+// de la Web App y el secreto dentro del payload). Apagado desde 2026-10-07.
+const INCLUIR_SYNC_OBSERVACIONES = false;
+
 function buildDataJson_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const days = {};
@@ -391,10 +405,15 @@ function buildDataJson_() {
   // Anotaciones
   const annotations = readAnnotations_(ss);
 
-  // Config Web App (para que el dashboard sepa donde escribir anotaciones)
+  // Config Web App (para que el dashboard sepa donde escribir anotaciones).
+  // La funcion de Observaciones lleva meses sin una sola nota y el secreto que
+  // viaja aqui permite ESCRIBIR en el Sheet a cualquiera con la clave del
+  // tablero. Mientras no se use, no se manda: el tablero muestra la nota como
+  // "guardada solo en esta sesion". Para volver a encenderla: poner
+  // INCLUIR_SYNC_OBSERVACIONES en true y repegar este archivo en Google.
   const props = PropertiesService.getScriptProperties();
-  const webAppUrl = props.getProperty('WEB_APP_URL') || '';
-  const annotationSecret = props.getProperty('ANNOTATION_SECRET') || '';
+  const webAppUrl = INCLUIR_SYNC_OBSERVACIONES ? (props.getProperty('WEB_APP_URL') || '') : '';
+  const annotationSecret = INCLUIR_SYNC_OBSERVACIONES ? (props.getProperty('ANNOTATION_SECRET') || '') : '';
 
   return {
     updatedAt: Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd HH:mm'),
@@ -448,6 +467,33 @@ function parseNumeric_(v) {
 // ============================================================
 // GITHUB DISPATCH
 // ============================================================
+// GitHub limita el client_payload de un repository_dispatch a 64 KB. El JSON
+// plano del tracker ya pesaba 55 KB en octubre de 2026 y crece ~220 bytes por
+// dia (hacia el 23-nov-2026 GitHub habria respondido 422 y el tablero se
+// habria quedado congelado sin aviso). Por eso se manda comprimido: gzip +
+// base64 bajo client_payload.gz (~6 KB; alcanza para anos). rebuild.yml acepta
+// AMBOS formatos (plano y comprimido), asi que da igual cual version de este
+// archivo este pegada en Google.
+const TOPE_PAYLOAD_GITHUB = 64 * 1024;
+const AVISO_PAYLOAD_GITHUB = 50 * 1024;
+
+function empaquetarPayload_(data) {
+  const json = JSON.stringify(data);
+  const gz = Utilities.base64Encode(Utilities.gzip(Utilities.newBlob(json, 'application/json')).getBytes());
+  const body = JSON.stringify({
+    event_type: 'update-funnel',
+    client_payload: { formato: 'gzip-base64', dias: Object.keys(data.days || {}).length, gz: gz }
+  });
+  Logger.log('Payload a GitHub: JSON ' + Math.round(json.length / 1024) + ' KB -> comprimido ' + Math.round(body.length / 1024) + ' KB');
+  if (body.length >= TOPE_PAYLOAD_GITHUB) {
+    throw new Error('El payload comprimido pesa ' + Math.round(body.length / 1024) + ' KB y GitHub rechaza mas de 64 KB. Hay que recortar dias o cambiar el mecanismo.');
+  }
+  if (body.length > AVISO_PAYLOAD_GITHUB) {
+    Logger.log('AVISO: el payload comprimido ya pasa de 50 KB (' + Math.round(body.length / 1024) + ' KB); revisar antes de que llegue a 64 KB.');
+  }
+  return body;
+}
+
 function triggerGitHubDispatch_(data) {
   const token = PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN');
   if (!token) throw new Error('GITHUB_TOKEN no configurado en Script Properties.');
@@ -461,10 +507,7 @@ function triggerGitHubDispatch_(data) {
       'Accept': 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28'
     },
-    payload: JSON.stringify({
-      event_type: 'update-funnel',
-      client_payload: data
-    }),
+    payload: empaquetarPayload_(data),
     muteHttpExceptions: true
   });
 
