@@ -28,8 +28,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Siempre la PUNTA de main, no el commit del evento: un build que esperó en
+      # la cola (concurrency) arrancaba sobre un index.html ya reemplazado por el
+      # build anterior y el push final chocaba en las mismas dos líneas.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -73,26 +78,41 @@ jobs:
           fi
           node build.js "$FUNNEL_PASSWORD"
 
+      # index.html se GENERA, no se fusiona: si el push se rechaza (entró otro
+      # commit: la tarea del PC publica .enc cada 2 h, u otro rebuild) no se
+      # rebasa — cada build reescribe el payload completo y el rebase choca
+      # siempre. Se vuelve a la punta de main, se reconstruye y se reintenta.
+      # data.json está ignorado por git y sobrevive al reset; build.js usa el
+      # tracker más reciente entre data.json y el index.html publicado.
+      # Si los 3 intentos fallan el paso sale en ROJO (antes terminaba en verde
+      # con el commit sin subir).
       - name: Commit and push if changed
+        env:
+          FUNNEL_PASSWORD: ${{ secrets.FUNNEL_PASSWORD }}
         run: |
           git config user.email "actions@github.com"
           git config user.name "GitHub Actions (auto-sync)"
-          git add index.html
-          if git diff --staged --quiet; then
-            echo "Sin cambios en index.html"
-          else
-            case "${{ github.event_name }}" in
-              repository_dispatch) MSG="auto: sync funnel data desde tracker ($(date +%Y-%m-%d))" ;;
-              push)                MSG="auto: rebuild por sync de ascensos/closers ($(date +%Y-%m-%d))" ;;
-              *)                   MSG="auto: rebuild manual del tablero ($(date +%Y-%m-%d))" ;;
-            esac
+          case "${{ github.event_name }}" in
+            repository_dispatch) MSG="auto: sync funnel data desde tracker ($(date +%Y-%m-%d))" ;;
+            push)                MSG="auto: rebuild por sync de ascensos/closers ($(date +%Y-%m-%d))" ;;
+            *)                   MSG="auto: rebuild manual del tablero ($(date +%Y-%m-%d))" ;;
+          esac
+          ok=0
+          for intento in 1 2 3; do
+            git add index.html
+            if git diff --staged --quiet; then
+              echo "Sin cambios en index.html"
+              ok=1; break
+            fi
             git commit -m "$MSG"
-            # Si entre el checkout y el push llegó otro commit (la tarea del PC
-            # publica .enc cada 2 h), se re-integra y se reintenta.
-            for intento in 1 2 3; do
-              if git push; then break; fi
-              echo "push rechazado (intento $intento): re-integrando cambios remotos"
-              git pull --rebase || exit 1
-              sleep 5
-            done
+            if git push origin HEAD:main; then ok=1; break; fi
+            echo "push rechazado (intento $intento): se reconstruye sobre la punta de main"
+            sleep 5
+            git fetch origin main
+            git reset --hard origin/main
+            node build.js "$FUNNEL_PASSWORD"
+          done
+          if [ "$ok" != 1 ]; then
+            echo "ERROR: index.html no se pudo publicar tras 3 intentos"
+            exit 1
           fi
