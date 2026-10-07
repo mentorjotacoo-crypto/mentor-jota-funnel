@@ -20,7 +20,56 @@ const ITERATIONS = 150000;
 const SALT_LEN = 16;
 const IV_LEN = 12;
 
-const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'data.json'), 'utf8'));
+// Descifra un blob salt(16)|iv(12)|tag(16)|ct (base64), gzip opcional. Mismo
+// formato para el payload del index.html y para los .enc del repo.
+function descifrarBlob(b64) {
+  const blob = Buffer.from(b64, 'base64');
+  const key = crypto.pbkdf2Sync(password, blob.subarray(0, 16), ITERATIONS, 32, 'sha256');
+  const dec = crypto.createDecipheriv('aes-256-gcm', key, blob.subarray(16, 28));
+  dec.setAuthTag(blob.subarray(28, 44));
+  let plain = Buffer.concat([dec.update(blob.subarray(44)), dec.final()]);
+  if (plain.length > 2 && plain[0] === 0x1f && plain[1] === 0x8b) plain = zlib.gunzipSync(plain);
+  return JSON.parse(plain.toString('utf8'));
+}
+
+// Fuente del bloque del tracker (Low Ticket):
+//   1. data.json, que escribe el workflow desde el dispatch del Apps Script
+//      (o se genera a mano; esta en .gitignore).
+//   2. Si no existe, el payload del index.html publicado: se descifra y se
+//      toma solo lo que viene del tracker. Asi el rebuild que dispara un push
+//      de ascensos.enc/closers.enc (o un workflow_dispatch manual) conserva el
+//      ultimo Low Ticket sincronizado en vez de fallar por falta de data.json.
+const LLAVES_ENC = ['ascensos', 'closers', 'atribucion'];
+function cargarDatosBase() {
+  const pData = path.join(__dirname, 'data.json');
+  if (fs.existsSync(pData)) return JSON.parse(fs.readFileSync(pData, 'utf8'));
+  const pIndex = path.join(__dirname, 'index.html');
+  if (!fs.existsSync(pIndex)) {
+    console.error('[ERROR] No hay data.json ni index.html del que recuperar el tracker.');
+    process.exit(1);
+  }
+  const m = /const ENC_PAYLOAD = '([A-Za-z0-9+/=]+)'/.exec(fs.readFileSync(pIndex, 'utf8'));
+  if (!m) {
+    console.error('[ERROR] No hay data.json y el index.html no trae ENC_PAYLOAD.');
+    process.exit(1);
+  }
+  let previo;
+  try {
+    previo = descifrarBlob(m[1]);
+  } catch (e) {
+    console.error('[ERROR] No hay data.json y el payload del index.html no descifra con esta clave: ' + e.message);
+    process.exit(1);
+  }
+  LLAVES_ENC.forEach(k => delete previo[k]);
+  if (!previo.days || !Object.keys(previo.days).length) {
+    console.error('[ERROR] El index.html anterior no trae dias del tracker.');
+    process.exit(1);
+  }
+  console.log('[OK] Sin data.json: tracker recuperado del index.html anterior (' +
+              Object.keys(previo.days).length + ' dias, sincronizado ' + previo.updatedAt + ')');
+  return previo;
+}
+const data = cargarDatosBase();
 
 // Llaves de día: ISO 'YYYY-MM-DD' en todo el tablero. El Apps Script emitía
 // 'Sep 27' (sin año) y desde 2026-10-05 emite ISO. Aquí se aceptan AMBOS:
@@ -67,51 +116,32 @@ function normalizarDias(d) {
 normalizarDias(data);
 
 // Fusiona un blob .enc del repo (mismo formato salt|iv|tag|ct que el payload,
-// gzip opcional) dentro de `data` bajo la llave indicada.
+// gzip opcional; los generan sync_ascensos.py, sync_closers.py y
+// sync_atribucion.py) dentro de `data` bajo la llave indicada. Así los
+// auto-syncs del tracker LT no pisan esos datos.
+//
+// Si el archivo EXISTE y no descifra (clave distinta, archivo truncado por un
+// push a medias), el build se detiene con error: antes seguía con un aviso y
+// el workflow publicaba en verde un tablero con Ascensos/Closers/Canales en
+// blanco, que el equipo leería como "no hubo ventas".
 function fusionarEnc(archivo, llave, describir) {
   const p = path.join(__dirname, archivo);
-  if (!fs.existsSync(p)) return;
+  if (!fs.existsSync(p)) {
+    console.log('[--] ' + archivo + ' no existe: la pestaña queda en estado vacío');
+    return;
+  }
   try {
-    const blob = Buffer.from(fs.readFileSync(p, 'ascii'), 'base64');
-    const key = crypto.pbkdf2Sync(password, blob.subarray(0, 16), ITERATIONS, 32, 'sha256');
-    const dec = crypto.createDecipheriv('aes-256-gcm', key, blob.subarray(16, 28));
-    dec.setAuthTag(blob.subarray(28, 44));
-    let plain = Buffer.concat([dec.update(blob.subarray(44)), dec.final()]);
-    if (plain.length > 2 && plain[0] === 0x1f && plain[1] === 0x8b) plain = zlib.gunzipSync(plain);
-    data[llave] = JSON.parse(plain.toString('utf8'));
+    data[llave] = descifrarBlob(fs.readFileSync(p, 'ascii'));
     console.log('[OK] ' + archivo + ' fusionado: ' + describir(data[llave]));
   } catch (e) {
-    console.warn('[WARN] No se pudo desencriptar ' + archivo + ': ' + e.message);
+    console.error('[ERROR] ' + archivo + ' existe pero no descifra (' + e.message + '). ' +
+                  'No se publica un tablero sin esos datos: revisar la clave o regenerar el archivo.');
+    process.exit(1);
   }
 }
 fusionarEnc('closers.enc', 'closers', d => d.r.length + ' citas, ' + d.closers.length + ' closers');
 fusionarEnc('atribucion.enc', 'atribucion', d => Object.keys(d.dias).length + ' dias por canal (' + d.modelo + ')');
-
-// Fusionar ascensos.enc si existe (blob encriptado commiteado al repo —
-// mismo formato salt|iv|tag|ct que el payload; lo genera sync_ascensos.py).
-// Así los auto-syncs del tracker LT no pisan los datos de ascensos.
-const ascPath = path.join(__dirname, 'ascensos.enc');
-if (fs.existsSync(ascPath)) {
-  try {
-    const blob = Buffer.from(fs.readFileSync(ascPath, 'ascii'), 'base64');
-    const aSalt = blob.subarray(0, 16);
-    const aIv = blob.subarray(16, 28);
-    const aTag = blob.subarray(28, 44);
-    const aCt = blob.subarray(44);
-    const aKey = crypto.pbkdf2Sync(password, aSalt, ITERATIONS, 32, 'sha256');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', aKey, aIv);
-    decipher.setAuthTag(aTag);
-    let plain = Buffer.concat([decipher.update(aCt), decipher.final()]);
-    // Soporta blob comprimido (gzip magic 1f 8b) o legacy sin comprimir
-    if (plain.length > 2 && plain[0] === 0x1f && plain[1] === 0x8b) {
-      plain = zlib.gunzipSync(plain);
-    }
-    data.ascensos = JSON.parse(plain.toString('utf8'));
-    console.log('[OK] ascensos.enc fusionado: ' + Object.keys(data.ascensos.days).length + ' dias');
-  } catch (e) {
-    console.warn('[WARN] No se pudo desencriptar ascensos.enc: ' + e.message);
-  }
-}
+fusionarEnc('ascensos.enc', 'ascensos', d => Object.keys(d.days).length + ' dias');
 
 // Comprimir ANTES de cifrar: el JSON comprime ~90%; lo cifrado no comprime.
 // El navegador detecta el magic gzip tras descifrar y usa DecompressionStream.
