@@ -6022,7 +6022,9 @@ function renderPulso() {
       data:{ labels: ult.map(k => k.slice(8, 10)), datasets:[
         { type:'bar', label:'Compras LT', data: ult.map(k => APP_DATA.days[k].purchases || 0),
           backgroundColor:'rgba(57,135,229,0.55)', borderRadius:3, yAxisID:'y' },
-        { type:'line', label:'Ingresos', data: ult.map(k => Math.round((APP_DATA.days[k].revenue||0) + htDia(k).cobrado)),
+        // El día en curso o con el HT sin cargar no se dibuja en la línea: la
+        // pintaba como una caída a casi $0 que no es real (las barras sí lo muestran).
+        { type:'line', label:'Ingresos', data: ult.map(k => (k >= hoyLocal || ascDiaPendiente_(k)) ? null : Math.round((APP_DATA.days[k].revenue||0) + htDia(k).cobrado)),
           borderColor:'#E7FF2A', borderWidth:2.5, tension:0.3, pointRadius:0, yAxisID:'y2' }
       ]},
       options:{ responsive:true, maintainAspectRatio:false,
