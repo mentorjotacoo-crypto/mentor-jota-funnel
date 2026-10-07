@@ -47,12 +47,16 @@ jobs:
       # Así no importa cuál copia del script esté pegada en Google.
       - name: Write data.json from dispatch payload
         if: github.event_name == 'repository_dispatch'
-        env:
-          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        # El payload se lee del archivo del evento ($GITHUB_EVENT_PATH), NO de una
+        # variable `env:`: GitHub imprime en el log el valor de cada variable del
+        # paso, y este repo es público. Desde abril de 2026 cada sincronización
+        # dejaba en un log abierto todo el tracker (gasto, ventas e ingresos por
+        # día) y la llave de escritura de Observaciones, lo mismo que el tablero
+        # publica cifrado. (Detectado el 7-oct-2026.)
         run: |
           node -e '
             const zlib = require("zlib"), fs = require("fs");
-            const p = JSON.parse(process.env.PAYLOAD || "null");
+            const p = (JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8")) || {}).client_payload || null;
             if (!p || typeof p !== "object") { console.error("client_payload vacio"); process.exit(1); }
             let json;
             if (typeof p.gz === "string" && !p.days) {
