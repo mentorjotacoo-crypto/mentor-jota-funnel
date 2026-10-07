@@ -36,7 +36,7 @@
  * CAMBIO 2026-10-07: PAYLOAD COMPRIMIDO (hay que REPEGAR este archivo)
  * ------------------------------------------------------------
  * El JSON que se manda a GitHub estaba a 48 dias del tope de 64 KB. Ahora
- * triggerGitHubDispatch_() lo manda gzip+base64 (~6 KB). El workflow de GitHub
+ * triggerGitHubDispatch_() lo manda gzip+base64 (~13 KB). El workflow de GitHub
  * ya acepta los dos formatos, asi que el orden no importa, pero el tope solo
  * se evita cuando este archivo este pegado en Google (mismos pasos 1-5 de
  * arriba). Ademas el payload ya no lleva la llave de escritura de las
@@ -471,7 +471,7 @@ function parseNumeric_(v) {
 // plano del tracker ya pesaba 55 KB en octubre de 2026 y crece ~220 bytes por
 // dia (hacia el 23-nov-2026 GitHub habria respondido 422 y el tablero se
 // habria quedado congelado sin aviso). Por eso se manda comprimido: gzip +
-// base64 bajo client_payload.gz (~6 KB; alcanza para anos). rebuild.yml acepta
+// base64 bajo client_payload.gz (~13 KB; alcanza para anos). rebuild.yml acepta
 // AMBOS formatos (plano y comprimido), asi que da igual cual version de este
 // archivo este pegada en Google.
 const TOPE_PAYLOAD_GITHUB = 64 * 1024;
