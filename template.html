@@ -2237,6 +2237,21 @@ function renderPeriodButtons() {
     b.textContent = d.label;
     bar.appendChild(b);
   });
+
+  // Vista Día / Semana (solo en las pestañas de tiempo del Low Ticket)
+  const sep = document.createElement('span');
+  sep.className = 'period-bar-label'; sep.id = 'vistaLabel'; sep.style.marginLeft = '18px'; sep.textContent = 'Vista';
+  bar.appendChild(sep);
+  [['dia', 'Día'], ['semana', 'Semana']].forEach(([v, t]) => {
+    const b = document.createElement('button');
+    b.className = 'btn'; b.dataset.vista = v; b.textContent = t; b.onclick = () => setVista(v);
+    bar.appendChild(b);
+  });
+  const nota = document.createElement('span');
+  nota.id = 'vistaNota'; nota.className = 'period-bar-label';
+  nota.style.cssText = 'margin-left:10px;text-transform:none;letter-spacing:0;opacity:.8';
+  bar.appendChild(nota);
+  actualizarVistaToggle_();
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -2327,8 +2342,8 @@ function anioDeducido_(mi, dd, d) {
   return y;
 }
 function dayKeyYear(k) { return parseInt(k.slice(0, 4), 10); }
-function dayKeyToISO(k) { return k; }
-function monthOfKey(k) { return k.slice(0, 7); }              // 'YYYY-MM'
+function dayKeyToISO(k) { return String(k).replace(/^W/, ''); }
+function monthOfKey(k) { return String(k).replace(/^W/, '').slice(0, 7); }              // 'YYYY-MM'
 function monthKeyYear(mk) { return parseInt(mk.slice(0, 4), 10); }
 function monthAbr_(mk) { return MONTH_NAMES[parseInt(mk.slice(5, 7), 10) - 1] || mk; }
 // ¿El historial cargado abarca más de un año? Entonces las etiquetas llevan el año.
@@ -2341,6 +2356,10 @@ function multiAnio_() {
 }
 // 'Sep 27' (un solo año en los datos) · "Sep 27 '26" (varios años) · conAnio=true fuerza 'Sep 27 2026'
 function dayLabel(k, conAnio) {
+  if (typeof k === 'string' && k.charAt(0) === 'W') {   // semana: 'S 19 Oct' (+ * si está en curso)
+    const iso = k.slice(1), w = SEM_AGG && SEM_AGG[k];
+    return 'S ' + monthAbr_(iso) + ' ' + iso.slice(8, 10) + (w && w._parcial ? ' *' : '');
+  }
   if (!ISO_DIA_RE.test(k)) return k;
   const base = monthAbr_(k) + ' ' + k.slice(8, 10);
   if (conAnio) return base + ' ' + k.slice(0, 4);
@@ -2354,7 +2373,7 @@ function monthFullLabel(mk) { return (MONTH_FULL[monthAbr_(mk)] || mk) + ' ' + m
 // Día del Low Ticket de una fecha ISO (o undefined): la llave ya es la fecha
 function ltDayOfISO(iso) { return APP_DATA.days[iso]; }
 function parseDayKey(a, b) { return a < b ? -1 : (a > b ? 1 : 0); }
-function dayKeyToDate(k) { return new Date(parseInt(k.slice(0, 4), 10), parseInt(k.slice(5, 7), 10) - 1, parseInt(k.slice(8, 10), 10)); }
+function dayKeyToDate(k) { k = String(k).replace(/^W/, ''); return new Date(parseInt(k.slice(0, 4), 10), parseInt(k.slice(5, 7), 10) - 1, parseInt(k.slice(8, 10), 10)); }
 function dateToDayKey(date) {
   return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
 }
@@ -2524,7 +2543,69 @@ document.addEventListener('keydown', e => {
     e.target.click();
   }
 });
-function getFilteredDays() {
+// ====== VISTA DÍA / SEMANA ======
+// Un solo interruptor en la barra de período: en las pestañas de tiempo del Low
+// Ticket, "Semana" agrupa los días en semanas lunes–domingo. Es exacto porque
+// cada día trae SOLO campos sumables (impresiones, clics, compras, gasto…): las
+// tasas se recalculan a partir de las sumas. Las semanas usan llaves 'W<lunes>'
+// para no confundirse nunca con un día real; un Proxy sobre APP_DATA.days
+// devuelve el agregado de la semana cuando se pide una de esas llaves.
+const TABS_VISTA_SEMANA = ['resumen', 'embudo', 'trends', 'revenue', 'data'];
+const SEM_CAMPOS = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2',
+                    'spend','spend_google','revenue','revenue_lt','revenue_b1','revenue_b2'];
+let vistaSemana = false;
+try { vistaSemana = localStorage.getItem('funnel_vista') === 'semana'; } catch (_e) {}
+let SEM_AGG = null;
+function semanaActiva() { return vistaSemana && TABS_VISTA_SEMANA.includes(currentTab); }
+function setVista(v) {
+  vistaSemana = (v === 'semana');
+  try { localStorage.setItem('funnel_vista', v); } catch (_e) {}
+  renderAll();
+}
+function actualizarVistaToggle_() {
+  const aplica = TABS_VISTA_SEMANA.includes(currentTab);
+  document.querySelectorAll('[data-vista]').forEach(b => {
+    b.style.display = aplica ? '' : 'none';
+    b.classList.toggle('active', (vistaSemana ? 'semana' : 'dia') === b.dataset.vista);
+  });
+  const l = document.getElementById('vistaLabel'); if (l) l.style.display = aplica ? '' : 'none';
+  const n = document.getElementById('vistaNota');
+  if (n) { n.style.display = (aplica && vistaSemana) ? '' : 'none'; n.textContent = 'semanas lun–dom · * = semana en curso (parcial)'; }
+}
+// El día real aunque la vista sea semanal (para el mapa de calor por día de semana)
+function diaReal_(k) { return (APP_DATA._diasReales || APP_DATA.days)[k]; }
+function activarProxySemanas_() {
+  if (APP_DATA._diasReales) return;
+  const real = APP_DATA.days;
+  APP_DATA._diasReales = real;
+  APP_DATA.days = new Proxy(real, {
+    get(t, k) {
+      if (typeof k === 'string' && k.charCodeAt(0) === 87 && SEM_AGG && SEM_AGG[k]) return SEM_AGG[k];
+      return t[k];
+    }
+  });
+}
+function agruparSemanas_(keys) {
+  const g = {};
+  const lunesHoy = semIso_(semLunes_(new Date()));
+  keys.forEach(k => {
+    const lun = semIso_(semLunes_(dayKeyToDate(k)));
+    let w = g[lun];
+    if (!w) { w = g[lun] = { _dias: 0, _desde: k, _hasta: k, _parcial: lun === lunesHoy }; SEM_CAMPOS.forEach(f => w[f] = 0); }
+    const d = diaReal_(k);
+    SEM_CAMPOS.forEach(f => { w[f] += d[f] || 0; });
+    w._dias++; w._hasta = k;
+  });
+  SEM_AGG = {};
+  return Object.keys(g).sort().map(l => { SEM_AGG['W' + l] = g[l]; return 'W' + l; });
+}
+function getFilteredDays(opts) {
+  const dias = getFilteredDaysDiarios();
+  if (!semanaActiva() || (opts && opts.diario)) return dias;
+  activarProxySemanas_();
+  return agruparSemanas_(dias);
+}
+function getFilteredDaysDiarios() {
   const all = getSortedDayKeys();
   const withData = all.filter(k => {
     const d = APP_DATA.days[k];
@@ -2918,18 +2999,20 @@ function setupChartDefaults_() {
   // año si el historial abarca varios) y en el tooltip como 'Sep 27 2026'.
   Chart.defaults.scales.category.ticks.callback = function (v) {
     const l = this.getLabelForValue(v);
-    return typeof l === 'string' && ISO_DIA_RE.test(l) ? dayLabel(l) : l;
+    // Días ISO y semanas 'W<lunes>' (vista semanal) pasan por dayLabel; lo demás, tal cual
+    return typeof l === 'string' && (ISO_DIA_RE.test(l) || l.charAt(0) === 'W') ? dayLabel(l) : l;
   };
   const tituloOriginal = tt.callbacks.title;
   tt.callbacks.title = function (items) {
     const l = items.length && items[0].label;
-    return typeof l === 'string' && ISO_DIA_RE.test(l) ? dayLabel(l, true) : tituloOriginal.call(this, items);
+    return typeof l === 'string' && (ISO_DIA_RE.test(l) || l.charAt(0) === 'W') ? dayLabel(l, true) : tituloOriginal.call(this, items);
   };
 }
 
 function renderAll() {
   if (!APP_DATA) return;
   setupChartDefaults_();
+  actualizarVistaToggle_();
   destroyCharts();
   renderInsights();
   renderKPIs();
@@ -3788,6 +3871,7 @@ function renderFunnelDailyChart() {
 }
 
 function weekdayLabel(dayKey) {
+  if (typeof dayKey === 'string' && dayKey.charAt(0) === 'W') return '';   // una semana no tiene día de la semana
   try {
     const d = dayKeyToDate(dayKey);
     const days = ['dom','lun','mar','mi\u00E9','jue','vie','s\u00E1b'];
@@ -4019,13 +4103,13 @@ function renderTrendCharts() {
 }
 
 function renderHeatmap() {
-  const keys = getFilteredDays();
+  const keys = getFilteredDays({ diario: true });   // por día de semana: siempre días reales
   const dayNames = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
   const weekCounts = new Array(7).fill(0).map(()=>({count:0, purchases:0}));
   keys.forEach(k => {
     const d = dayKeyToDate(k);
     const w = d.getDay();
-    weekCounts[w].purchases += (APP_DATA.days[k].purchases || 0);
+    weekCounts[w].purchases += (diaReal_(k).purchases || 0);
     weekCounts[w].count += 1;
   });
   const avgs = weekCounts.map(w => w.count > 0 ? w.purchases / w.count : 0);
@@ -6471,7 +6555,8 @@ function renderDataGrid() {
   const fields = ['impressions','reach','clicks','lpv','leads','checkouts','purchases','bump1','bump2','spend'];
   const labels = ['Impresiones','Alcance','Clicks','LPV','Leads','Checkouts','Compras','Bump 1','Bump 2','Spend'];
 
-  const porMes = dataVista === 'mes' || (dataVista === 'auto' && days.length > 31);
+  // En vista semanal, 'auto' muestra semanas (son pocas columnas); solo agrupa por mes si se pide explícito.
+  const porMes = dataVista === 'mes' || (dataVista === 'auto' && days.length > 31 && !semanaActiva());
   // Columnas {titulo, d}: un día, o un mes con la suma de sus días. La más reciente primero.
   let cols;
   if (porMes) {
