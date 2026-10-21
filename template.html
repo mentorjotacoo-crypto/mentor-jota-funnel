@@ -2238,15 +2238,21 @@ function renderPeriodButtons() {
     bar.appendChild(b);
   });
 
-  // Vista Día / Semana (solo en las pestañas de tiempo del Low Ticket)
+  // Vista Día / Semana (solo en las pestañas de tiempo del Low Ticket).
+  // Va AL INICIO de la barra: al final quedaba en una segunda fila en escritorio
+  // y, en celular, a más de 1.000 px a la derecha (la barra se desliza) — invisible.
+  const wrap = document.createElement('span');
+  wrap.id = 'vistaWrap';
+  wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-right:16px;padding-right:14px;border-right:1px solid rgba(151,178,193,0.18)';
   const sep = document.createElement('span');
-  sep.className = 'period-bar-label'; sep.id = 'vistaLabel'; sep.style.marginLeft = '18px'; sep.textContent = 'Vista';
-  bar.appendChild(sep);
+  sep.className = 'period-bar-label'; sep.id = 'vistaLabel'; sep.textContent = 'Vista';
+  wrap.appendChild(sep);
   [['dia', 'Día'], ['semana', 'Semana']].forEach(([v, t]) => {
     const b = document.createElement('button');
     b.className = 'btn'; b.dataset.vista = v; b.textContent = t; b.onclick = () => setVista(v);
-    bar.appendChild(b);
+    wrap.appendChild(b);
   });
+  bar.insertBefore(wrap, bar.firstChild);
   const nota = document.createElement('span');
   nota.id = 'vistaNota'; nota.className = 'period-bar-label';
   nota.style.cssText = 'margin-left:10px;text-transform:none;letter-spacing:0;opacity:.8';
@@ -2569,6 +2575,7 @@ function actualizarVistaToggle_() {
     b.classList.toggle('active', (vistaSemana ? 'semana' : 'dia') === b.dataset.vista);
   });
   const l = document.getElementById('vistaLabel'); if (l) l.style.display = aplica ? '' : 'none';
+  const w = document.getElementById('vistaWrap'); if (w) w.style.display = aplica ? '' : 'none';
   const n = document.getElementById('vistaNota');
   if (n) { n.style.display = (aplica && vistaSemana) ? '' : 'none'; n.textContent = 'semanas lun–dom · * = semana en curso (parcial)'; }
 }
