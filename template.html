@@ -1366,6 +1366,7 @@
   <!-- TABS -->
   <div class="tabs">
     <button class="tab-btn" onclick="switchTab('pulso', this)">Pulso</button>
+    <button class="tab-btn" onclick="switchTab('semanal', this)">Semanal</button>
     <button class="tab-btn active" onclick="switchTab('resumen', this)">Resumen</button>
     <button class="tab-btn" onclick="switchTab('embudo', this)">Embudo</button>
     <button class="tab-btn" onclick="switchTab('journey', this)">Recorrido del cliente</button>
@@ -1396,6 +1397,66 @@
 
   <!-- TAB: RESUMEN (hero) -->
   <!-- TAB: PULSO — lectura de 3 segundos, pensada para celular -->
+  <!-- TAB: SEMANAL — semana contra semana, todo el negocio -->
+  <div id="tab-semanal" class="tab-panel">
+    <main>
+      <div class="pulso-head">
+        <div>
+          <div class="pulso-titulo" id="semTitulo">Semana</div>
+          <div class="pulso-sub" id="semSub">&nbsp;</div>
+        </div>
+        <div class="period-bar" style="margin:0">
+          <span class="period-bar-label">Ventana</span>
+          <button class="btn" data-sem="8" onclick="setSemanas(8, this)">8 sem</button>
+          <button class="btn active" data-sem="12" onclick="setSemanas(12, this)">12 sem</button>
+          <button class="btn" data-sem="26" onclick="setSemanas(26, this)">26 sem</button>
+        </div>
+      </div>
+      <div id="semanalContent">
+        <div class="kpi-strip cols-8" id="semKpis"></div>
+        <div class="chart-subtitle" id="semNota" style="margin:8px 0 4px"></div>
+
+        <div class="section-title">01 &middot; Dinero <span class="sub">cash por semana contra la inversi&oacute;n</span></div>
+        <div class="charts-grid">
+          <div class="chart-card accent-top">
+            <div class="chart-title">Cash total vs inversi&oacute;n</div>
+            <div class="chart-subtitle">Low Ticket + High Ticket apilados &middot; el tooltip trae el ROAS de la semana</div>
+            <div class="chart-wrap"><canvas id="chartSemCash"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">High Ticket: contratado vs cobrado</div>
+            <div class="chart-subtitle">lo vendido y lo que de verdad entr&oacute;, por semana</div>
+            <div class="chart-wrap"><canvas id="chartSemHT"></canvas></div>
+          </div>
+        </div>
+
+        <div class="section-title">02 &middot; Ventas <span class="sub">compras del desaf&iacute;o y ascensos</span></div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Compras LT y ventas HT</div>
+            <div class="chart-subtitle">HT en el eje derecho &middot; el tooltip trae la tasa de ascenso de la semana</div>
+            <div class="chart-wrap"><canvas id="chartSemVentas"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Citas y asistencia</div>
+            <div class="chart-subtitle">agendadas, asistidas y tasa de asistencia por semana</div>
+            <div class="chart-wrap"><canvas id="chartSemCitas"></canvas></div>
+          </div>
+        </div>
+
+        <div class="section-title">03 &middot; Cierre <span class="sub">tasa semanal en las dos bases</span></div>
+        <div class="chart-card">
+          <div class="chart-title">Tasa de cierre por semana</div>
+          <div class="chart-subtitle">sobre asistidas y sobre agendas &middot; los puntos tenues tienen menos de 10 asistidas (no comparar)</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chartSemCierre"></canvas></div>
+        </div>
+
+        <div class="section-title">04 &middot; Tabla <span class="sub">entre par&eacute;ntesis, la variaci&oacute;n contra la semana anterior</span></div>
+        <div class="table-wrap"><table class="data-table" id="semTabla"></table></div>
+      </div>
+    </main>
+  </div>
+
   <div id="tab-pulso" class="tab-panel">
     <main>
       <div class="pulso-head">
@@ -2542,7 +2603,7 @@ function actualizarEtiquetaPeriodo() {
 
 // ====== TABS ======
 // Pestañas que no usan la barra de período global (tienen filtro propio o lo ignoran)
-const TABS_SIN_PERIODO = ['ascensos', 'pulso', 'closers'];
+const TABS_SIN_PERIODO = ['ascensos', 'pulso', 'closers', 'semanal'];
 // Botón (de la barra o del menú "Más") que abre una pestaña, por su onclick
 function botonDeTab_(tab) {
   return document.querySelector("[onclick=\"switchTab('" + tab + "', this)\"]");
@@ -2868,6 +2929,7 @@ function renderAll() {
   renderInsights();
   renderKPIs();
   if (currentTab === 'closers'){ renderClosers(); }
+  if (currentTab === 'semanal'){ renderSemanal(); }
   if (currentTab === 'pulso')  { renderPulso(); }
   if (currentTab === 'resumen'){ renderResumen(); }
   if (currentTab === 'embudo') { renderFunnelVisual(); setTimeout(()=>{ renderFunnelDailyChart(); renderConversionsChart(); }, 30); }
@@ -4049,8 +4111,10 @@ function renderRevenueCharts() {
     data:{
       labels:keys,
       datasets:[
-        { label:'Bump 1', data:b1Rate, borderColor:CHART_PALETTE.good, tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false },
-        { label:'Bump 2', data:b2Rate, borderColor:'#26A97C', tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2, fill:false }
+        { label:'Bump 1 ($42)', data:b1Rate, borderColor:'#3987E5', tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2.5, fill:false },
+        // Antes ambas series eran #26A97C (CHART_PALETTE.good == el verde escrito a mano): indistinguibles.
+        // Azul y magenta son el par de la paleta validada para daltonismo.
+        { label:'Bump 2 ($52)', data:b2Rate, borderColor:'#D55181', borderDash:[6,3], tension:0.35, pointRadius:0, pointHoverRadius:4, borderWidth:2.5, fill:false }
       ]
     },
     options: commonChartOptions({
@@ -5914,6 +5978,256 @@ function renderClosers() {
     '<td class="num">' + tot.tAsist.toFixed(1) + '%</td><td class="num">' + tot.cierres + '</td>' +
     '<td class="num">' + tot.tCierre.toFixed(1) + '%</td><td class="num">' + tot.tCierreAg.toFixed(1) + '%</td>' +
     '<td class="num">' + fmtMoneyCompact(tot.revenue) + '</td><td class="num">' + fmtMoneyCompact(tot.ticket) + '</td></tr></tbody>';
+}
+
+// ====== SEMANAL ======
+// Comparación semana contra semana (lunes a domingo) de TODO el negocio: Low
+// Ticket, ascensos y closers. Ignora el filtro global a propósito: la pregunta
+// que responde es "¿cómo va esta semana frente a la anterior?", y para eso
+// la ventana la pone el selector de semanas (8 / 12 / 26).
+//
+// Una semana en curso no se compara contra la anterior completa (sería
+// comparar 2 días contra 7): los KPIs comparan A IGUAL NÚMERO DE DÍAS
+// transcurridos, y en las gráficas la semana parcial va atenuada y marcada.
+let semSel = 12;
+const SEM_MS = 86400000;
+
+function semPad_(n) { return String(n).padStart(2, '0'); }
+function semIso_(d) { return d.getFullYear() + '-' + semPad_(d.getMonth() + 1) + '-' + semPad_(d.getDate()); }
+function semDeIso_(iso) { return new Date(iso.slice(0, 4), parseInt(iso.slice(5, 7), 10) - 1, parseInt(iso.slice(8, 10), 10), 12); }
+// Lunes de la semana a la que pertenece la fecha
+function semLunes_(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+function semLabel_(lunesIso) {
+  const d = semDeIso_(lunesIso);
+  return d.getDate() + ' ' + MONTH_NAMES[d.getMonth()];
+}
+
+// Índice ISO → día LT (las llaves del LT son 'Oct 05', sin año)
+let semIdxLT_ = null;
+function semIndiceLT_() {
+  if (semIdxLT_) return semIdxLT_;
+  semIdxLT_ = {};
+  Object.keys(APP_DATA.days).forEach(k => {
+    const d = APP_DATA.days[k];
+    if (!d || !(d.spend > 0 || d.purchases > 0 || d.impressions > 0)) return;
+    semIdxLT_[semIso_(dayKeyToDate(k))] = d;
+  });
+  return semIdxLT_;
+}
+
+// Agregado de las tres fuentes en un rango [desde, hasta] inclusive (ISO)
+function semAgg_(desde, hasta) {
+  const a = { desde, hasta, spend: 0, compras: 0, leads: 0, revLT: 0,
+              ventasHT: 0, contratado: 0, cobrado: 0,
+              citas: 0, asist: 0, cierres: 0, diasLT: 0, diasHT: 0 };
+  const lt = semIndiceLT_();
+  const asc = (APP_DATA.ascensos && APP_DATA.ascensos.days) || {};
+  for (let d = semDeIso_(desde); semIso_(d) <= hasta; d = new Date(d.getTime() + SEM_MS)) {
+    const k = semIso_(d);
+    const x = lt[k];
+    if (x) { a.spend += (x.spend || 0) + (x.spend_google || 0); a.compras += x.purchases || 0;
+             a.leads += x.leads || 0; a.revLT += x.revenue || 0; a.diasLT++; }
+    const h = asc[k];
+    if (h) { const s = ascSeg_(h, 'all'); a.ventasHT += s.ventas; a.contratado += s.contratado;
+             a.cobrado += s.cobrado; a.spend += h.spend || 0; a.diasHT++; }
+  }
+  const cl = APP_DATA.closers;
+  if (cl && cl.r) {
+    cl.r.forEach(f => {
+      if (f[0] < desde || f[0] > hasta) return;
+      a.citas++; a.asist += f[3]; a.cierres += f[4];
+    });
+  }
+  a.cashTotal = a.revLT + a.cobrado;
+  a.roas = a.spend > 0 ? a.cashTotal / a.spend : null;
+  a.tAsist = a.citas ? a.asist / a.citas * 100 : null;
+  a.tCierre = a.asist ? a.cierres / a.asist * 100 : null;
+  a.tCierreAg = a.citas ? a.cierres / a.citas * 100 : null;
+  a.tasaAsc = a.compras ? a.ventasHT / a.compras * 100 : null;
+  return a;
+}
+
+function setSemanas(n, btn) {
+  semSel = n;
+  document.querySelectorAll('#tab-semanal [data-sem]').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderSemanal();
+}
+
+function renderSemanal() {
+  const cont = document.getElementById('semanalContent');
+  if (!cont) return;
+  semIdxLT_ = null;   // por si llegó data nueva
+
+  const hoy = new Date();
+  const lunesAct = semLunes_(hoy);
+  const diasTrans = Math.min(7, Math.round((new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 12) - lunesAct) / SEM_MS) + 1);
+  const semActIso = semIso_(lunesAct);
+
+  // ── KPIs: semana en curso vs la anterior a igual número de días ──
+  const finAct = new Date(lunesAct.getTime() + (diasTrans - 1) * SEM_MS);
+  const lunesPrev = new Date(lunesAct.getTime() - 7 * SEM_MS);
+  const finPrev = new Date(lunesPrev.getTime() + (diasTrans - 1) * SEM_MS);
+  const act = semAgg_(semActIso, semIso_(finAct));
+  const prev = semAgg_(semIso_(lunesPrev), semIso_(finPrev));
+
+  document.getElementById('semTitulo').textContent = 'Semana del ' + semLabel_(semActIso);
+  document.getElementById('semSub').textContent =
+    'día ' + diasTrans + ' de 7 · comparada con la semana del ' + semLabel_(semIso_(lunesPrev)) +
+    ' a igual número de días' + (diasTrans < 7 ? ' (parcial)' : '');
+
+  const dl = (cur, ant, pp, invertir) => {
+    if (cur === null || ant === null || ant === undefined || !isFinite(ant) || ant === 0) return '';
+    const dif = pp ? (cur - ant) : ((cur - ant) / Math.abs(ant) * 100);
+    if (!isFinite(dif)) return '';
+    const bueno = invertir ? dif < 0 : dif > 0;
+    const cls = Math.abs(dif) < (pp ? 0.5 : 2) ? 'flat' : (bueno ? 'up' : 'down');
+    const fl = cls === 'flat' ? '·' : (dif > 0 ? '▲' : '▼');
+    return `<span class="${cls}">${fl} ${Math.abs(dif).toFixed(pp ? 1 : 0)}${pp ? ' pp' : '%'} vs sem. ant.</span>`;
+  };
+  const n = v => v === null ? '—' : v;
+  const kpis = [
+    { l: 'Inversión',       v: fmtMoneyCompact(act.spend),     s: 'Meta + Google + HT', d: dl(act.spend, prev.spend, false, true), c: '' },
+    { l: 'Compras LT',      v: Math.round(act.compras),        s: act.leads + ' leads', d: dl(act.compras, prev.compras), c: '' },
+    { l: 'Cash LT',         v: fmtMoneyCompact(act.revLT),     s: 'revenue low ticket', d: dl(act.revLT, prev.revLT), c: '' },
+    { l: 'Ventas HT',       v: Math.round(act.ventasHT),       s: 'ascensos cerrados', d: dl(act.ventasHT, prev.ventasHT), c: 'acid' },
+    { l: 'Cash HT',         v: fmtMoneyCompact(act.cobrado),   s: 'cobrado + cuotas', d: dl(act.cobrado, prev.cobrado), c: '' },
+    { l: 'Cash total',      v: fmtMoneyCompact(act.cashTotal), s: act.roas !== null ? 'ROAS ' + act.roas.toFixed(2) + 'x' : 'sin inversión', d: dl(act.cashTotal, prev.cashTotal), c: 'good' },
+    { l: 'Tasa asistencia', v: act.tAsist === null ? '—' : act.tAsist.toFixed(0) + '%', s: act.asist + ' de ' + act.citas + ' citas', d: dl(act.tAsist, prev.tAsist, true), c: '' },
+    { l: 'Tasa cierre',     v: act.tCierre === null ? '—' : act.tCierre.toFixed(0) + '%', s: act.cierres + ' cierres s/ ' + act.asist + ' asistidas', d: dl(act.tCierre, prev.tCierre, true), c: '' }
+  ];
+  document.getElementById('semKpis').innerHTML = kpis.map(k =>
+    `<div class="kpi-cell"><div class="kpi-label">${k.l}</div><div class="kpi-value ${k.c}">${k.v}</div>` +
+    `<div class="kpi-sub">${k.s}</div>${k.d ? `<div class="kpi-delta">${k.d}</div>` : ''}</div>`).join('');
+
+  // ── Serie: últimas N semanas completas + la en curso ──
+  const semanas = [];
+  for (let i = semSel - 1; i >= 0; i--) {
+    const l = new Date(lunesAct.getTime() - i * 7 * SEM_MS);
+    const ini = semIso_(l);
+    const fin = semIso_(new Date(l.getTime() + 6 * SEM_MS));
+    const ag = semAgg_(ini, fin);
+    ag.ini = ini; ag.parcial = (ini === semActIso);
+    semanas.push(ag);
+  }
+  const etq = semanas.map(w => semLabel_(w.ini) + (w.parcial ? ' *' : ''));
+  const alfa = (color, w) => w.parcial ? color.replace(/[\d.]+\)$/, '0.30)') : color;
+
+  const nota = document.getElementById('semNota');
+  if (nota) nota.textContent = '* semana en curso, ' + diasTrans + ' de 7 días: no comparable todavía con las completas.';
+
+  setTimeout(() => {
+    const nuevo = (id, cfg) => {
+      const c = document.getElementById(id); if (!c) return;
+      if (chartInstances[id]) chartInstances[id].destroy();
+      chartInstances[id] = new Chart(c, cfg);
+    };
+    const GRID = { color: 'rgba(151,178,193,0.07)' };
+    const LEG = { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 10 } } };
+    const money = v => '$' + Math.round(v).toLocaleString('es-CO');
+
+    // 1 · Cash total (LT + HT apilado) vs inversión, con ROAS en el tooltip
+    nuevo('chartSemCash', {
+      data: { labels: etq, datasets: [
+        { type: 'bar', label: 'Cash LT', data: semanas.map(w => Math.round(w.revLT)), backgroundColor: semanas.map(w => alfa('rgba(57,135,229,0.75)', w)), stack: 'c', borderRadius: 2 },
+        { type: 'bar', label: 'Cash HT', data: semanas.map(w => Math.round(w.cobrado)), backgroundColor: semanas.map(w => alfa('rgba(38,169,124,0.75)', w)), stack: 'c', borderRadius: 2 },
+        { type: 'line', label: 'Inversión', data: semanas.map(w => Math.round(w.spend)), borderColor: '#E66767', borderWidth: 2, borderDash: [5, 3], tension: 0.3, pointRadius: 2 }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: LEG, tooltip: { callbacks: {
+          label: t => ' ' + t.dataset.label + ': ' + money(t.parsed.y),
+          footer: items => { const w = semanas[items[0].dataIndex]; return 'Cash total ' + money(w.cashTotal) + (w.roas !== null ? ' · ROAS ' + w.roas.toFixed(2) + 'x' : ''); } } } },
+        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, grid: GRID, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k' } } } }
+    });
+
+    // 2 · Compras LT y ventas HT (escalas distintas: HT en eje derecho)
+    nuevo('chartSemVentas', {
+      data: { labels: etq, datasets: [
+        { type: 'bar', label: 'Compras LT', data: semanas.map(w => Math.round(w.compras)), backgroundColor: semanas.map(w => alfa('rgba(57,135,229,0.70)', w)), borderRadius: 2, yAxisID: 'y' },
+        { type: 'line', label: 'Ventas HT', data: semanas.map(w => Math.round(w.ventasHT)), borderColor: '#E7FF2A', borderWidth: 2.5, tension: 0.3, pointRadius: 3, yAxisID: 'y2' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: LEG, tooltip: { callbacks: { footer: items => { const w = semanas[items[0].dataIndex]; return w.tasaAsc !== null ? 'Tasa de ascenso (proxy): ' + w.tasaAsc.toFixed(1) + '%' : ''; } } } },
+        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID },
+                  y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { stepSize: 5 } } } }
+    });
+
+    // 3 · Closers: citas vs asistidas + tasa de asistencia
+    const hayCloser = semanas.some(w => w.citas > 0);
+    if (!hayCloser) { cloVacio_('chartSemCitas', 'Sin citas de closers en estas semanas'); cloVacio_('chartSemCierre', 'Sin citas de closers en estas semanas'); }
+    else {
+      nuevo('chartSemCitas', {
+        data: { labels: etq, datasets: [
+          { type: 'bar', label: 'Agendadas', data: semanas.map(w => w.citas), backgroundColor: semanas.map(w => alfa('rgba(151,178,193,0.35)', w)), borderRadius: 2, yAxisID: 'y' },
+          { type: 'bar', label: 'Asistidas', data: semanas.map(w => w.asist), backgroundColor: semanas.map(w => alfa('rgba(57,135,229,0.75)', w)), borderRadius: 2, yAxisID: 'y' },
+          { type: 'line', label: 'Tasa asistencia', data: semanas.map(w => w.tAsist === null ? null : +w.tAsist.toFixed(1)), borderColor: '#E7FF2A', borderWidth: 2, tension: 0.3, pointRadius: 2, yAxisID: 'y2', spanGaps: true }
+        ]},
+        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+          plugins: { legend: LEG, tooltip: { callbacks: { label: t => ' ' + t.dataset.label + ': ' + t.parsed.y + (t.dataset.yAxisID === 'y2' ? '%' : '') } } },
+          scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID },
+                    y2: { beginAtZero: true, max: 100, position: 'right', grid: { display: false }, ticks: { callback: v => v + '%' } } } }
+      });
+
+      // 4 · Tasa de cierre semanal en las dos bases; semanas con pocas asistidas, atenuadas
+      const MIN_ASIST = 10;
+      nuevo('chartSemCierre', {
+        type: 'line',
+        data: { labels: etq, datasets: [
+          { label: 'Cierre s/asistidas', data: semanas.map(w => w.tCierre === null ? null : +w.tCierre.toFixed(1)), borderColor: '#E7FF2A', borderWidth: 2.5, tension: 0.3, spanGaps: true,
+            pointRadius: semanas.map(w => w.asist >= MIN_ASIST ? 4 : 2), pointBackgroundColor: semanas.map(w => w.asist >= MIN_ASIST ? '#E7FF2A' : 'rgba(231,255,42,0.25)') },
+          { label: 'Cierre s/agendas', data: semanas.map(w => w.tCierreAg === null ? null : +w.tCierreAg.toFixed(1)), borderColor: 'rgba(151,178,193,0.8)', borderWidth: 1.8, borderDash: [4, 3], tension: 0.3, pointRadius: 0, spanGaps: true }
+        ]},
+        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+          plugins: { legend: LEG, tooltip: { callbacks: {
+            label: t => ' ' + t.dataset.label + ': ' + t.parsed.y + '%',
+            footer: items => { const w = semanas[items[0].dataIndex]; return w.cierres + ' cierres · ' + w.asist + ' asistidas · ' + w.citas + ' agendadas' + (w.asist < MIN_ASIST ? ' ⚠ muestra chica' : ''); } } } },
+          scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID, ticks: { callback: v => v + '%' } } } }
+      });
+    }
+
+    // 5 · High ticket: contratado vs cobrado por semana
+    nuevo('chartSemHT', {
+      type: 'bar',
+      data: { labels: etq, datasets: [
+        { label: 'Contratado', data: semanas.map(w => Math.round(w.contratado)), backgroundColor: semanas.map(w => alfa('rgba(57,135,229,0.45)', w)), borderRadius: 2 },
+        { label: 'Cobrado', data: semanas.map(w => Math.round(w.cobrado)), backgroundColor: semanas.map(w => alfa('rgba(38,169,124,0.80)', w)), borderRadius: 2 }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: LEG, tooltip: { callbacks: { label: t => ' ' + t.dataset.label + ': ' + money(t.parsed.y),
+          footer: items => { const w = semanas[items[0].dataIndex]; return w.contratado > 0 ? '% cobro ' + (w.cobrado / w.contratado * 100).toFixed(0) + '%' : ''; } } } },
+        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k' } } } }
+    });
+  }, 30);
+
+  // ── Tabla: una fila por semana, con variación contra la anterior ──
+  const pct = (a, b) => (b > 0 && a !== null) ? ((a - b) / b * 100) : null;
+  const celda = (v, p) => {
+    const cls = p === null || Math.abs(p) < 2 ? '' : (p > 0 ? 'style="color:var(--good)"' : 'style="color:var(--warn)"');
+    return `<td class="num">${v}${p === null ? '' : ` <span ${cls}>(${p > 0 ? '+' : ''}${p.toFixed(0)}%)</span>`}</td>`;
+  };
+  const filas = semanas.slice().reverse().map((w, i, arr) => {
+    // La semana en curso no se compara en la tabla: 3 días contra 7 siempre da "caída".
+    const ant = w.parcial ? null : (arr[i + 1] || null);
+    return `<tr${w.parcial ? ' style="opacity:.75"' : ''}><td>${semLabel_(w.ini)}${w.parcial ? ' <span style="color:var(--grey)">(en curso)</span>' : ''}</td>` +
+      `<td class="num">${fmtMoneyCompact(w.spend)}</td>` +
+      celda(Math.round(w.compras), ant ? pct(w.compras, ant.compras) : null) +
+      celda(fmtMoneyCompact(w.revLT), ant ? pct(w.revLT, ant.revLT) : null) +
+      celda(Math.round(w.ventasHT), ant ? pct(w.ventasHT, ant.ventasHT) : null) +
+      celda(fmtMoneyCompact(w.cobrado), ant ? pct(w.cobrado, ant.cobrado) : null) +
+      celda('<b>' + fmtMoneyCompact(w.cashTotal) + '</b>', ant ? pct(w.cashTotal, ant.cashTotal) : null) +
+      `<td class="num">${w.roas === null ? '—' : w.roas.toFixed(2) + 'x'}</td>` +
+      `<td class="num">${w.citas}</td>` +
+      `<td class="num">${w.tAsist === null ? '—' : w.tAsist.toFixed(0) + '%'}</td>` +
+      `<td class="num">${w.tCierre === null ? '—' : w.tCierre.toFixed(0) + '%'}</td></tr>`;
+  }).join('');
+  document.getElementById('semTabla').innerHTML =
+    '<thead><tr><th>Semana del</th><th class="num">Inversión</th><th class="num">Compras LT</th><th class="num">Cash LT</th>' +
+    '<th class="num">Ventas HT</th><th class="num">Cash HT</th><th class="num">Cash total</th><th class="num">ROAS</th>' +
+    '<th class="num">Citas</th><th class="num">Asist.</th><th class="num">Cierre</th></tr></thead><tbody>' + filas + '</tbody>';
 }
 
 // ====== PULSO ======
