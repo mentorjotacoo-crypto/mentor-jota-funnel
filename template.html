@@ -1711,7 +1711,7 @@
             </button>
             <div class="asc-period-pop" id="cloPeriodPop"></div>
           </span>
-          <span class="period-bar-label" style="margin-left:18px">Origen</span>
+          <span class="period-bar-label" id="cloOrigenLabel" style="margin-left:18px">Origen</span>
           <button class="btn active" data-ori="all" onclick="setCloOrigen('all', this)">Todos</button>
           <button class="btn" data-ori="Automatico" onclick="setCloOrigen('Automatico', this)">Autom&aacute;tico</button>
           <button class="btn" data-ori="Desafio" onclick="setCloOrigen('Desafio', this)">Desaf&iacute;o</button>
@@ -5543,7 +5543,7 @@ function cloFiltrar_(opts) {
       if (cloPeriodoSel.length === 4) { if (fecha.slice(0, 4) !== cloPeriodoSel) continue; }
       else if (fecha.slice(0, 7) !== cloPeriodoSel) continue;
     }
-    if (cloOrigenSel !== 'all' && d.tipos[f[7]] !== cloOrigenSel) continue;
+    if (!(opts.ignorarOrigen) && cloOrigenSel !== 'all' && d.tipos[f[7]] !== cloOrigenSel) continue;
     if (!ignorarCloser && cloCloserSel !== 'all' && d.closers[f[1]] !== cloCloserSel) continue;
     out.push({ fecha: fecha, closer: d.closers[f[1]], pais: d.paises[f[2]],
                asistio: f[3] === 1, cerro: f[4] === 1, venta: f[5], pagado: f[6],
@@ -5763,6 +5763,24 @@ function renderClosers() {
   }
   if (empty) empty.style.display = 'none';
   if (cont) cont.style.display = '';
+
+  // Botones de Origen: solo los que tienen citas en el período (Setter no existe
+  // desde 2024; en 2026 todo es Desafío). Si queda un solo origen, el grupo
+  // entero se oculta: un filtro con una sola opción solo confunde.
+  const nOri = {};
+  cloFiltrar_({ ignorarCloser: true, ignorarOrigen: true }).forEach(function (f) { nOri[f.tipo] = (nOri[f.tipo] || 0) + 1; });
+  const origenes = Object.keys(nOri).filter(function (k) { return nOri[k] > 0; });
+  if (cloOrigenSel !== 'all' && !nOri[cloOrigenSel]) {
+    cloOrigenSel = 'all';
+    document.querySelectorAll('#tab-closers [data-ori]').forEach(function (b) { b.classList.toggle('active', b.dataset.ori === 'all'); });
+  }
+  const mostrarGrupo = origenes.length > 1;
+  const lblOri = document.getElementById('cloOrigenLabel'); if (lblOri) lblOri.style.display = mostrarGrupo ? '' : 'none';
+  document.querySelectorAll('#tab-closers [data-ori]').forEach(function (b) {
+    const v = b.dataset.ori;
+    b.style.display = (mostrarGrupo && (v === 'all' || nOri[v])) ? '' : 'none';
+    if (v !== 'all' && nOri[v]) b.title = nOri[v] + ' citas en el período';
+  });
 
   const filas = cloFiltrar_();
   const m = cloMetricas_(filas);

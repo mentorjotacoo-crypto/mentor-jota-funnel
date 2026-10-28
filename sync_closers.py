@@ -66,6 +66,7 @@ PAIS_NORM = {
 
 # Nombres que aparecen distinto en la columna Colaborador vs el nombre de hoja
 CLOSER_NORM = {
+    'nuevo': 'Jorge',                 # el closer que entró en oct-2026 ('Nuevo' en su hoja)
     'christian': 'Christian Correa',
     'jose julian valencia': 'Jota',
     'jose julian valen': 'Jota',
@@ -108,12 +109,21 @@ DESAFIO_DESDE = '2026-01-21'
 
 
 def corregir_tipo(filas):
+    """El ORIGEN real es la columna "Agendamiento" (Desafio / Website / ...),
+    cuando el libro la tiene. "Tipo agendamiento" la rellena cada closer a su
+    manera: en oct-2026 las 207 citas eran del Desafio y 4 closers escribian
+    "Automatico" por costumbre, asi que el filtro partia a los closers por
+    habito de digitacion, no por origen. Regla: Agendamiento manda; si no hay
+    columna, aplica la correccion por closer/fecha de antes."""
     n = 0
     for f in filas:
-        if (f['closer'] in CLOSERS_SOLO_DESAFIO and f['fecha'] >= DESAFIO_DESDE
-                and f['tipo'].strip().lower() in ('', 'automatico', 'automático')):
-            f['tipo'] = 'Desafio'
-            n += 1
+        tipo = f['tipo'].strip().lower()
+        origen = (f.get('origen') or '').strip().lower()
+        if origen.startswith('desaf') and not tipo.startswith('desaf'):
+            f['tipo'] = 'Desafio'; n += 1
+        elif (f['closer'] in CLOSERS_SOLO_DESAFIO and f['fecha'] >= DESAFIO_DESDE
+                and tipo in ('', 'automatico', 'automático')):
+            f['tipo'] = 'Desafio'; n += 1
     return n
 
 
@@ -222,7 +232,7 @@ def main():
 
     print('Leyendo consolidados...')
     filas = leer()
-    print(f'  Origen corregido a Desafio: {corregir_tipo(filas)} citas de Cesar/Christian')
+    print(f'  Origen corregido a Desafio (segun columna Agendamiento): {corregir_tipo(filas)} citas')
     if not filas:
         print('[SKIP] no se extrajo ninguna cita')
         sys.exit(0)
