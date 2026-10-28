@@ -51,6 +51,7 @@ CAMPOS = {
     'prog':   ['programa'],
     'venta':  ['valor venta'],
     'pagado': ['valor pagado'],
+    'medio':  ['medio de pago'],
 }
 
 # El mismo país llega escrito de varias formas entre libros
@@ -127,6 +128,24 @@ def corregir_tipo(filas):
     return n
 
 
+# COMO se cerro: no hay columna en los libros, se deriva de lo pagado vs lo
+# vendido. 'contado' = pago completo; 'diferido' = pago una parte (una cuota:
+# 497 de 1491, 247 de 741...); 'sin_pago' = venta con $0 pagado; 'sin_valor' =
+# cierre sin valor de venta digitado. cuotas = cuantas cuotas implica el plan
+# (venta / pagado, redondeado), 1 si fue de contado.
+def clasificar_pago(f):
+    if not f['cerro']:
+        return '', 0
+    v, pg = f['venta'], f['pagado']
+    if v <= 0:
+        return 'sin_valor', 0
+    if pg <= 0:
+        return 'sin_pago', 0
+    if pg >= v * 0.98:
+        return 'contado', 1
+    return 'diferido', max(2, int(round(v / pg)))
+
+
 def leer():
     filas = []
     vistos = set()
@@ -184,7 +203,9 @@ def leer():
                     'programa': str(g('prog') or '').strip(),
                     'venta': num(g('venta')) if cerro else 0.0,
                     'pagado': num(g('pagado')) if cerro else 0.0,
+                    'medio': str(g('medio') or '').strip(),
                 })
+                filas[-1]['pago'], filas[-1]['cuotas'] = clasificar_pago(filas[-1])
         wb.close()
     return filas
 
@@ -192,7 +213,7 @@ def leer():
 def compactar(filas):
     """Formato columnar con diccionarios de índices: pesa ~6x menos que
     la lista de objetos y comprime mucho mejor."""
-    closers, paises, tipos, motivos, progs = [], [], [], [], []
+    closers, paises, tipos, motivos, progs, pagos, medios = [], [], [], [], [], [], []
 
     def idx(lista, v):
         if v not in lista:
@@ -213,12 +234,15 @@ def compactar(filas):
             idx(tipos, f['tipo']),
             idx(motivos, f['motivo']),
             idx(progs, f['programa']),
+            idx(pagos, f.get('pago', '')),
+            idx(medios, f.get('medio', '')),
+            int(f.get('cuotas', 0) or 0),
         ])
     return {
         'cols': ['fecha', 'closer', 'pais', 'asistio', 'cerro', 'venta',
-                 'pagado', 'tipo', 'motivo', 'programa'],
+                 'pagado', 'tipo', 'motivo', 'programa', 'pago', 'medio', 'cuotas'],
         'closers': closers, 'paises': paises, 'tipos': tipos,
-        'motivos': motivos, 'programas': progs,
+        'motivos': motivos, 'programas': progs, 'pagos': pagos, 'medios': medios,
         'r': r,
         'actualizado': datetime.now().isoformat(timespec='seconds'),
     }
