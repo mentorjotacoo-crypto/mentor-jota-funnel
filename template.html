@@ -5587,6 +5587,15 @@ const CLO_MESES_C = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct'
 function cloDatos_() { return (APP_DATA && APP_DATA.closers) || null; }
 
 // Filas filtradas por período/origen/closer, como objetos legibles
+// Los libros de los closers usan los nombres viejos de los programas. Juan
+// (3-nov-2026): "me gusta que aparezca mejor con el nombre actual". Los que no
+// tienen equivalente claro (Curso online, Grupal, Premium) se dejan como vienen.
+const CLO_PROGRAMA_ACTUAL = { 'estandar': 'Guiado', 'stm curso': 'Asistido', 'stm lite': 'Autónomo', 'autonomo': 'Autónomo', 'curso online': 'Curso online', 'premiun': 'Premium' };
+function cloProgramaActual_(p) {
+  const k = String(p || '').trim().toLowerCase();
+  return CLO_PROGRAMA_ACTUAL[k] || p;
+}
+
 function cloFiltrar_(opts) {
   const d = cloDatos_();
   if (!d) return [];
@@ -5603,7 +5612,7 @@ function cloFiltrar_(opts) {
     if (!ignorarCloser && cloCloserSel !== 'all' && d.closers[f[1]] !== cloCloserSel) continue;
     out.push({ fecha: fecha, closer: d.closers[f[1]], pais: d.paises[f[2]],
                asistio: f[3] === 1, cerro: f[4] === 1, venta: f[5], pagado: f[6],
-               tipo: d.tipos[f[7]], motivo: d.motivos[f[8]], programa: d.programas[f[9]],
+               tipo: d.tipos[f[7]], motivo: d.motivos[f[8]], programa: cloProgramaActual_(d.programas[f[9]]),
                pago: (d.pagos && f.length > 10) ? d.pagos[f[10]] : '',
                medio: (d.medios && f.length > 11) ? d.medios[f[11]] : '',
                cuotas: f.length > 12 ? (f[12] || 0) : 0 });
