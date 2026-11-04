@@ -92,6 +92,22 @@ def norm_pais(v):
     return PAIS_NORM.get(s.lower(), s)
 
 
+# Citas que en el CRM se reasignaron a mano a otro closer (override_manual) pero que en
+# los libros siguen a nombre de la franja. El dashboard lee los libros, asi que aqui se
+# aplica la misma correccion. Llave: (fecha, sha1 del correo en minusculas, 12 chars):
+# el repo es publico y el correo del estudiante no puede ir en el codigo.
+# Juan, 03-nov-2026: Javier (closer nuevo, sin hoja propia) atendio estas dos.
+OVERRIDES_CLOSER = {
+    ('2026-10-30', '3b7a4c588afb'): 'Javier',
+    ('2026-11-02', '5e53471c6a5c'): 'Javier',
+}
+
+
+def _h_correo(correo):
+    import hashlib
+    return hashlib.sha1((correo or '').strip().lower().encode('utf-8')).hexdigest()[:12]
+
+
 def norm_closer(v, hoja):
     s = str(v or '').strip()
     if not s:
@@ -193,7 +209,7 @@ def leer():
                 cerro = compra_raw in CIERRE
                 filas.append({
                     'fecha': fx.date().isoformat(),
-                    'closer': norm_closer(g('closer'), sn),
+                    'closer': OVERRIDES_CLOSER.get((fx.date().isoformat(), _h_correo(correo))) or norm_closer(g('closer'), sn),
                     'pais': norm_pais(g('pais')),
                     'tipo': str(g('tipo') or '').strip(),
                     'origen': str(g('origen') or '').strip(),
