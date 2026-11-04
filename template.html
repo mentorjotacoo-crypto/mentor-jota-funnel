@@ -1748,7 +1748,7 @@
         <div class="chart-grid-2">
           <div class="chart-card">
             <div class="chart-title">Ranking por tasa de cierre</div>
-            <div class="chart-subtitle">sobre asistidas &middot; entre par&eacute;ntesis las citas atendidas; barras tenues = muestra chica</div>
+            <div class="chart-subtitle">sobre asistidas sobre asistidas &middot; entre par&eacute;ntesis las citas atendidas; barras tenues = muestra chicamiddot; entre par&eacute;ntesis las citas atendidas; desde 5 atendidas, barras tenues = menos de 40</div>
             <div class="chart-wrap"><canvas id="chartCloRank"></canvas></div>
           </div>
           <div class="chart-card">
@@ -6008,10 +6008,10 @@ function renderClosers() {
     todos.forEach(function (f) { (porCloser[f.closer] = porCloser[f.closer] || []).push(f); });
     const rank = Object.keys(porCloser).map(function (n) {
       const x = cloMetricas_(porCloser[n]); x.n = n; return x;
-    }).filter(function (x) { return x.agendas >= 20 && x.asistidas > 0; })
+    }).filter(function (x) { return x.asistidas >= 5; })   // Juan, 03-nov: en un mes que arranca nadie llega a 20 agendas
       .sort(function (a, b) { return b.tCierre - a.tCierre; });
 
-    if (!rank.length) cloVacio_('chartCloRank', 'Ningún closer con 20+ citas en el período');
+    if (!rank.length) cloVacio_('chartCloRank', 'Ningún closer con 5+ citas atendidas en el período');
     else nuevo('chartCloRank', {
       type: 'bar',
       data: { labels: rank.map(function (x) { return x.n + '  (' + x.asistidas + ')'; }), datasets: [{
