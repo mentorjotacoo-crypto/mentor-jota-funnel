@@ -233,7 +233,13 @@ def main():
         # así que el rezago se mide en días hábiles. Más de 2 hábiles = crítico
         # (la tarea del PC dejó de correr o el Excel no sincroniza).
         try:
-            ult = max(asc) if asc else None
+            # 03-nov-2026: sync_ascensos incluye todo día <= hoy aunque la fila del Excel esté
+            # vacía, así que max(asc) siempre es "hoy" y el chequeo nunca fallaba. El último día
+            # es el último con algún dato (ventas, contratado o cobrado > 0).
+            con_dato = [k for k, v in asc.items()
+                        if isinstance(v, dict) and any((v.get(c) or 0) > 0 for c in
+                        ('ventas', 'contratado', 'cobrado', 'cobrado_cuotas', 'ventas_stm_curso', 'ventas_stm_lite'))]
+            ult = max(con_dato) if con_dato else (max(asc) if asc else None)
             if ult:
                 d_ult = date.fromisoformat(ult)
                 rezago = (hoy_bog - d_ult).days
