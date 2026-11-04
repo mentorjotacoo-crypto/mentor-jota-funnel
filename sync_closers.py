@@ -220,16 +220,49 @@ def leer():
                     'venta': num(g('venta')) if cerro else 0.0,
                     'pagado': num(g('pagado')) if cerro else 0.0,
                     'medio': str(g('medio') or '').strip(),
+                    'correo': correo,
+                    'sesion': '',
                 })
                 filas[-1]['pago'], filas[-1]['cuotas'] = clasificar_pago(filas[-1])
         wb.close()
+    sesiones = leer_sesiones()
+    marcadas = 0
+    for f in filas:
+        s = sesiones.get((f['fecha'], _h_correo(f.get('correo', ''))))
+        if s:
+            f['sesion'] = s; marcadas += 1
+    print('  Sesion paga/gratis (Llamadas Desafio): %d citas marcadas' % marcadas)
     return filas
+
+
+# Sesion Estrategica PAGA (bump de $42 o 2do aviso de $52) o GRATIS: lo dice la columna G
+# "Pago" de la hoja 'Llamadas Desafio' del libro de seguimiento, que el cierre diario llena
+# desde Stripe (03-nov-2026). Llave: (fecha de agenda, hash del correo). Vacio = no se sabe
+# (antes de ago-2026 la columna no esta llena).
+LD = r'H:\Mi unidad\Empresas Cynthia y Jose Julian\Mentor Jota\Técnico\Hoja de seguimiento Mentor Jota Consolidado.xlsx'
+
+
+def leer_sesiones():
+    out = {}
+    try:
+        wb = openpyxl.load_workbook(LD, read_only=True, data_only=True)
+        if 'Llamadas Desafio' not in wb.sheetnames:
+            wb.close(); return out
+        for r in wb['Llamadas Desafio'].iter_rows(min_row=2, max_col=7, values_only=True):
+            f, correo, pago = r[5], r[3], r[6]
+            if not isinstance(f, datetime) or not isinstance(pago, (int, float)):
+                continue
+            out[(f.date().isoformat(), _h_correo(str(correo or '')))] = 'paga' if pago > 0 else 'gratis'
+        wb.close()
+    except Exception as ex:
+        print('  [AVISO] no pude leer Llamadas Desafio: %s' % str(ex)[:80])
+    return out
 
 
 def compactar(filas):
     """Formato columnar con diccionarios de índices: pesa ~6x menos que
     la lista de objetos y comprime mucho mejor."""
-    closers, paises, tipos, motivos, progs, pagos, medios = [], [], [], [], [], [], []
+    closers, paises, tipos, motivos, progs, pagos, medios, sesiones = [], [], [], [], [], [], [], []
 
     def idx(lista, v):
         if v not in lista:
@@ -253,12 +286,14 @@ def compactar(filas):
             idx(pagos, f.get('pago', '')),
             idx(medios, f.get('medio', '')),
             int(f.get('cuotas', 0) or 0),
+            idx(sesiones, f.get('sesion', '')),
         ])
     return {
         'cols': ['fecha', 'closer', 'pais', 'asistio', 'cerro', 'venta',
-                 'pagado', 'tipo', 'motivo', 'programa', 'pago', 'medio', 'cuotas'],
+                 'pagado', 'tipo', 'motivo', 'programa', 'pago', 'medio', 'cuotas', 'sesion'],
         'closers': closers, 'paises': paises, 'tipos': tipos,
         'motivos': motivos, 'programas': progs, 'pagos': pagos, 'medios': medios,
+        'sesiones': sesiones,
         'r': r,
         'actualizado': datetime.now().isoformat(timespec='seconds'),
     }

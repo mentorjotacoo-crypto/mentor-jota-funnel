@@ -1752,9 +1752,9 @@
             <div class="chart-wrap"><canvas id="chartCloRank"></canvas></div>
           </div>
           <div class="chart-card">
-            <div class="chart-title">Asistencia vs cierre</div>
-            <div class="chart-subtitle">cada burbuja es un closer &middot; tama&ntilde;o = citas atendidas</div>
-            <div class="chart-wrap"><canvas id="chartCloScatter"></canvas></div>
+            <div class="chart-title">Sesi&oacute;n paga vs gratis</div>
+            <div class="chart-subtitle">agendas, asistidas y cierres seg&uacute;n si el estudiante pag&oacute; la sesi&oacute;n (bump de $42 o 2do aviso de $52) &middot; dato desde ago-2026</div>
+            <div class="chart-wrap"><canvas id="chartCloSesion"></canvas></div>
           </div>
         </div>
         <div class="chart-card">
@@ -1802,11 +1802,6 @@
             <div class="chart-title">Programa vendido</div>
             <div class="chart-subtitle">cierres y valor por programa</div>
             <div class="chart-wrap"><canvas id="chartCloPrograma"></canvas></div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-title">Medio de pago</div>
-            <div class="chart-subtitle">cierres por canal de cobro</div>
-            <div class="chart-wrap"><canvas id="chartCloMedio"></canvas></div>
           </div>
         </div>
 
@@ -5615,7 +5610,8 @@ function cloFiltrar_(opts) {
                tipo: d.tipos[f[7]], motivo: d.motivos[f[8]], programa: cloProgramaActual_(d.programas[f[9]]),
                pago: (d.pagos && f.length > 10) ? d.pagos[f[10]] : '',
                medio: (d.medios && f.length > 11) ? d.medios[f[11]] : '',
-               cuotas: f.length > 12 ? (f[12] || 0) : 0 });
+               cuotas: f.length > 12 ? (f[12] || 0) : 0,
+               sesion: (d.sesiones && f.length > 13) ? d.sesiones[f[13]] : '' });
   }
   return out;
 }
@@ -6038,26 +6034,29 @@ function renderClosers() {
         scales: { x: { beginAtZero: true, grid: GRID, ticks: { callback: pct } }, y: { grid: { display: false } } } }
     });
 
-    // ── 02 · Asistencia vs cierre ──
-    if (!rank.length) cloVacio_('chartCloScatter', 'Ningún closer con 20+ citas en el período');
-    else nuevo('chartCloScatter', {
-      type: 'bubble',
-      data: { datasets: rank.map(function (x, i) {
-        return { label: x.n,
-          data: [{ x: +x.tAsist.toFixed(1), y: +x.tCierre.toFixed(1), r: Math.max(5, Math.min(24, Math.sqrt(x.asistidas) * 1.5)) }],
-          backgroundColor: x.n === cloCloserSel ? 'rgba(231,255,42,0.75)' : 'hsla(' + (200 + i * 26) + ',62%,58%,0.62)',
-          borderColor: x.n === cloCloserSel ? '#E7FF2A' : 'hsla(' + (200 + i * 26) + ',62%,58%,0.95)',
-          borderWidth: 1.5 };
-      }) },
-      options: { responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 13 } } },
-          tooltip: { callbacks: { label: function (c) {
-            const x = rank.filter(function (r) { return r.n === c.dataset.label; })[0];
-            return c.dataset.label + ': asist ' + x.tAsist.toFixed(1) + '% · cierre ' + x.tCierre.toFixed(1) + '% · ' + x.asistidas + ' atendidas';
-          } } } },
-        scales: { x: { title: { display: true, text: 'Tasa de asistencia', font: { size: 13 } }, grid: GRID, ticks: { callback: pct } },
-                  y: { title: { display: true, text: 'Tasa de cierre', font: { size: 13 } }, grid: GRID, ticks: { callback: pct } } } }
-    });
+    // ── 02 · Sesión paga vs gratis (Juan, 03-nov-2026) ──
+    // El dato viene de la columna "Pago" de Llamadas Desafio (la llena el cierre desde
+    // Stripe); las citas sin dato (canceladas, anteriores a ago-2026) no entran.
+    (function () {
+      const cats = [['paga', 'Sesión paga'], ['gratis', 'Sesión gratis']];
+      const m = cats.map(function (c) { return cloMetricas_(filas.filter(function (f) { return f.sesion === c[0]; })); });
+      if (!m.some(function (x) { return x.agendas > 0; })) { cloVacio_('chartCloSesion', 'Sin dato de sesión paga/gratis en el período (desde ago-2026)'); return; }
+      nuevo('chartCloSesion', {
+        data: { labels: cats.map(function (c, i) { return c[1] + '  (' + m[i].asistidas + ' at.)'; }), datasets: [
+          { type: 'bar', label: 'Agendadas', data: m.map(function (x) { return x.agendas; }), backgroundColor: 'rgba(151,178,193,0.30)', borderRadius: 3 },
+          { type: 'bar', label: 'Asistidas', data: m.map(function (x) { return x.asistidas; }), backgroundColor: 'rgba(57,135,229,0.65)', borderRadius: 3 },
+          { type: 'bar', label: 'Cierres', data: m.map(function (x) { return x.cierres; }), backgroundColor: 'rgba(231,255,42,0.75)', borderRadius: 3 },
+          { type: 'line', label: 'Tasa de cierre', data: m.map(function (x) { return +x.tCierre.toFixed(1); }), borderColor: '#E7FF2A', borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: '#E7FF2A', yAxisID: 'y2' }
+        ]},
+        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 13 } } },
+            tooltip: { callbacks: { label: function (c) {
+              if (c.dataset.yAxisID === 'y2') { const x = m[c.dataIndex]; return ' cierre ' + c.parsed.y + '% s/asistidas · asistencia ' + x.tAsist.toFixed(1) + '%'; }
+              return ' ' + c.dataset.label + ': ' + c.parsed.y; } } } },
+          scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID },
+                    y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: pct }, suggestedMax: 50 } } }
+      });
+    })();
 
     // ── 02 · Tasa de cierre por closer (analítica de tiempo) ──
     // Con varios meses: una tasa por mes (meses con 10+ atendidas). Con un mes o en
@@ -6234,7 +6233,7 @@ function renderClosers() {
       const COL = { contado: 'rgba(38,169,124,0.80)', diferido: 'rgba(231,255,42,0.75)', otro: 'rgba(151,178,193,0.35)' };
 
       // en el tiempo: misma agrupación que las series (gr)
-      if (!cierres.length) { cloVacio_('chartCloPagoTiempo', 'Sin cierres en el período'); cloVacio_('chartCloPagoCloser', 'Sin cierres en el período'); cloVacio_('chartCloPrograma', 'Sin cierres en el período'); cloVacio_('chartCloMedio', 'Sin cierres en el período'); return; }
+      if (!cierres.length) { cloVacio_('chartCloPagoTiempo', 'Sin cierres en el período'); cloVacio_('chartCloPagoCloser', 'Sin cierres en el período'); cloVacio_('chartCloPrograma', 'Sin cierres en el período'); return; }
       nuevo('chartCloPagoTiempo', { type: 'bar',
         data: { labels: gr.etiquetas, datasets: [
           { label: 'Contado', data: gr.grupos.map(function (fs) { return fs.filter(function (f) { return f.cerro && f.pago === 'contado'; }).length; }), backgroundColor: COL.contado, stack: 'p', borderRadius: 2 },
@@ -6267,11 +6266,6 @@ function renderClosers() {
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: LEG, tooltip: { callbacks: { label: function (t) { return ' ' + t.dataset.label + ': ' + (t.dataset.yAxisID === 'y2' ? '$' + t.parsed.y.toLocaleString('es-CO') : t.parsed.y); } } } },
           scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: GRID, ticks: { stepSize: 1 } }, y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { callback: function (v) { return '$' + (v / 1000).toFixed(0) + 'k'; } } } } } });
 
-      // medio de pago
-      const porM = {}; cierres.forEach(function (f) { const k = f.medio || '(sin dato)'; porM[k] = (porM[k] || 0) + 1; });
-      const ms = Object.keys(porM).sort(function (a, b) { return porM[b] - porM[a]; });
-      nuevo('chartCloMedio', { type: 'bar', data: { labels: ms, datasets: [{ label: 'Cierres', data: ms.map(function (k) { return porM[k]; }), backgroundColor: 'rgba(213,81,129,0.70)', borderRadius: 2 }] },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: GRID, ticks: { stepSize: 1 } }, y: { grid: { display: false } } } } });
     }, 30);
   })();
 
