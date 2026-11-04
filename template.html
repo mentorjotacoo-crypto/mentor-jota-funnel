@@ -1758,8 +1758,8 @@
           </div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Tasa de cierre mensual por closer</div>
-          <div class="chart-subtitle">una l&iacute;nea por closer &middot; meses con 10+ citas atendidas</div>
+          <div class="chart-title" id="chartCloLineasTit">Tasa de cierre mensual por closer</div>
+          <div class="chart-subtitle" id="chartCloLineasSub">una l&iacute;nea por closer &middot; meses con 10+ citas atendidas</div>
           <div class="chart-wrap" style="height:250px"><canvas id="chartCloLineas"></canvas></div>
         </div>
 
@@ -6059,27 +6059,64 @@ function renderClosers() {
                   y: { title: { display: true, text: 'Tasa de cierre', font: { size: 13 } }, grid: GRID, ticks: { callback: pct } } } }
     });
 
-    // ── 02 · Tasa de cierre mensual por closer (analítica de tiempo) ──
-    const mesesTodos = Object.keys(todos.reduce(function (a, f) { a[f.fecha.slice(0, 7)] = 1; return a; }, {})).sort();
+    // ── 02 · Tasa de cierre por closer (analítica de tiempo) ──
+    // Con varios meses: una tasa por mes (meses con 10+ atendidas). Con un mes o en
+    // vista semanal, una tasa por día/semana es ruido (2 citas, 1 cierre = 50 %), así
+    // que se grafica la tasa ACUMULADA del período: cada punto es cierres / atendidas
+    // desde el primer día hasta ese día (o semana). 03-nov-2026, pedido de Juan.
+    const acumCloser = gr.porDia || gr.porSemana;
     const activos = rank.slice(0, 6);
-    const dsLineas = activos.map(function (x, i) {
-      const n = x.n;
-      const pts = mesesTodos.map(function (mk) {
-        const fs = todos.filter(function (f) { return f.closer === n && f.fecha.slice(0, 7) === mk; });
-        const as = fs.filter(function (f) { return f.asistio; }).length;
-        if (as < 10) return null;               // meses flacos distorsionan la tasa
-        return +(fs.filter(function (f) { return f.cerro; }).length / as * 100).toFixed(1);
+    let mesesTodos, dsLineas;
+    if (acumCloser) {
+      mesesTodos = gr.claves;
+      const porClave = {};
+      todos.forEach(function (f) {
+        const k = gr.porSemana ? cloLunes_(f.fecha) : f.fecha;
+        (porClave[k] = porClave[k] || []).push(f);
       });
-      const destacado = n === cloCloserSel;
-      return { label: n, data: pts, spanGaps: true,
-        borderColor: destacado ? '#E7FF2A' : 'hsla(' + (200 + i * 26) + ',62%,58%,0.85)',
-        borderWidth: destacado ? 3 : 1.8, tension: 0.3, pointRadius: 2 };
-    });
+      dsLineas = activos.map(function (x, i) {
+        const n = x.n;
+        let as = 0, ci = 0;
+        const pts = mesesTodos.map(function (k) {
+          (porClave[k] || []).forEach(function (f) {
+            if (f.closer !== n) return;
+            if (f.asistio) as++;
+            if (f.cerro) ci++;
+          });
+          return as >= 10 ? +(ci / as * 100).toFixed(1) : null;   // arranca al tener base
+        });
+        const destacado = n === cloCloserSel;
+        return { label: n, data: pts, spanGaps: true,
+          borderColor: destacado ? '#E7FF2A' : 'hsla(' + (200 + i * 26) + ',62%,58%,0.85)',
+          borderWidth: destacado ? 3 : 1.8, tension: 0.3, pointRadius: 0, pointHitRadius: 8 };
+      });
+    } else {
+      mesesTodos = Object.keys(todos.reduce(function (a, f) { a[f.fecha.slice(0, 7)] = 1; return a; }, {})).sort();
+      dsLineas = activos.map(function (x, i) {
+        const n = x.n;
+        const pts = mesesTodos.map(function (mk) {
+          const fs = todos.filter(function (f) { return f.closer === n && f.fecha.slice(0, 7) === mk; });
+          const as = fs.filter(function (f) { return f.asistio; }).length;
+          if (as < 10) return null;               // meses flacos distorsionan la tasa
+          return +(fs.filter(function (f) { return f.cerro; }).length / as * 100).toFixed(1);
+        });
+        const destacado = n === cloCloserSel;
+        return { label: n, data: pts, spanGaps: true,
+          borderColor: destacado ? '#E7FF2A' : 'hsla(' + (200 + i * 26) + ',62%,58%,0.85)',
+          borderWidth: destacado ? 3 : 1.8, tension: 0.3, pointRadius: 2 };
+      });
+    }
+    const tL = document.getElementById('chartCloLineasTit'), sL = document.getElementById('chartCloLineasSub');
+    if (tL) tL.textContent = gr.porSemana ? 'Tasa de cierre acumulada por closer, semana a semana'
+                           : (gr.porDia ? 'Tasa de cierre acumulada por closer, día a día' : 'Tasa de cierre mensual por closer');
+    if (sL) sL.textContent = acumCloser
+      ? 'cierres / atendidas desde el inicio del período · la línea aparece cuando el closer llega a 10 atendidas'
+      : 'una línea por closer · meses con 10+ citas atendidas';
     const hayLineas = dsLineas.some(function (ds) { return ds.data.some(function (v) { return v !== null; }); });
-    if (!mesesTodos.length || !hayLineas) cloVacio_('chartCloLineas', 'Sin meses con 10+ citas atendidas por closer');
+    if (!mesesTodos.length || !hayLineas) cloVacio_('chartCloLineas', acumCloser ? 'Ningún closer llega a 10 citas atendidas en el período' : 'Sin meses con 10+ citas atendidas por closer');
     else nuevo('chartCloLineas', {
       type: 'line',
-      data: { labels: mesesTodos.map(function (k) { return CLO_MESES_C[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4); }), datasets: dsLineas },
+      data: { labels: acumCloser ? gr.etiquetas : mesesTodos.map(function (k) { return CLO_MESES_C[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4); }), datasets: dsLineas },
       options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
         plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 8, font: { size: 13 } } },
           tooltip: { callbacks: { label: function (c) { return c.parsed.y === null ? null : c.dataset.label + ': ' + c.parsed.y + '%'; } } } },
