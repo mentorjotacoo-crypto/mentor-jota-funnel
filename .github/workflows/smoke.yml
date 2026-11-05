@@ -1,0 +1,54 @@
+name: Chequeo diario del tablero
+
+# Antes lo corría la tarea "MentorJota - Chequeo Dashboard" del PC (8:30) y no
+# corría si el PC estaba apagado. Desde el 5-nov-2026 corre aquí, en la nube.
+# Mismo script (smoke_test.py): integridad del HTML, el payload descifra, datos
+# frescos (tracker < 24 h, ascensos < 3 días hábiles) y los 13 tabs en Chrome.
+# Si pasa, late al hombre muerto del Hub (job smoke_dashboard); si falla, NO late
+# y el Hub avisa cuando se cumple la ventana (mismo comportamiento que antes,
+# sin WhatsApp extra). El repo es público: el script no imprime cifras aquí.
+on:
+  schedule:
+    - cron: '30 13 * * *'   # 8:30 Bogotá (UTC-5)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-tablero
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Dependencias
+        run: pip install --quiet cryptography
+
+      - name: Chequeo del tablero publicado
+        env:
+          SMOKE_CLAVE: ${{ secrets.FUNNEL_PASSWORD }}
+        run: python -u smoke_test.py
+
+      - name: Latido al Hub (solo si pasó)
+        if: success()
+        env:
+          HUB_KEY: ${{ secrets.HUB_HEARTBEAT_KEY }}
+        run: |
+          if [ -z "$HUB_KEY" ]; then echo "sin HUB_HEARTBEAT_KEY: no se late"; exit 0; fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 -X POST \
+            "https://mentor-hub-production.up.railway.app/api/heartbeat" \
+            -H "Content-Type: application/json" -H "x-hub-key: $HUB_KEY" \
+            -d '{"job":"smoke_dashboard"}')
+          echo "latido smoke_dashboard: HTTP $code"
+          [ "$code" -lt 300 ]

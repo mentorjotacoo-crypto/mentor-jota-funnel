@@ -44,7 +44,14 @@ EDGE_CANDIDATOS = [
     r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
     r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
     r'C:\Program Files\Microsoft\Edge\Application\msedge.exe',
+    # Linux: el chequeo diario corre en GitHub Actions desde el 5-nov-2026
+    # (.github/workflows/smoke.yml), ya no en el PC.
+    '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium-browser', '/usr/bin/chromium',
 ]
+# El repo es PÚBLICO y el log de Actions también: allí no se imprimen cifras ni
+# detalles (spend, citas, días, errores con datos); solo el nombre de cada chequeo.
+PUBLICO = os.environ.get('GITHUB_ACTIONS') == 'true'
 TABS = ['pulso', 'semanal', 'resumen', 'embudo', 'journey', 'trends', 'revenue', 'canales',
         'ascensos', 'closers', 'forecast', 'compare', 'data']
 
@@ -56,7 +63,7 @@ def check(nombre, ok, detalle='', critico=True, solo_al_fallar=False):
     """detalle: contexto a mostrar. Con solo_al_fallar=True se omite si pasa
     (para no imprimir el mensaje de error cuando el check fue exitoso)."""
     estado = 'PASS' if ok else ('FAIL' if critico else 'WARN')
-    mostrar = detalle if (detalle and not (solo_al_fallar and ok)) else ''
+    mostrar = detalle if (detalle and not (solo_al_fallar and ok) and not PUBLICO) else ''
     print(f'  [{estado}] {nombre}' + (f' — {mostrar}' if mostrar else ''))
     if not ok:
         (fallos if critico else avisos).append(f'{nombre}: {detalle}')
@@ -152,7 +159,7 @@ setTimeout(async () => {
             for modo in ('--headless=new', '--headless'):
                 try:
                     salida = subprocess.run(
-                        [nav, modo, '--disable-gpu',
+                        [nav, modo, '--disable-gpu'] + ([] if os.name == 'nt' else ['--no-sandbox']) + [
                          '--virtual-time-budget=30000', '--dump-dom', 'file:///' + ruta.replace('\\', '/')],
                         capture_output=True, text=True, timeout=180, encoding='utf-8', errors='replace').stdout or ''
                 except subprocess.TimeoutExpired:
@@ -173,10 +180,12 @@ setTimeout(async () => {
 
 
 def main():
-    if len(sys.argv) < 2:
-        print('Uso: python smoke_test.py "<clave>" [--local]')
+    # La clave puede venir por variable (SMOKE_CLAVE) para no quedar en la lista de procesos.
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    clave = args[0] if args else os.environ.get('SMOKE_CLAVE', '')
+    if not clave:
+        print('Uso: python smoke_test.py "<clave>" [--local]   (o SMOKE_CLAVE en el entorno)')
         sys.exit(2)
-    clave = sys.argv[1]
     local = '--local' in sys.argv
     print(f'\n=== SMOKE TEST — {"index.html local" if local else URL} ===\n')
 
@@ -254,6 +263,10 @@ def main():
     res, err = prueba_navegador(html, clave)
     if err:
         print(f'  [WARN] prueba de navegador omitida — {err}')
+        if PUBLICO:
+            # En el PC sin navegador era aviso; en Actions siempre hay Chrome, así que
+            # quedarse sin la prueba de runtime es una falla real del chequeo.
+            fallos.append('prueba de navegador omitida')
     elif not res:
         check('el dashboard renderiza en navegador', False, 'la sonda no respondió (¿login fallido?)')
     else:
@@ -288,11 +301,11 @@ def main():
     if fallos:
         _p(f'RESULTADO: {len(fallos)} FALLO(S) CRITICOS')
         for f in fallos:
-            _p(f'  X {f}')
+            _p(f'  X {f.split(":")[0] if PUBLICO else f}')
         sys.exit(1)
     print('RESULTADO: TODO OK' + (f' ({len(avisos)} aviso(s))' if avisos else ''))
     for a in avisos:
-        _p(f'  ! {a}')
+        _p(f'  ! {a.split(":")[0] if PUBLICO else a}')
     sys.exit(0)
 
 
