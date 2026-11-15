@@ -103,7 +103,8 @@ jobs:
           esac
           ok=0
           for intento in 1 2 3; do
-            git add index.html
+            # ascensos.enc: build.js lo regraba cuando el dispatch trae ascensos nuevos del Sheet
+            git add index.html ascensos.enc
             if git diff --staged --quiet; then
               echo "Sin cambios en index.html"
               ok=1; break

@@ -158,6 +158,43 @@ fusionarEnc('closers.enc', 'closers', d => d.r.length + ' citas, ' + d.closers.l
 fusionarEnc('atribucion.enc', 'atribucion', d => Object.keys(d.dias).length + ' dias por canal (' + d.modelo + ')');
 fusionarEnc('ascensos.enc', 'ascensos', d => Object.keys(d.days).length + ' dias');
 
+// Ascensos recientes desde el Google Sheet de Juan (15-nov-2026). El Apps Script del
+// tracker manda en el dispatch `ht = {generado, days}` con los últimos 3 meses de las
+// pestañas high ticket (el Excel que leía sync_ascensos.py quedó congelado el 9-nov).
+// Aquí se fusionan sobre ascensos.enc y, si cambió algo, se vuelve a guardar el .enc
+// (el workflow lo commitea) para que el histórico no dependa de que el día siga dentro
+// de la ventana de 3 meses. `ht` no viaja al tablero: ya quedó dentro de data.ascensos.
+(function fusionarHT() {
+  const ht = data.ht;
+  delete data.ht;
+  if (!ht || !ht.days || !data.ascensos || !data.ascensos.days) return;
+  const iguales = (x, y) => {
+    if (!x || !y) return false;
+    const ks = new Set([...Object.keys(x), ...Object.keys(y)]);
+    for (const k of ks) if (Math.abs((Number(x[k]) || 0) - (Number(y[k]) || 0)) > 0.005) return false;
+    return true;
+  };
+  let cambios = 0;
+  for (const k of Object.keys(ht.days)) {
+    if (!ISO_DIA_RE.test(k)) continue;
+    if (iguales(data.ascensos.days[k], ht.days[k])) continue;
+    data.ascensos.days[k] = ht.days[k];
+    cambios++;
+  }
+  if (!cambios) { console.log('[OK] ascensos del Sheet (' + Object.keys(ht.days).length + ' dias): sin cambios'); return; }
+  data.ascensos.updatedAt = ht.generado || data.ascensos.updatedAt;
+  data.ascensos.source = 'Google Sheet (via tracker)';
+  const ordenado = {};
+  Object.keys(data.ascensos.days).sort().forEach(k => { ordenado[k] = data.ascensos.days[k]; });
+  data.ascensos.days = ordenado;
+  const plano = zlib.gzipSync(Buffer.from(JSON.stringify(data.ascensos), 'utf8'), { level: 9 });
+  const s = crypto.randomBytes(SALT_LEN), v = crypto.randomBytes(IV_LEN);
+  const c = crypto.createCipheriv('aes-256-gcm', crypto.pbkdf2Sync(password, s, ITERATIONS, 32, 'sha256'), v);
+  const ct = Buffer.concat([c.update(plano), c.final()]);
+  fs.writeFileSync(path.join(__dirname, 'ascensos.enc'), Buffer.concat([s, v, c.getAuthTag(), ct]).toString('base64'), 'ascii');
+  console.log('[OK] ascensos del Sheet: ' + cambios + ' dias actualizados; ascensos.enc regrabado');
+})();
+
 // Comprimir ANTES de cifrar: el JSON comprime ~90%; lo cifrado no comprime.
 // El navegador detecta el magic gzip tras descifrar y usa DecompressionStream.
 const rawJson = Buffer.from(JSON.stringify(data), 'utf8');
