@@ -21,6 +21,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 
 XLSX = r'H:\Mi unidad\Empresas Cynthia y Jose Julian\Mentor Jota\Técnico\Hoja de seguimiento Mentor Jota Consolidado.xlsx'
+FUENTE_JSON = os.path.join(os.path.dirname(XLSX), 'ascensos_fuente.json')
 REPO = os.path.dirname(os.path.abspath(__file__))
 
 MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
@@ -71,25 +72,55 @@ def main():
         sys.exit(1)
     password = sys.argv[1]
 
-    print(f'Leyendo {XLSX}...')
-    wb = openpyxl.load_workbook(XLSX, read_only=True, data_only=True)
-
+    # 15-nov-2026: Juan paso el libro a Google Sheets (privado). El script ligado a ese Sheet
+    # (C:/tmp/consolidado_clone/ascensos.js) deja cada 2 horas "ascensos_fuente.json" en la
+    # misma carpeta de Drive con las filas de las pestanas mensuales. Si existe, ESA es la
+    # fuente; el Excel viejo queda solo como respaldo por si el JSON no esta.
     hoy = date.today()
     days = {}
     hojas_leidas = []
+    fuente = 'Hoja de seguimiento Mentor Jota Consolidado.xlsx'
+    hojas = {}          # nombre -> lista de filas [fecha(date), col2, col3, ...]
+    if os.path.exists(FUENTE_JSON):
+        print(f'Leyendo {FUENTE_JSON}...')
+        with open(FUENTE_JSON, encoding='utf-8') as f:
+            src = json.load(f)
+        fuente = 'Google Sheet (ascensos_fuente.json, %s)' % src.get('generado', '?')
+        try:
+            edad = (datetime.now() - datetime.fromisoformat(src['generado'])).total_seconds() / 3600
+            if edad > 30:
+                print('[AVISO] ascensos_fuente.json tiene %.0f horas: revisar el trigger del Sheet' % edad)
+        except (KeyError, ValueError):
+            pass
+        for nombre, filas_src in src.get('hojas', {}).items():
+            out = []
+            for r in filas_src:
+                try:
+                    out.append([date.fromisoformat(r[0])] + list(r[1:]))
+                except (ValueError, TypeError, IndexError):
+                    continue
+            hojas[nombre] = out
+    else:
+        print(f'Leyendo {XLSX}...')
+        wb = openpyxl.load_workbook(XLSX, read_only=True, data_only=True)
+        for nombre in wb.sheetnames:
+            partes = nombre.split(' ')
+            if len(partes) != 2 or partes[0] not in MESES or not partes[1].isdigit():
+                continue
+            out = []
+            for row in wb[nombre].iter_rows(min_row=2, max_col=max(COLS.values()), values_only=True):
+                if isinstance(row[0], datetime):
+                    out.append([row[0].date()] + list(row[1:]))
+            hojas[nombre] = out
 
-    for anio in (2025, 2026):
+    for anio in range(2025, hoy.year + 1):
         for mi, mes in enumerate(MESES):
             nombre = f'{mes} {anio}'
-            if nombre not in wb.sheetnames:
+            if nombre not in hojas:
                 continue
-            ws = wb[nombre]
             filas = 0
-            for row in ws.iter_rows(min_row=2, max_col=max(COLS.values())):
-                dia_cell = row[0].value
-                if not isinstance(dia_cell, datetime):
-                    continue
-                d = dia_cell.date()
+            for row in hojas[nombre]:
+                d = row[0]
                 if d.year != anio or d.month != mi + 1:
                     continue  # basura fuera del mes
                 if d > hoy:
@@ -99,7 +130,7 @@ def main():
                     days[key] = {k: 0 for k in COLS}
                 # Sumar (soporta varias fuentes por día: Facebook, Google...)
                 for k, c in COLS.items():
-                    days[key][k] += num(row[c - 1].value)
+                    days[key][k] += num(row[c - 1] if c - 1 < len(row) else None)
                 filas += 1
             hojas_leidas.append(f'{nombre} ({filas} filas)')
 
@@ -110,7 +141,7 @@ def main():
 
     ascensos = {
         'updatedAt': datetime.now().strftime('%Y-%m-%d %H:%M'),
-        'source': 'Hoja de seguimiento Mentor Jota Consolidado.xlsx',
+        'source': fuente,
         'days': days,
     }
 
