@@ -1793,7 +1793,7 @@
           </div>
           <div class="chart-card">
             <div class="chart-title">Tipo de pago por closer</div>
-            <div class="chart-subtitle">qui&eacute;n cierra de contado y qui&eacute;n a cuotas (ignora el filtro de closer)</div>
+            <div class="chart-subtitle">largo de la barra = n&uacute;mero de cierres; dentro va el valor vendido (ignora el filtro de closer)</div>
             <div class="chart-wrap"><canvas id="chartCloPagoCloser"></canvas></div>
           </div>
         </div>
@@ -6245,7 +6245,26 @@ function renderClosers() {
 
       // por closer (ignora el filtro de closer)
       const todosC = cloFiltrar_({ ignorarCloser: true }).filter(function (f) { return f.cerro; });
-      const porCl = {}; todosC.forEach(function (f) { const o = porCl[f.closer] || (porCl[f.closer] = { c: 0, d: 0, o: 0 }); if (f.pago === 'contado') o.c++; else if (f.pago === 'diferido') o.d++; else o.o++; });
+      const porCl = {}; todosC.forEach(function (f) { const o = porCl[f.closer] || (porCl[f.closer] = { c: 0, d: 0, o: 0, vc: 0, vd: 0, vo: 0, pc: 0, pd: 0, po: 0 }); const t = f.pago === 'contado' ? 'c' : f.pago === 'diferido' ? 'd' : 'o'; o[t]++; o['v' + t] += f.venta || 0; o['p' + t] += f.pagado || 0; });
+      // 19-nov-2026: la barra cuenta cierres, asi que tres closers con 7 cierres se veian iguales
+      // aunque vendieran montos muy distintos. Cada tramo lleva escrito cierres y valor vendido.
+      const CLAVE = ['c', 'd', 'o'];
+      const rotulos = { id: 'cloPagoRotulos', afterDatasetsDraw: function (ch) {
+        const g = ch.ctx; g.save(); g.font = '600 11px Inter, system-ui, sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'center';
+        ch.data.datasets.forEach(function (ds, di) {
+          const m = ch.getDatasetMeta(di); if (m.hidden) return;
+          m.data.forEach(function (el, i) {
+            const o = porCl[cls[i]], k = CLAVE[di]; if (!o || !o[k]) return;
+            const ancho = Math.abs(el.x - el.base);
+            let txt = o[k] + ' · ' + fmtMoneyCompact(o['v' + k]);
+            if (g.measureText(txt).width + 8 > ancho) txt = String(o[k]);
+            if (g.measureText(txt).width + 6 > ancho) return;
+            g.fillStyle = di === 0 ? '#ffffff' : '#0c1418';
+            g.fillText(txt, (el.x + el.base) / 2, el.y);
+          });
+        });
+        g.restore();
+      } };
       const cls = Object.keys(porCl).sort(function (a, b) { return (porCl[b].c + porCl[b].d + porCl[b].o) - (porCl[a].c + porCl[a].d + porCl[a].o); });
       nuevo('chartCloPagoCloser', { type: 'bar',
         data: { labels: cls, datasets: [
@@ -6253,7 +6272,8 @@ function renderClosers() {
           { label: 'Diferido', data: cls.map(function (k) { return porCl[k].d; }), backgroundColor: COL.diferido, stack: 'p', borderRadius: 2 },
           { label: 'Sin valor/pago', data: cls.map(function (k) { return porCl[k].o; }), backgroundColor: COL.otro, stack: 'p', borderRadius: 2 }
         ]},
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: LEG, tooltip: { callbacks: { footer: function (it) { const o = porCl[it[0].label]; const t = o.c + o.d + o.o; return t ? Math.round(o.c / Math.max(1, o.c + o.d) * 100) + '% de contado · ' + t + ' cierres' : ''; } } } },
+        plugins: [rotulos],
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: LEG, tooltip: { callbacks: { label: function (t) { const o = porCl[t.label], k = CLAVE[t.datasetIndex]; return ' ' + t.dataset.label + ': ' + o[k] + ' cierres · ' + fmtMoneyCompact(o['v' + k]) + ' vendidos · ' + fmtMoneyCompact(o['p' + k]) + ' cobrados'; }, footer: function (it) { const o = porCl[it[0].label]; const t = o.c + o.d + o.o; return t ? Math.round(o.c / Math.max(1, o.c + o.d) * 100) + '% de contado · ' + t + ' cierres' : ''; } } } },
           scales: { x: { stacked: true, beginAtZero: true, grid: GRID, ticks: { stepSize: 1 } }, y: { stacked: true, grid: { display: false } } } } });
 
       // programa: cierres y valor
