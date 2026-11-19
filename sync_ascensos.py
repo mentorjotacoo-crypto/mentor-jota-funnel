@@ -88,7 +88,7 @@ def main():
         fuente = 'Google Sheet (ascensos_fuente.json, %s)' % src.get('generado', '?')
         try:
             edad = (datetime.now() - datetime.fromisoformat(src['generado'])).total_seconds() / 3600
-            if edad > 30:
+            if edad > 3:
                 # 19-nov-2026: con la copia vieja este script regrababa ascensos.enc y PISABA
                 # los dias que el tracker ya habia traido del Sheet (el tablero se quedo en el
                 # 12-nov). La fuente viva es el tracker (data.ht -> build.js); una copia vieja
