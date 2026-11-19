@@ -89,7 +89,12 @@ def main():
         try:
             edad = (datetime.now() - datetime.fromisoformat(src['generado'])).total_seconds() / 3600
             if edad > 30:
-                print('[AVISO] ascensos_fuente.json tiene %.0f horas: revisar el trigger del Sheet' % edad)
+                # 19-nov-2026: con la copia vieja este script regrababa ascensos.enc y PISABA
+                # los dias que el tracker ya habia traido del Sheet (el tablero se quedo en el
+                # 12-nov). La fuente viva es el tracker (data.ht -> build.js); una copia vieja
+                # no publica nada.
+                print('[SKIP] ascensos_fuente.json tiene %.0f horas: los ascensos los trae el tracker' % edad)
+                sys.exit(9)
         except (KeyError, ValueError):
             pass
         for nombre, filas_src in src.get('hojas', {}).items():
